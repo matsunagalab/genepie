@@ -219,7 +219,7 @@ contains
       do i = 1, option%num_replicas
         nstep = size(data_k(i)%vtarget(:))
 
-        if (option%input_type == InputTypeCV .or. option%input_type == InputTypeUS) then        
+        if (option%input_type == InputTypeCV .or. option%input_type == InputTypeUS) then
           data_k(i)%vtarget(:) = 0.0_wp
 
         else if (option%input_type == InputTypeEneSingle .or. option%input_type == InputTypeREMD) then
@@ -230,11 +230,12 @@ contains
         else if (option%input_type == InputTypeEnePair .or. option%input_type == InputTypeFEP) then
           data_k(i)%vtarget(:) = 0.0_wp
 
-        else if (option%input_type == InputTypeEneAll .or. option%input_type == InputTypeREST .or. option%input_type == InputTypeMBGO) then
+        else if (option%input_type == InputTypeEneAll .or. option%input_type == InputTypeREST &
+                 .or. option%input_type == InputTypeMBGO) then
           do j = 1, nstep
             data_k(i)%vtarget(j) = data_k(i)%v(j, i)
           end do
-        
+
         end if
 
       end do
@@ -587,7 +588,8 @@ contains
       nfunc = 1
     else if (option%input_type == InputTypeEnePair .or. option%input_type == InputTypeFEP) then
       nfunc = 3
-    else if (option%input_type == InputTypeEneAll .or. option%input_type == InputTypeREST .or. option%input_type == InputTypeMBGO) then
+    else if (option%input_type == InputTypeEneAll .or. option%input_type == InputTypeREST &
+             .or. option%input_type == InputTypeMBGO) then
       nfunc = nbrella
     else
       call error_msg('Build_Data_K_From_Ene> unsupported input type')
@@ -1224,7 +1226,7 @@ contains
     type(s_option),          intent(in)    :: option
     type(s_data_k),          intent(in)    :: data_k(:)
     type(s_u_kl),            allocatable   :: u_kl(:,:)
- 
+
     ! local variables
     integer                  :: nbrella, ibrella, ndim, nfunc, ifunc, nstep, istep
     integer                  :: i, j, k, l
@@ -1239,7 +1241,8 @@ contains
       nfunc = 1
     else if (option%input_type == InputTypeEnePair .or. option%input_type == InputTypeFEP) then
       nfunc = 2
-    else if (option%input_type == InputTypeEneAll .or. option%input_type == InputTypeREST .or. option%input_type == InputTypeMBGO) then
+    else if (option%input_type == InputTypeEneAll .or. option%input_type == InputTypeREST &
+             .or. option%input_type == InputTypeMBGO) then
       nfunc = nbrella
     else
       call error_msg('Build_U_KL_From_Ene> unsupported input type')
@@ -1275,7 +1278,8 @@ contains
           end do
         end if
       end do
-    else if (option%input_type == InputTypeEneAll .or. option%input_type == InputTypeREST .or. option%input_type == InputTypeMBGO) then
+    else if (option%input_type == InputTypeEneAll .or. option%input_type == InputTypeREST &
+             .or. option%input_type == InputTypeMBGO) then
       do k = 1, nbrella
         do l = 1, nbrella
           allocate(u_kl(k,l)%v(nstep))

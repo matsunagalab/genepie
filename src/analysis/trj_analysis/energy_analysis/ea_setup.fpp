@@ -281,7 +281,9 @@ contains
     call dealloc_rst_all(rst)
     call dealloc_restraints_all(restraints)
     if (remd%rest_mixed_three_atoms) &
-        call error_msg('Setup> This combination type of solute/solvent is not allowed in this program. Please execute spdyn with analysis_grest option.')
+        call error_msg('Setup> This combination type of solute/solvent '//&
+                       'is not allowed in this program. Please execute '//&
+                       'spdyn with analysis_grest option.')
 
     return
 
