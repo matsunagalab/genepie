@@ -1,10 +1,14 @@
 lib_LTLIBRARIES = libpython_interface.la
 
 libpython_interface_la_SOURCES = \
-        your_module.fpp
+        your_module.fpp \
+        conv_f_c_util.fpp
 
 EXTRA_DIST = \
 	Makefile.depends
+
+SUFFIXES = .fpp
+DEPENDS = Makefile.depends
 
 # Ensure Position-Independent Code is generated
 AM_FCFLAGS = -fPIC
