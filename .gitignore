@@ -1,5 +1,6 @@
 .DS_Store
 *.o
+*.lo
 *~
 *.swp
 *.a
@@ -14,13 +15,13 @@ configure
 aclocal.m4
 autom4te.cache/
 Makefile
-aclocal.m4
 src/config.h
 src/config.h.in
-configure
 config.log
 config.status
 Makefile.in
+libtool
+ltmain.sh
 bin/
 bin/genesis
 bin.*/
@@ -149,6 +150,3 @@ src/analysis/utilities/molecule_setup/molecule_setup
 src/analysis/utilities/morph_generator/morph_generator
 src/analysis/utilities/table_generator/table_generator
 src/cgdyn/cgdyn
-
-configure
-aclocal.m4
