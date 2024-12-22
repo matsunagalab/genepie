@@ -1,4 +1,5 @@
 import ctypes
+import c2py_util
 
 
 class SMolecule:
@@ -174,47 +175,47 @@ def c2py_s_molecule(src: SMoleculeC) -> SMolecule:
     dst.shift_origin  = src.shift_origin
     dst.special_hydrogen = src.special_hydrogen
     dst.total_charge  = src.total_charge
-    dst.atom_no = c2py_int_array(src.atom_no, dst.num_atoms)
-    dst.segment_name = c2py_str_array(src.segment_name, dst.num_atoms, 4)
-    dst.segment_no = c2py_int_array(src.segment_no, dst.num_atoms)
-    dst.residue_no = c2py_int_array(src.residue_no, dst.num_atoms)
-    dst.residue_c_no = c2py_int_array(src.residue_c_no, dst.num_atoms)
-    dst.residue_name = c2py_str_array(src.residue_name, dst.num_atoms, 6)
-    dst.atom_name = c2py_str_array(src.atom_name, dst.num_atoms, 4)
-    dst.atom_cls_name = c2py_str_array(src.atom_cls_name, dst.num_atoms, 6)
-    dst.atom_cls_no = c2py_int_array(src.atom_cls_no, dst.num_atoms)
-    dst.charge = c2py_double_array(src.charge, dst.num_atoms)
-    dst.mass = c2py_double_array(src.mass, dst.num_atoms)
-    dst.inv_mass = c2py_double_array(src.inv_mass, dst.num_atoms)
-    dst.imove = c2py_int_array(src.imove, dst.num_atoms)
-    dst.stokes_radius = c2py_double_array(src.stokes_radius, dst.num_atoms)
-    dst.inv_stokes_radius = c2py_double_array(src.inv_stokes_radius, dst.num_atoms)
+    dst.atom_no = c2py_util.conv_int_array(src.atom_no, dst.num_atoms)
+    dst.segment_name = c2py_util.conv_str_array(src.segment_name, dst.num_atoms, 4)
+    dst.segment_no = c2py_util.conv_int_array(src.segment_no, dst.num_atoms)
+    dst.residue_no = c2py_util.conv_int_array(src.residue_no, dst.num_atoms)
+    dst.residue_c_no = c2py_util.conv_int_array(src.residue_c_no, dst.num_atoms)
+    dst.residue_name = c2py_util.conv_str_array(src.residue_name, dst.num_atoms, 6)
+    dst.atom_name = c2py_util.conv_str_array(src.atom_name, dst.num_atoms, 4)
+    dst.atom_cls_name = c2py_util.conv_str_array(src.atom_cls_name, dst.num_atoms, 6)
+    dst.atom_cls_no = c2py_util.conv_int_array(src.atom_cls_no, dst.num_atoms)
+    dst.charge = c2py_util.conv_double_array(src.charge, dst.num_atoms)
+    dst.mass = c2py_util.conv_double_array(src.mass, dst.num_atoms)
+    dst.inv_mass = c2py_util.conv_double_array(src.inv_mass, dst.num_atoms)
+    dst.imove = c2py_util.conv_int_array(src.imove, dst.num_atoms)
+    dst.stokes_radius = c2py_util.conv_double_array(src.stokes_radius, dst.num_atoms)
+    dst.inv_stokes_radius = c2py_util.conv_double_array(src.inv_stokes_radius, dst.num_atoms)
 
-    dst.chain_id = c2py_str_array(src.chain_id, dst.num_atoms, 1)
-    dst.atom_coord = c2py_double_array_2d(src.atom_coord, src.num_atoms, 3)
-    dst.atom_occupancy = c2py_double_array(src.atom_occupancy, dst.num_atoms)
-    dst.atom_temp_factor = c2py_double_array(src.atom_temp_factor, dst.num_atoms)
-    dst.atom_velocity = c2py_double_array_2d(src.atom_velocity, src.num_atoms, 3)
-    dst.light_atom_name = c2py_bool_array(src.light_atom_name, src.num_atoms)
-    dst.light_atom_mass = c2py_bool_array(src.light_atom_mass, src.num_atoms)
+    dst.chain_id = c2py_util.conv_str_array(src.chain_id, dst.num_atoms, 1)
+    dst.atom_coord = c2py_util.conv_double_array_2d(src.atom_coord, src.num_atoms, 3)
+    dst.atom_occupancy = c2py_util.conv_double_array(src.atom_occupancy, dst.num_atoms)
+    dst.atom_temp_factor = c2py_util.conv_double_array(src.atom_temp_factor, dst.num_atoms)
+    dst.atom_velocity = c2py_util.conv_double_array_2d(src.atom_velocity, src.num_atoms, 3)
+    dst.light_atom_name = c2py_util.conv_bool_array(src.light_atom_name, src.num_atoms)
+    dst.light_atom_mass = c2py_util.conv_bool_array(src.light_atom_mass, src.num_atoms)
 
-    dst.molecule_no = c2py_int_array(src.molecule_no, dst.num_atoms)
+    dst.molecule_no = c2py_util.conv_int_array(src.molecule_no, dst.num_atoms)
 
-    dst.bond_list = c2py_int_array_2d(src.bond_list, src.num_bonds, 2)
-    dst.enm_list = c2py_int_array_2d(src.enm_list, src.num_enm_bonds, 2)
-    dst.angl_list = c2py_int_array_2d(src.angl_list, src.num_angles, 3)
-    dst.dihe_list = c2py_int_array_2d(src.dihe_list, src.num_dihedrals, 4)
-    dst.impr_list = c2py_int_array_2d(src.impr_list, src.num_impropers, 4)
-    dst.cmap_list = c2py_int_array_2d(src.cmap_list, src.num_cmaps, 8)
+    dst.bond_list = c2py_util.conv_int_array_2d(src.bond_list, src.num_bonds, 2)
+    dst.enm_list = c2py_util.conv_int_array_2d(src.enm_list, src.num_enm_bonds, 2)
+    dst.angl_list = c2py_util.conv_int_array_2d(src.angl_list, src.num_angles, 3)
+    dst.dihe_list = c2py_util.conv_int_array_2d(src.dihe_list, src.num_dihedrals, 4)
+    dst.impr_list = c2py_util.conv_int_array_2d(src.impr_list, src.num_impropers, 4)
+    dst.cmap_list = c2py_util.conv_int_array_2d(src.cmap_list, src.num_cmaps, 8)
 
-    dst.molecule_atom_no = c2py_int_array(src.molecule_atom_no, dst.num_molecules)
-    dst.molecule_mass = c2py_double_array(src.molecule_mass, dst.num_molecules)
-    dst.molecule_name = c2py_str_array(src.molecule_name, dst.num_molecules, 10)
-    dst.atom_refcoord = c2py_double_array_2d(src.atom_refcoord, src.num_atoms, 3)
-    dst.atom_fitcoord = c2py_double_array_2d(src.atom_fitcoord, src.num_atoms, 3)
+    dst.molecule_atom_no = c2py_util.conv_int_array(src.molecule_atom_no, dst.num_molecules)
+    dst.molecule_mass = c2py_util.conv_double_array(src.molecule_mass, dst.num_molecules)
+    dst.molecule_name = c2py_util.conv_str_array(src.molecule_name, dst.num_molecules, 10)
+    dst.atom_refcoord = c2py_util.conv_double_array_2d(src.atom_refcoord, src.num_atoms, 3)
+    dst.atom_fitcoord = c2py_util.conv_double_array_2d(src.atom_fitcoord, src.num_atoms, 3)
 
     dst.num_pc_modes = int(src.num_pc_modes)
-    dst.pc_mode = c2py_double_array(src.pc_mode, dst.num_pc_modes)
+    dst.pc_mode = c2py_util.conv_double_array(src.pc_mode, dst.num_pc_modes)
 
     dst.fep_topology = int(src.fep_topology)
     dst.num_hbonds_singleA = int(src.num_hbonds_singleA)
@@ -227,103 +228,17 @@ def c2py_s_molecule(src: SMoleculeC) -> SMolecule:
     dst.num_impropers_fep = int(src.num_impropers_fep)
     dst.num_cmaps_fep = int(src.num_cmaps_fep)
 
-    dst.bond_list_fep = c2py_int_array_3d(src.bond_list_fep, 5, src.nbnd_fep_max, 2)
-    dst.angl_list_fep = c2py_int_array_3d(src.angl_list_fep, 5, src.nangl_fep_max, 3)
-    dst.dihe_list_fep = c2py_int_array_3d(src.dihe_list_fep, 5, src.ndihe_fep_max, 4)
-    dst.impr_list_fep = c2py_int_array_3d(src.impr_list_fep, 5, src.nimpr_fep_max, 4)
-    dst.cmap_list_fep = c2py_int_array_3d(src.cmap_list_fep, 5, src.ncmap_fep_max, 8)
+    dst.bond_list_fep = c2py_util.conv_int_array_3d(src.bond_list_fep, 5, src.nbnd_fep_max, 2)
+    dst.angl_list_fep = c2py_util.conv_int_array_3d(src.angl_list_fep, 5, src.nangl_fep_max, 3)
+    dst.dihe_list_fep = c2py_util.conv_int_array_3d(src.dihe_list_fep, 5, src.ndihe_fep_max, 4)
+    dst.impr_list_fep = c2py_util.conv_int_array_3d(src.impr_list_fep, 5, src.nimpr_fep_max, 4)
+    dst.cmap_list_fep = c2py_util.conv_int_array_3d(src.cmap_list_fep, 5, src.ncmap_fep_max, 8)
 
-    dst.id_singleA = c2py_int_array(src.id_singleA, src.size_id_singleA)
-    dst.id_singleB = c2py_int_array(src.id_singleB, src.size_id_singleB)
-    dst.fepgrp = c2py_int_array(src.fepgrp, src.size_fepgrp)
-    dst.fepgrp_bond = c2py_int_array_2d(src.fepgrp_bond, 5, 5)
-    dst.fepgrp_angl = c2py_int_array_3d(src.fepgrp_angl, 5, 5, 5)
-    dst.fepgrp_dihe = c2py_int_array_4d(src.fepgrp_dihe, 5, 5, 5, 5)
-    dst.fepgrp_cmap = c2py_int_array(src.fepgrp_cmap, 5*5*5*5*5*5*5*5)
+    dst.id_singleA = c2py_util.conv_int_array(src.id_singleA, src.size_id_singleA)
+    dst.id_singleB = c2py_util.conv_int_array(src.id_singleB, src.size_id_singleB)
+    dst.fepgrp = c2py_util.conv_int_array(src.fepgrp, src.size_fepgrp)
+    dst.fepgrp_bond = c2py_util.conv_int_array_2d(src.fepgrp_bond, 5, 5)
+    dst.fepgrp_angl = c2py_util.conv_int_array_3d(src.fepgrp_angl, 5, 5, 5)
+    dst.fepgrp_dihe = c2py_util.conv_int_array_4d(src.fepgrp_dihe, 5, 5, 5, 5)
+    dst.fepgrp_cmap = c2py_util.conv_int_array(src.fepgrp_cmap, 5*5*5*5*5*5*5*5)
     return dst
-
-
-def c2py_bool_array(src: ctypes.c_void_p, size: int):
-    if src:
-        ptr = ctypes.cast(src, ctypes.POINTER(ctypes.c_bool))
-        return list(bool(ptr[i]) for i in range(0, size))
-    else:
-        return ()
-
-def c2py_int_array(src: ctypes.c_void_p, size: int):
-    if src:
-        ptr = ctypes.cast(src, ctypes.POINTER(ctypes.c_int))
-        return list(int(ptr[i]) for i in range(0, size))
-    else:
-        return ()
-
-
-def c2py_int_array_2d(src: ctypes.c_void_p, size1: int, size2: int):
-    if src:
-        ptr = ctypes.cast(src, ctypes.POINTER(ctypes.c_int))
-        return list(tuple(int(ptr[i * size2 + j]) for j in range(0, size2)) for i in range(0, size1))
-    else:
-        return ()
-
-
-def c2py_int_array_3d(src: ctypes.c_void_p, size1: int, size2: int, size3: int):
-    if src:
-        ptr = ctypes.cast(src, ctypes.POINTER(ctypes.c_int))
-        return list(
-                tuple(
-                    tuple(
-                        int(ptr[i1 * size2 * size3 + i2 * size3 + i3])
-                        for i3 in range(0, size3))
-                    for i2 in range(0, size2))
-                for i1 in range(0, size1))
-    else:
-        return ()
-
-
-def c2py_int_array_4d(src: ctypes.c_void_p,
-                      size1: int, size2: int, size3: int, size4: int):
-    if src:
-        ptr = ctypes.cast(src, ctypes.POINTER(ctypes.c_int))
-        return list(
-                tuple(
-                    tuple(
-                        tuple(
-                            int(ptr[i1 * size2 * size3 * size4
-                                    + i2 * size3 * size4 + i3 * size4 + i4])
-                            for i4 in range(0, size3))
-                        for i3 in range(0, size3))
-                    for i2 in range(0, size2))
-                for i1 in range(0, size1))
-    else:
-        return ()
-
-
-def c2py_double_array(src: ctypes.c_void_p, size: int):
-    if src:
-        ptr = ctypes.cast(src, ctypes.POINTER(ctypes.c_double))
-        return list(float(ptr[i]) for i in range(0, size))
-    else:
-        return ()
-
-
-def c2py_double_array_2d(src: ctypes.c_void_p, size1: int, size2: int):
-    if src:
-        ptr = ctypes.cast(src, ctypes.POINTER(ctypes.c_double))
-        return list(tuple(float(ptr[i * size2 + j]) for j in range(0, size2)) for i in range(0, size1))
-    else:
-        return ()
-
-
-def c2py_str_array(src: ctypes.c_void_p, size_array: int, size_str: int):
-    if src:
-        ptr = ctypes.cast(src, ctypes.POINTER(ctypes.c_char))
-        return list(c2py_str(ptr[i * size_str], size_str) for i in range(0, size_array))
-    else:
-        return ()
-
-
-def c2py_str(src: ctypes.c_void_p, size: int):
-    if src:
-        ptr = ctypes.cast(src, ctypes.POINTER(ctypes.c_char))
-        return ''.join(str(ptr[i].decode('utf8')) for i in range(0, size))
-    return ' ' * size
