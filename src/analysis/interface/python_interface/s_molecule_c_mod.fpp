@@ -138,45 +138,45 @@ contains
 
     c_dst%total_charge = f_src%total_charge
 
-    c_dst%atom_no = f2c_int_array_allocatable(f_src%atom_no)
-    c_dst%segment_name  = f2c_string_array_allocatable(f_src%segment_name)
-    c_dst%segment_no    = f2c_int_array_allocatable(f_src%segment_no)
-    c_dst%residue_no    = f2c_int_array_allocatable(f_src%residue_no)
-    c_dst%residue_c_no  = f2c_int_array_allocatable(f_src%residue_c_no)
-    c_dst%residue_name  = f2c_string_array_allocatable(f_src%residue_name)
-    c_dst%atom_name     = f2c_string_array_allocatable(f_src%atom_name)
-    c_dst%atom_cls_name = f2c_string_array_allocatable(f_src%atom_cls_name)
-    c_dst%atom_cls_no   = f2c_int_array_allocatable(f_src%atom_cls_no)
-    c_dst%charge            = f2c_double_array_allocatable(f_src%charge)
-    c_dst%mass              = f2c_double_array_allocatable(f_src%mass)
-    c_dst%inv_mass          = f2c_double_array_allocatable(f_src%inv_mass)
-    c_dst%imove             = f2c_int_array_allocatable(f_src%imove)
-    c_dst%stokes_radius     = f2c_double_array_allocatable(f_src%stokes_radius)
-    c_dst%inv_stokes_radius = f2c_double_array_allocatable(f_src%inv_stokes_radius)
+    c_dst%atom_no = f2c_int_array_nullcheck(f_src%atom_no)
+    c_dst%segment_name  = f2c_string_array_nullcheck(f_src%segment_name)
+    c_dst%segment_no    = f2c_int_array_nullcheck(f_src%segment_no)
+    c_dst%residue_no    = f2c_int_array_nullcheck(f_src%residue_no)
+    c_dst%residue_c_no  = f2c_int_array_nullcheck(f_src%residue_c_no)
+    c_dst%residue_name  = f2c_string_array_nullcheck(f_src%residue_name)
+    c_dst%atom_name     = f2c_string_array_nullcheck(f_src%atom_name)
+    c_dst%atom_cls_name = f2c_string_array_nullcheck(f_src%atom_cls_name)
+    c_dst%atom_cls_no   = f2c_int_array_nullcheck(f_src%atom_cls_no)
+    c_dst%charge            = f2c_double_array_nullcheck(f_src%charge)
+    c_dst%mass              = f2c_double_array_nullcheck(f_src%mass)
+    c_dst%inv_mass          = f2c_double_array_nullcheck(f_src%inv_mass)
+    c_dst%imove             = f2c_int_array_nullcheck(f_src%imove)
+    c_dst%stokes_radius     = f2c_double_array_nullcheck(f_src%stokes_radius)
+    c_dst%inv_stokes_radius = f2c_double_array_nullcheck(f_src%inv_stokes_radius)
 
-    c_dst%chain_id = f2c_string_array_allocatable(f_src%chain_id)
-    c_dst%atom_coord = f2c_double_array_2dim_allocatable(f_src%atom_coord)
-    c_dst%atom_occupancy = f2c_double_array_allocatable(f_src%atom_occupancy)
-    c_dst%atom_temp_factor = f2c_double_array_allocatable(f_src%atom_temp_factor)
-    c_dst%atom_velocity = f2c_double_array_2dim_allocatable(f_src%atom_velocity)
-    c_dst%light_atom_name = f2c_bool_array_allocatable(f_src%light_atom_name)
-    c_dst%light_atom_mass = f2c_bool_array_allocatable(f_src%light_atom_mass)
+    c_dst%chain_id = f2c_string_array_nullcheck(f_src%chain_id)
+    c_dst%atom_coord = f2c_double_array_nullcheck(f_src%atom_coord)
+    c_dst%atom_occupancy = f2c_double_array_nullcheck(f_src%atom_occupancy)
+    c_dst%atom_temp_factor = f2c_double_array_nullcheck(f_src%atom_temp_factor)
+    c_dst%atom_velocity = f2c_double_array_nullcheck(f_src%atom_velocity)
+    c_dst%light_atom_name = f2c_bool_array_nullcheck(f_src%light_atom_name)
+    c_dst%light_atom_mass = f2c_bool_array_nullcheck(f_src%light_atom_mass)
 
-    c_dst%molecule_no = f2c_int_array_allocatable(f_src%molecule_no)
+    c_dst%molecule_no = f2c_int_array_nullcheck(f_src%molecule_no)
 
-    c_dst%bond_list = f2c_int_array_2dim_allocatable(f_src%bond_list)
-    c_dst%enm_list = f2c_int_array_2dim_allocatable(f_src%enm_list)
-    c_dst%angl_list = f2c_int_array_2dim_allocatable(f_src%angl_list)
-    c_dst%dihe_list = f2c_int_array_2dim_allocatable(f_src%dihe_list)
-    c_dst%impr_list = f2c_int_array_2dim_allocatable(f_src%impr_list)
-    c_dst%cmap_list = f2c_int_array_2dim_allocatable(f_src%cmap_list)
-    c_dst%molecule_atom_no = f2c_int_array_allocatable(f_src%molecule_atom_no)
-    c_dst%molecule_mass = f2c_double_array_allocatable(f_src%molecule_mass)
-    c_dst%molecule_name = f2c_string_array_allocatable(f_src%molecule_name)
-    c_dst%atom_refcoord = f2c_double_array_2dim_allocatable(f_src%atom_refcoord)
-    c_dst%atom_fitcoord = f2c_double_array_2dim_allocatable(f_src%atom_fitcoord)
+    c_dst%bond_list = f2c_int_array_nullcheck(f_src%bond_list)
+    c_dst%enm_list = f2c_int_array_nullcheck(f_src%enm_list)
+    c_dst%angl_list = f2c_int_array_nullcheck(f_src%angl_list)
+    c_dst%dihe_list = f2c_int_array_nullcheck(f_src%dihe_list)
+    c_dst%impr_list = f2c_int_array_nullcheck(f_src%impr_list)
+    c_dst%cmap_list = f2c_int_array_nullcheck(f_src%cmap_list)
+    c_dst%molecule_atom_no = f2c_int_array_nullcheck(f_src%molecule_atom_no)
+    c_dst%molecule_mass = f2c_double_array_nullcheck(f_src%molecule_mass)
+    c_dst%molecule_name = f2c_string_array_nullcheck(f_src%molecule_name)
+    c_dst%atom_refcoord = f2c_double_array_nullcheck(f_src%atom_refcoord)
+    c_dst%atom_fitcoord = f2c_double_array_nullcheck(f_src%atom_fitcoord)
     c_dst%num_pc_modes = f_src%num_pc_modes
-    c_dst%pc_mode = f2c_double_array_allocatable(f_src%pc_mode)
+    c_dst%pc_mode = f2c_double_array_nullcheck(f_src%pc_mode)
 
     c_dst%fep_topology       = f_src%fep_topology
     c_dst%num_hbonds_singleA = f_src%num_hbonds_singleA
@@ -190,31 +190,31 @@ contains
     c_dst%num_cmaps_fep     = f2c_int_array(f_src%num_cmaps_fep)
 
     if (allocated(f_src%bond_list_fep)) then
-      c_dst%bond_list_fep = f2c_int_array_3dim(f_src%bond_list_fep)
+      c_dst%bond_list_fep = f2c_int_array(f_src%bond_list_fep)
       c_dst%nbnd_fep_max = size(f_src%bond_list_fep, dim=2)
     else
       c_dst%nbnd_fep_max = 0
     end if
     if (allocated(f_src%angl_list_fep)) then
-      c_dst%angl_list_fep = f2c_int_array_3dim(f_src%angl_list_fep)
+      c_dst%angl_list_fep = f2c_int_array(f_src%angl_list_fep)
       c_dst%nangl_fep_max = size(f_src%angl_list_fep, dim=2)
     else
       c_dst%nangl_fep_max = 0
     end if
     if (allocated(f_src%dihe_list_fep)) then
-      c_dst%dihe_list_fep= f2c_int_array_3dim(f_src%dihe_list_fep)
+      c_dst%dihe_list_fep= f2c_int_array(f_src%dihe_list_fep)
       c_dst%ndihe_fep_max = size(f_src%dihe_list_fep, dim=2)
     else
       c_dst%ndihe_fep_max = 0
     end if
     if (allocated(f_src%impr_list_fep)) then
-      c_dst%impr_list_fep = f2c_int_array_3dim(f_src%impr_list_fep)
+      c_dst%impr_list_fep = f2c_int_array(f_src%impr_list_fep)
       c_dst%nimpr_fep_max = size(f_src%impr_list_fep, dim=2)
     else
       c_dst%nimpr_fep_max = 0
     end if
     if (allocated(f_src%cmap_list_fep)) then
-      c_dst%cmap_list_fep = f2c_int_array_3dim(f_src%cmap_list_fep)
+      c_dst%cmap_list_fep = f2c_int_array(f_src%cmap_list_fep)
       c_dst%ncmap_fep_max = size(f_src%cmap_list_fep, dim=2)
     else
       c_dst%ncmap_fep_max = 0
@@ -237,9 +237,9 @@ contains
     else
       c_dst%size_fepgrp = 0
     end if
-    c_dst%fepgrp_bond = f2c_int_array_2dim(f_src%fepgrp_bond)
-    c_dst%fepgrp_angl = f2c_int_array_3dim(f_src%fepgrp_angl)
-    c_dst%fepgrp_dihe = f2c_int_array_4dim(f_src%fepgrp_dihe)
+    c_dst%fepgrp_bond = f2c_int_array(f_src%fepgrp_bond)
+    c_dst%fepgrp_angl = f2c_int_array(f_src%fepgrp_angl)
+    c_dst%fepgrp_dihe = f2c_int_array(f_src%fepgrp_dihe)
     c_dst%fepgrp_cmap = f2c_int_array(f_src%fepgrp_cmap)
   end subroutine
 
