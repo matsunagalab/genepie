@@ -3,6 +3,8 @@ import numpy as np
 import numpy.typing as npt
 import c2py_util
 import py2c_util
+from typing import Self
+import libgenesis
 
 
 class SMolecule:
@@ -247,7 +249,7 @@ def c2py_s_molecule(src: SMoleculeC) -> SMolecule:
     return dst
 
 
-def py2c_s_molecule(src: SMolecule, lib: ctypes.CDLL) -> SMoleculeC:
+def py2c_s_molecule(src: SMolecule) -> SMoleculeC:
     dst = SMoleculeC()
     dst.num_deg_freedom = src.num_deg_freedom
     dst.num_atoms     = src.num_atoms
@@ -264,7 +266,7 @@ def py2c_s_molecule(src: SMolecule, lib: ctypes.CDLL) -> SMoleculeC:
     dst.fep_topology = src.fep_topology
     dst.num_hbonds_singleA = src.num_hbonds_singleA
     dst.num_hbonds_singleB = src.num_hbonds_singleB
-    lib.allocate_s_molecule_c(dst)
+    libgenesis.LibGenesis().lib.allocate_s_molecule_c(dst)
 
     dst.shift_origin  = src.shift_origin
     dst.special_hydrogen = src.special_hydrogen
