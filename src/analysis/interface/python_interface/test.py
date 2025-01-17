@@ -1,11 +1,12 @@
 import ctypes
+import pathlib
 from libgenesis import LibGenesis
 from s_molecule import SMolecule, py2c_s_molecule
 
 
 def test():
     # 関数を呼び出す
-    pdb_filename = b"molecule.pdb"
+    pdb_filename = pathlib.Path("molecule.pdb")
     with SMolecule.from_pdb_file(pdb_filename) as mol:
         # 結果を処理する
         print("num_atoms = ", mol.num_atoms)

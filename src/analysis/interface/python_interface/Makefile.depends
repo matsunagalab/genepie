@@ -6,3 +6,5 @@ your_module.lo: your_module.fpp conv_f_c_util.mod s_molecule_c_mod.mod
 your_module.mod: your_module.fpp your_module.lo
 define_molecule.lo: define_molecule.fpp conv_f_c_util.mod s_molecule_c_mod.mod
 define_molecule.mod: define_molecule.fpp define_molecule.lo
+s_trajectories_c_mod.lo: s_trajectories_c_mod.fpp
+s_trajectories_c_mod.mod: s_trajectories_c_mod.fpp

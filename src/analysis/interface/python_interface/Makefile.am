@@ -4,7 +4,8 @@ libpython_interface_la_SOURCES = \
         your_module.fpp \
         conv_f_c_util.fpp \
         s_molecule_c_mod.fpp \
-        define_molecule.fpp
+        define_molecule.fpp \
+        s_trajectories_c_mod.fpp
 
 EXTRA_DIST = \
 	Makefile.depends

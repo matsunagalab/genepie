@@ -9,6 +9,15 @@ from libgenesis import LibGenesis
 from s_molecule_c import SMoleculeC
 
 
+def _pathlike_to_byte(path: str | bytes | os.PathLike) -> bytes:
+    if (type(path) is str):
+        return path.encode()
+    elif (type(path) is bytes):
+        return path
+    else:
+        return os.fspath(path).encode()
+
+
 class SMolecule:
     num_deg_freedom: int
     num_atoms: int
@@ -92,10 +101,10 @@ class SMolecule:
         """deallocate resources"""
         pass
 
-    def from_pdb_file(src_file_path: str | os.PathLike) -> Self:
+    def from_pdb_file(src_file_path: str | bytes | os.PathLike) -> Self:
         mol_c = SMoleculeC()
         LibGenesis().lib.define_molecule_from_pdb(
-                src_file_path,
+                _pathlike_to_byte(src_file_path),
                 ctypes.byref(mol_c))
         mol_py = c2py_s_molecule(mol_c)
         LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
