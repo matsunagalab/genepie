@@ -46,7 +46,7 @@ contains
       bind(C, name="deallocate_s_trajectories_c")
     implicit none
     type(s_trajectories_c), intent(inout) :: trajs_fort
-    real(c_double), pointer :: coords(:,:,:), pbc_boxes(:,:,:)
+    real(c_double), pointer :: coords(:,:,:), boxes(:,:,:)
     call C_F_POINTER(trajs_fort%coords, coords, [3, trajs_fort%natom, trajs_fort%nframe])
     deallocate(coords)
     call C_F_POINTER(trajs_fort%pbc_boxes, boxes, [3, 3, trajs_fort%nframe])
