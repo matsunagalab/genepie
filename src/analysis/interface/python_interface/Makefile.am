@@ -48,7 +48,7 @@ else
 endif
 
 depend: clean_depend
-	python ../../../../fortdep.py *.fpp > $(DEPENDS)
+	python ../../../../fortdep.py *.fpp | sed -e 's/\.o/.lo/g' > $(DEPENDS)
 
 clean_depend:
 	rm -f $(DEPENDS)

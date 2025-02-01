@@ -1,14 +1,14 @@
-conv_f_c_util.lo: conv_f_c_util.fpp
+conv_f_c_util.lo: conv_f_c_util.fpp  
 conv_f_c_util.mod: conv_f_c_util.fpp conv_f_c_util.lo
-s_molecule_c_mod.lo: s_molecule_c_mod.fpp
-s_molecule_c_mod.mod: s_molecule_c_mod.fpp s_molecule_c_mod.lo
-your_module.lo: your_module.fpp conv_f_c_util.mod s_molecule_c_mod.mod
-your_module.mod: your_module.fpp your_module.lo
-define_molecule.lo: define_molecule.fpp conv_f_c_util.mod s_molecule_c_mod.mod
-define_molecule.mod: define_molecule.fpp define_molecule.lo
-s_trajectories_c_mod.lo: s_trajectories_c_mod.fpp
-s_trajectories_c_mod.mod: s_trajectories_c_mod.fpp s_trajectories_c_mod.lo
-crd_convert_c_mod.lo: crd_convert_c_mod.fpp crd_convert_convert.mod s_trajectories_c_mod.mod conv_f_c_util.mod s_molecule_c_mod.mod
+crd_convert_c_mod.lo: crd_convert_c_mod.fpp crd_convert_convert.mod conv_f_c_util.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod 
 crd_convert_c_mod.mod: crd_convert_c_mod.fpp crd_convert_c_mod.lo
-crd_convert_convert.lo: crd_convert_convert.fpp s_trajectories_c_mod.mod
+crd_convert_convert.lo: crd_convert_convert.fpp s_trajectories_c_mod.mod 
 crd_convert_convert.mod: crd_convert_convert.fpp crd_convert_convert.lo
+define_molecule.lo: define_molecule.fpp s_molecule_c_mod.mod conv_f_c_util.mod 
+define_molecule.mod: define_molecule.fpp define_molecule.lo
+s_molecule_c_mod.lo: s_molecule_c_mod.fpp conv_f_c_util.mod 
+s_molecule_c_mod.mod: s_molecule_c_mod.fpp s_molecule_c_mod.lo
+s_trajectories_c_mod.lo: s_trajectories_c_mod.fpp  
+s_trajectories_c_mod.mod: s_trajectories_c_mod.fpp s_trajectories_c_mod.lo
+your_module.lo: your_module.fpp s_molecule_c_mod.mod conv_f_c_util.mod 
+your_module.mod: your_module.fpp your_module.lo
