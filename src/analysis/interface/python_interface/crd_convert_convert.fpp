@@ -57,7 +57,8 @@ contains
   !! @param[inout] fitting    : fitting information
   !! @param[inout] option     : option information
   !! @param[inout] output     : output information
-  !! @param[inout] out_traj   : multi flame trajectories
+  !! @param[inout] s_trajs_c_array : multi flame trajectories
+  !! @param[out]   num_trajs       : length of s_trajs_c_array
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -67,7 +68,9 @@ contains
                     fitting,    &
                     option,     &
                     output,     &
-                    out_trajectories)
+                    s_trajs_c_array, &
+                    num_trajs)
+    use, intrinsic :: iso_c_binding
 
     ! formal arguments
     type(s_molecule),   intent(inout) :: molecule
@@ -76,12 +79,14 @@ contains
     type(s_fitting),    intent(inout) :: fitting
     type(s_option),     intent(inout) :: option
     type(s_output),     intent(inout) :: output
-    type(s_trajectories_c), intent(inout), optional :: out_trajectories
+    type(c_ptr), intent(inout) :: s_trajs_c_array
+    integer(c_int), intent(out) :: num_trajs
 
     ! local variables
     type(s_trj_file)         :: trj_in, trj_out
     integer                  :: nstru, irun, itrj
     integer                  :: rms_out, trr_out
+    type(s_trajectories_c), pointer :: s_trajs_c_buf(:)
 
 
     ! check-only
@@ -104,6 +109,10 @@ contains
 
     nstru = 0
 
+    ! init s_trajs_c_array
+    num_trajs = size(trj_list%md_steps)
+    allocate(s_trajs_c_buf(num_trajs))
+
     do irun = 1, size(trj_list%md_steps)
 
       call open_trj(trj_in,                   &
@@ -118,9 +127,9 @@ contains
         !
         call read_trj(trj_in, trajectory)
 
-        if ((irun == 1) .and. (itrj == 1)) then
+        if (itrj == 1) then
             call init_empty_s_trajectories_c( &
-                out_trajectories, size(trajectory%coord, dim=2), sum(trj_list%md_steps))
+                s_trajs_c_buf(irun), size(trajectory%coord, dim=2), sum(trj_list%md_steps))
         end if
 
 
@@ -180,9 +189,7 @@ contains
             end if
           end if
 
-          if (present(out_trajectories)) then
-            call set_frame(out_trajectories, trajectory, itrj)
-          end if
+          call set_frame(s_trajs_c_buf(irun), trajectory, itrj)
         end if
 
       end do
@@ -196,6 +203,7 @@ contains
     if (output%trjfile /= '' .and. .not. option%split_trjpdb) &
                               call close_trj (trj_out)
 
+    s_trajs_c_array = c_loc(s_trajs_c_buf)
     return
 
   end subroutine convert

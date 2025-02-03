@@ -3,7 +3,7 @@ import os
 import pathlib
 from libgenesis import LibGenesis
 from s_molecule import SMolecule, py2c_s_molecule
-from s_trajectories_c import STrajectoriesC
+from s_trajectories import STrajectoriesArray
 import py2c_util
 
 
@@ -23,16 +23,17 @@ def test():
 
 
 def crd_convert(mol: SMolecule,
-                trajectory_filename: str | bytes | os.PathLike,
-                ctrl_filename: str | bytes | os.PathLike,
-                traj_c: STrajectoriesC):
+                ctrl_filename: str | bytes | os.PathLike) -> STrajectoriesArray:
+    buf = ctypes.c_void_p(None)
+    num_trajs_c = ctypes.c_int(0)
     mol_c = py2c_s_molecule(mol)
     LibGenesis().lib.crd_convert_c(
             ctypes.byref(mol_c),
-            py2c_util.pathlike_to_byte(trajectory_filename),
             py2c_util.pathlike_to_byte(ctrl_filename),
-            ctypes.byref(traj_c))
+            ctypes.byref(buf),
+            ctypes.byref(num_trajs_c))
     LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
+    return STrajectoriesArray(buf, num_trajs_c.value)
 
 
 def test_crd():
@@ -43,11 +44,11 @@ def test_crd():
             "../../../../tests/regression_test/test_analysis/trajectories/BPTI_charmm/BPTI_ionize.psf")
     ctrl_path = pathlib.Path("./test_crd_inp")
             # "./test_crd_inp../../../../tests/regression_test/test_analysis/test_crd_convert/BPTI/inp")
-    traj_path = pathlib.Path(
-            "../../../../tests/regression_test/test_analysis/trajectories/BPTI_charmm/BPTI_run.dcd")
-    traj_c = STrajectoriesC()
+    # traj_path = pathlib.Path(
+    #         "../../../../tests/regression_test/test_analysis/trajectories/BPTI_charmm/BPTI_run.dcd")
     with SMolecule.from_pdb_psf_file(pdb_path, psf_path) as mol:
-        crd_convert(mol, traj_path, ctrl_path, traj_c)
+        with crd_convert(mol, ctrl_path) as trajs:
+            pass
 
 
 if __name__ == "__main__":

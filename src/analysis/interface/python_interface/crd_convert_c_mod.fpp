@@ -32,30 +32,28 @@ module crd_convert_c_mod
 
 contains
   subroutine crd_convert_c( &
-          molecule, src_traj_path, ctrl_path, out_traj) &
+          molecule, ctrl_path, s_trajes_c_array, num_trajs) &
           bind(C, name="crd_convert_c")
     implicit none
     type(s_molecule_c), intent(inout) :: molecule
-    character(kind=c_char), intent(in) :: src_traj_path(*)
     character(kind=c_char), intent(in) :: ctrl_path(*)
-    type(s_trajectories_c), intent(out) :: out_traj
+    type(c_ptr), intent(out) :: s_trajes_c_array
+    integer(c_int), intent(out) :: num_trajs
     character(len=:), allocatable :: fort_ctrl_path
-    character(len=:), allocatable :: fort_src_traj_path
     type(s_molecule) :: f_molecule
 
-    call c2f_string_allocate(src_traj_path, fort_src_traj_path)
     call c2f_string_allocate(ctrl_path, fort_ctrl_path)
     call c2f_s_molecule(molecule, f_molecule)
 
-    call crd_convert_main(f_molecule, fort_src_traj_path, fort_ctrl_path, out_traj)
+    call crd_convert_main(f_molecule, fort_ctrl_path, s_trajes_c_array, num_trajs)
   end subroutine crd_convert_c
 
-  subroutine crd_convert_main(molecule, src_traj_path, ctrl_filename, out_traj)
+  subroutine crd_convert_main(molecule, ctrl_filename, s_trajes_c_array, num_trajs)
     implicit none
     type(s_molecule), intent(inout) :: molecule
     character(*), intent(in) :: ctrl_filename
-    character(*), intent(in) :: src_traj_path
-    type(s_trajectories_c), intent(out) :: out_traj
+    type(c_ptr), intent(out) :: s_trajes_c_array
+    integer(c_int), intent(out) :: num_trajs
     type(s_ctrl_data)      :: ctrl_data
     type(s_trj_list)       :: trj_list
     type(s_trajectory)     :: trajectory
@@ -102,7 +100,8 @@ contains
                  fitting,    &
                  option,     &
                  output,     &
-                 out_traj)
+                 s_trajes_c_array, &
+                 num_trajs)
 
 
     ! [Step4] Deallocate memory

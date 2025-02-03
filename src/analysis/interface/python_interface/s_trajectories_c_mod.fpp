@@ -16,6 +16,7 @@ module s_trajectories_c_mod
   public :: set_frame
   public :: init_empty_s_trajectories_c
   public :: deallocate_s_trajectories_c
+  public :: deallocate_s_trajectories_c_array
 
 contains
 
@@ -53,6 +54,21 @@ contains
     call C_F_POINTER(trajs_fort%pbc_boxes, boxes, [3, 3, trajs_fort%nframe])
     deallocate(boxes)
   end subroutine deallocate_s_trajectories_c
+
+  subroutine deallocate_s_trajectories_c_array(trajs_array, len) &
+      bind(C, name="deallocate_s_trajectories_c_array")
+    implicit none
+    type(c_ptr), intent(inout) :: trajs_array
+    integer(c_int), intent(in) :: len
+    type(s_trajectories_c), pointer :: buf(:)
+    integer :: i
+
+    call C_F_POINTER(trajs_array, buf, [len])
+    do i = 1, len
+      call deallocate_s_trajectories_c(buf(i))
+    end do
+    deallocate(buf)
+  end subroutine deallocate_s_trajectories_c_array
 
   ! Accessor for single frame
   subroutine get_frame(trajs_fort, frame_idx, traj_fort)

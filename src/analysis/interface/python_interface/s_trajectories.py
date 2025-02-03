@@ -39,3 +39,29 @@ class STrajectories:
 
     def from_trajectories_c(trajs_c: STrajectoriesC) -> Self:
         return STrajectories(trajs_c=trajs_c)
+
+
+class STrajectoriesArray:
+    def __init__(self, traj_c_array: ctypes.c_void_p, len_array: int):
+        if traj_c_array:
+            self._src_c_obj = traj_c_array
+            self.traj_c_array = []
+            traj_p = ctypes.cast(traj_c_array, ctypes.POINTER(STrajectoriesC))
+            for i in range(0, len_array):
+                self.traj_c_array.append(STrajectories.from_trajectories_c(traj_p[i]))
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.free()
+
+    def free(self):
+        """deallocate resources"""
+        len_array = ctypes.c_int(len(self.traj_c_array))
+        LibGenesis().lib.deallocate_s_trajectories_c_array(
+                ctypes.byref(self._src_c_obj),
+                ctypes.byref(len_array))
+
+    def get_array(self):
+        return self.traj_c_array
