@@ -73,3 +73,16 @@ class LibGenesis:
                 ctypes.POINTER(ctypes.c_int),
                 ]
         self.lib.trj_analysis_c.restype = None
+
+        self.lib.deallocate_double.argtypes = [
+                ctypes.POINTER(ctypes.c_void_p),
+                ctypes.POINTER(ctypes.c_int),
+                ]
+        self.lib.deallocate_double.restype = None
+
+        self.lib.deallocate_double2.argtypes = [
+                ctypes.POINTER(ctypes.c_void_p),
+                ctypes.POINTER(ctypes.c_int),
+                ctypes.POINTER(ctypes.c_int),
+                ]
+        self.lib.deallocate_double2.restype = None

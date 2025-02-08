@@ -1,11 +1,14 @@
 import ctypes
 import os
 import pathlib
+import numpy as np
+import numpy.typing as npt
 from libgenesis import LibGenesis
 from s_molecule import SMolecule, py2c_s_molecule
 from s_trajectories import STrajectoriesArray
 from s_trajectories_c import STrajectoriesC
 import py2c_util
+import c2py_util
 
 
 def test():
@@ -54,21 +57,30 @@ def test_crd():
 
 def trj_analysis(molecule: SMolecule, trajs :STrajectoriesC,
                  ana_period: int,
-                 ctrl_path: str | bytes | os.PathLike):
+                 ctrl_path: str | bytes | os.PathLike
+                 ) -> tuple(npt.NDArray[np.float64]):
     mol_c = py2c_s_molecule(molecule)
 
     num_distance = ctypes.c_int(0)
     ana_period_c = ctypes.c_int(ana_period)
-    result_distance = ctypes.c_void_p(None)
+    result_distance_c = ctypes.c_void_p(None)
 
     LibGenesis().lib.trj_analysis_c(
             ctypes.byref(mol_c),
-            trajs,
+            ctypes.byref(trajs),
             ctypes.byref(ana_period_c),
             py2c_util.pathlike_to_byte(ctrl_path),
-            ctypes.byref(result_distance),
+            ctypes.byref(result_distance_c),
             ctypes.byref(num_distance),
             )
+
+    n_frame_c = ctypes.c_int(int(trajs.nframe / ana_period))
+    result_distance = c2py_util.conv_double_ndarray(
+            result_distance_c, [n_frame_c.value, num_distance.value])
+    LibGenesis().lib.deallocate_double2(
+            ctypes.byref(result_distance_c),
+            ctypes.byref(n_frame_c), ctypes.byref(num_distance))
+    return result_distance
 
 
 def test_trj_analysis():
@@ -82,7 +94,8 @@ def test_trj_analysis():
 
     with SMolecule.from_pdb_psf_file(pdb_path, psf_path) as mol:
         with crd_convert(mol, crd_ctrl_path) as trajs:
-            trj_analysis(mol, trajs.traj_p[0], 1, trj_analysis_ctrl_path)
+            d = trj_analysis(mol, trajs.traj_p[0], 1, trj_analysis_ctrl_path)
+            print(d)
 
 
 if __name__ == "__main__":

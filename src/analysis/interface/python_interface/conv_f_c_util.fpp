@@ -32,10 +32,12 @@ module conv_f_c_util
   public :: c2f_double_array
   public :: c2f_string_array
 
+  public :: deallocate_double
+  public :: deallocate_double2
+
 contains
   ! Helper function to convert C string to Fortran string
   subroutine c2f_string(c_string, f_string)
-    use, intrinsic :: iso_c_binding
     implicit none
     character(kind=c_char), intent(in) :: c_string(*)
     character(*), intent(out) :: f_string
@@ -49,7 +51,6 @@ contains
   end subroutine c2f_string
 
   subroutine c2f_string_allocate(c_string, f_string, limit_len)
-    use, intrinsic :: iso_c_binding
     implicit none
     character(kind=c_char), intent(in) :: c_string(*)
     character(:), intent(inout), allocatable :: f_string
@@ -77,7 +78,6 @@ contains
   end subroutine c2f_string_allocate
 
   integer function len_c_str(c_string, limit_len) result(len_str)
-    use, intrinsic :: iso_c_binding
     implicit none
     character(kind=c_char), intent(in) :: c_string(*)
     integer, intent(in), optional :: limit_len
@@ -445,4 +445,27 @@ contains
       end do
     end do
   end subroutine c2f_string_array
+
+  subroutine deallocate_double(c_src, size) &
+          bind(C, name="deallocate_double")
+    implicit none
+    type(c_ptr), intent(in) :: c_src
+    integer(c_int), intent(in) :: size
+    real(c_double), pointer :: buf(:)
+
+    call C_F_pointer(c_src, buf, [size])
+    deallocate(buf)
+  end subroutine
+
+  subroutine deallocate_double2(c_src, size1, size2) &
+          bind(C, name="deallocate_double2")
+    implicit none
+    type(c_ptr), intent(in) :: c_src
+    integer(c_int), intent(in) :: size1
+    integer(c_int), intent(in) :: size2
+    real(c_double), pointer :: buf(:,:)
+
+    call C_F_pointer(c_src, buf, [size2, size1])
+    deallocate(buf)
+  end subroutine
 end module

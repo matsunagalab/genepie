@@ -31,6 +31,19 @@ module trj_analysis_c_mod
   implicit none
 
 contains
+  subroutine trj2(s_trajes_c, ana_period, ctrl_path) &
+        bind(C, name="trj2")
+    use conv_f_c_util
+    implicit none
+    type(s_trajectories_c), intent(in) :: s_trajes_c
+    integer, intent(in) :: ana_period
+    character(kind=c_char), intent(in) :: ctrl_path(*)
+
+    character(len=:), allocatable :: fort_ctrl_path
+
+    call c2f_string_allocate(ctrl_path, fort_ctrl_path)
+  end subroutine trj2
+
   subroutine trj_analysis_c(molecule, s_trajes_c, ana_period, ctrl_path, &
                             result_distance, num_distance) &
         bind(C, name="trj_analysis_c")
@@ -49,7 +62,6 @@ contains
 
     call c2f_string_allocate(ctrl_path, fort_ctrl_path)
     call c2f_s_molecule(molecule, f_molecule)
-    write(0, *) "@@@", ana_period, fort_ctrl_path
     call trj_analysis_main( &
         f_molecule, s_trajes_c, ana_period, fort_ctrl_path, distance, num_distance)
     result_distance = c_loc(distance)
