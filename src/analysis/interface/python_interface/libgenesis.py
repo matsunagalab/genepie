@@ -48,6 +48,10 @@ class LibGenesis:
                 ctypes.POINTER(STrajectoriesC)]
         self.lib.deallocate_s_trajectories_c.restype = None
 
+        self.lib.allocate_s_trajectories_c_array.argtypes = [
+                ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)]
+        self.lib.allocate_s_trajectories_c_array.restype = None
+
         self.lib.deallocate_s_trajectories_c_array.argtypes = [
                 ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)]
         self.lib.deallocate_s_trajectories_c_array.restype = None
@@ -95,3 +99,10 @@ class LibGenesis:
                 ctypes.POINTER(ctypes.c_int),
                 ]
         self.lib.deallocate_double2.restype = None
+
+        self.lib.join_s_trajectories_c.argtypes = [
+                ctypes.POINTER(ctypes.c_void_p),
+                ctypes.POINTER(ctypes.c_int),
+                ctypes.POINTER(ctypes.c_void_p),
+                ]
+        self.lib.join_s_trajectories_c.restype = None
