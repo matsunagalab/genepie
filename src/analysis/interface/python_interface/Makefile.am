@@ -24,7 +24,9 @@ libpython_interface_la_SOURCES = \
         crd_convert_convert.fpp \
         crd_convert_c_mod.fpp \
         trj_analysis_c_mod.fpp \
-        trj_analysis_analysis.fpp
+        trj_analysis_analysis.fpp\
+        rg_analysis_c_mod.fpp \
+        rg_analysis_analysis.fpp
 
 EXTRA_DIST = \
 	Makefile.depends
@@ -41,6 +43,7 @@ libpython_interface_la_LDFLAGS += $(shell mpif90 --showme:link)
 libpython_interface_la_LIBADD = \
 		../../converter/crd_convert/libcrd_convert.a \
 		../../trj_analysis/trj_analysis/libtrj_analysis.a \
+		../../trj_analysis/rg_analysis/librg_analysis.a \
 		../../libana/libana.a ../../../lib/lib.a ../../../ \
 		-llapack -lblas -lgfortran -lmpi -lmpi_mpifh
 libpython_interface_la_FCFLAGS = $(FCFLAGS) $(PYTHON_CPPFLAGS)
@@ -62,6 +65,7 @@ if USEKCOMP
 		-I../../../lib -I../../libana \
 		-I../../converter/crd_convert \
 		-I ../../trj_analysis/trj_analysis \
+		-I ../../trj_analysis/rg_analysis \
 		$(libpython_interface_la_FCFLAGS) -c $*.f90
 else
 	$(FPP) $(PPFLAGS) $(DEFS) $< $*.f90
@@ -69,6 +73,7 @@ else
 		-I../../../lib -I../../libana \
 		-I../../converter/crd_convert \
 		-I ../../trj_analysis/trj_analysis \
+		-I ../../trj_analysis/rg_analysis \
 		$(libpython_interface_la_FCFLAGS) -c $*.f90
 endif
 

@@ -14,5 +14,9 @@ trj_analysis_analysis.lo: trj_analysis_analysis.fpp s_trajectories_c_mod.mod
 trj_analysis_analyze_c_mod.mod: trj_analysis_analysis.fpp trj_analysis_analysis.lo
 trj_analysis_c_mod.lo: trj_analysis_c_mod.fpp s_trajectories_c_mod.mod trj_analysis_analyze_c_mod.mod s_molecule_c_mod.mod 
 trj_analysis_c_mod.mod: trj_analysis_c_mod.fpp trj_analysis_c_mod.lo
+rg_analysis_analysis.lo: rg_analysis_analysis.fpp s_trajectories_c_mod.mod 
+rg_analysis_analyze_c_mod.mod: rg_analysis_analysis.fpp rg_analysis_analysis.lo
+rg_analysis_c_mod.lo: rg_analysis_c_mod.fpp s_trajectories_c_mod.mod rg_analysis_analyze_c_mod.mod s_molecule_c_mod.mod 
+rg_analysis_c_mod.mod: rg_analysis_c_mod.fpp rg_analysis_c_mod.lo
 your_module.lo: your_module.fpp s_molecule_c_mod.mod conv_f_c_util.mod 
 your_module.mod: your_module.fpp your_module.lo
