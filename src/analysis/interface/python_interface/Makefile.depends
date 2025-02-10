@@ -18,5 +18,9 @@ rg_analysis_analysis.lo: rg_analysis_analysis.fpp s_trajectories_c_mod.mod
 rg_analysis_analyze_c_mod.mod: rg_analysis_analysis.fpp rg_analysis_analysis.lo
 rg_analysis_c_mod.lo: rg_analysis_c_mod.fpp s_trajectories_c_mod.mod rg_analysis_analyze_c_mod.mod s_molecule_c_mod.mod 
 rg_analysis_c_mod.mod: rg_analysis_c_mod.fpp rg_analysis_c_mod.lo
+ra_analysis_analysis.lo: ra_analysis_analysis.fpp s_trajectories_c_mod.mod 
+ra_analysis_analyze_c_mod.mod: ra_analysis_analysis.fpp ra_analysis_analysis.lo
+ra_analysis_c_mod.lo: ra_analysis_c_mod.fpp s_trajectories_c_mod.mod ra_analysis_analyze_c_mod.mod s_molecule_c_mod.mod 
+ra_analysis_c_mod.mod: ra_analysis_c_mod.fpp ra_analysis_c_mod.lo
 your_module.lo: your_module.fpp s_molecule_c_mod.mod conv_f_c_util.mod 
 your_module.mod: your_module.fpp your_module.lo

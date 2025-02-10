@@ -87,6 +87,16 @@ class LibGenesis:
                 ]
         self.lib.rg_analysis_c.restype = None
 
+        self.lib.ra_analysis_c.argtyes = [
+                ctypes.POINTER(SMoleculeC),
+                ctypes.POINTER(STrajectoriesC),
+                ctypes.POINTER(ctypes.c_int),
+                ctypes.c_char_p,
+                ctypes.POINTER(ctypes.c_void_p),
+                ]
+        self.lib.ra_analysis_c.restype = None
+
+
         self.lib.deallocate_double.argtypes = [
                 ctypes.POINTER(ctypes.c_void_p),
                 ctypes.POINTER(ctypes.c_int),

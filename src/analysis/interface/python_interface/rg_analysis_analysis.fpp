@@ -51,11 +51,11 @@ contains
     use s_trajectories_c_mod
 
     ! formal arguments
-    type(s_molecule),        intent(inout) :: molecule
+    type(s_molecule),        intent(in)    :: molecule
     type(s_trajectories_c),  intent(in)    :: trajes_c
     integer,                 intent(in)    :: ana_period
     type(s_output),          intent(in)    :: output
-    type(s_option),          intent(inout) :: option
+    type(s_option),          intent(in)    :: option
     real(wp), pointer,       intent(out)   :: rg1(:)
 
 
@@ -128,7 +128,6 @@ contains
         ! output results
         !
         write(MsgOut,'(a,f10.5)') '              RG of analysis atoms = ',rg
-
         write(MsgOut,*) ''
 
       end if
