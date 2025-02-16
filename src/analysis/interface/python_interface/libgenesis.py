@@ -117,7 +117,11 @@ class LibGenesis:
         self.lib.ma_analysis_c.restype = None
 
         self.lib.diffusion_analysis_c.argtyes = [
+                ctypes.POINTER(ctypes.c_void_p),
+                ctypes.POINTER(ctypes.c_int),
+                ctypes.POINTER(ctypes.c_int),
                 ctypes.c_char_p,
+                ctypes.POINTER(ctypes.c_void_p),
                 ]
         self.lib.diffusion_analysis_c.restype = None
 
@@ -136,6 +140,22 @@ class LibGenesis:
                 ctypes.c_char_p,
                 ]
         self.lib.aa_analysis_c.restype = None
+
+        self.lib.allocate_c_int_array.argtypes = [
+                ctypes.POINTER(ctypes.c_int),
+                ]
+        self.lib.allocate_c_int_array.restype = ctypes.c_void_p
+
+        self.lib.allocate_c_double_array.argtypes = [
+                ctypes.POINTER(ctypes.c_int),
+                ]
+        self.lib.allocate_c_double_array.restype = ctypes.c_void_p
+
+        self.lib.allocate_c_double_array2.argtypes = [
+                ctypes.POINTER(ctypes.c_int),
+                ctypes.POINTER(ctypes.c_int),
+                ]
+        self.lib.allocate_c_double_array2.restype = ctypes.c_void_p
 
         self.lib.deallocate_double.argtypes = [
                 ctypes.POINTER(ctypes.c_void_p),

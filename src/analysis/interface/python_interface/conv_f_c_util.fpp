@@ -287,23 +287,36 @@ contains
     c_dst = c_loc(buf)
   end function allocate_c_bool_array
 
-  type(c_ptr) function allocate_c_int_array(size) result(c_dst)
+  type(c_ptr) function allocate_c_int_array(size) result(c_dst) &
+          bind(C, name="allocate_c_int_array")
     implicit none
-    integer, intent(in) :: size
+    integer(c_int), intent(in) :: size
     integer(c_int), pointer :: buf(:)
 
     allocate(buf(size))
     c_dst = c_loc(buf)
   end function allocate_c_int_array
 
-  type(c_ptr) function allocate_c_double_array(size) result(c_dst)
+  type(c_ptr) function allocate_c_double_array(size) result(c_dst) &
+          bind(C, name="allocate_c_double_array")
     implicit none
-    integer, intent(in) :: size
+    integer(c_int), intent(in) :: size
     real(c_double), pointer :: buf(:)
 
     allocate(buf(size))
     c_dst = c_loc(buf)
   end function allocate_c_double_array
+
+  type(c_ptr) function allocate_c_double_array2(dim1, dim2) result(c_dst) &
+          bind(C, name="allocate_c_double_array2")
+    implicit none
+    integer(c_int), intent(in) :: dim1
+    integer(c_int), intent(in) :: dim2
+    real(c_double), pointer :: buf(:,:)
+
+    allocate(buf(dim1, dim2))
+    c_dst = c_loc(buf)
+  end function allocate_c_double_array2
 
   type(c_ptr) function allocate_c_str_array(size, len_str) result(c_dst)
     implicit none

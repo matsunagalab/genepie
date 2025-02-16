@@ -251,7 +251,9 @@ def hb_analysis(molecule: SMolecule, trajs :STrajectories,
     return
 
 
-def diffusion_analysis(ctrl_path: str | bytes | os.PathLike):
+def diffusion_analysis(msd_data: npt.NDArray[np.float64],
+                       ctrl_path: str | bytes | os.PathLike,
+                       ) -> npt.NDArray[np.float64]:
     """
     Executes diffusion_analysis.
 
@@ -259,11 +261,37 @@ def diffusion_analysis(ctrl_path: str | bytes | os.PathLike):
         ctrl_path:
 
     Returns:
-        none
+        TODO
     """
-    LibGenesis().lib.diffusion_analysis_c(
-            py2c_util.pathlike_to_byte(ctrl_path),
-            )
+    c_msd = None
+    c_out = ctypes.c_void_p(0)
+    if msd_data.ndim != 2:
+        raise Exception
+    d0 = ctypes.c_int(msd_data.shape[0])
+    d1 = ctypes.c_int(msd_data.shape[1])
+    try:
+        c_msd = ctypes.c_void_p(
+                LibGenesis().lib.allocate_c_double_array2(
+                ctypes.byref(d0),
+                ctypes.byref(d1)))
+        py2c_util.write_double_ndarray(msd_data, c_msd)
+        LibGenesis().lib.diffusion_analysis_c(
+                ctypes.byref(c_msd),
+                ctypes.byref(d0),
+                ctypes.byref(d1),
+                py2c_util.pathlike_to_byte(ctrl_path),
+                ctypes.byref(c_out),
+                )
+        return c2py_util.conv_double_ndarray(
+                c_out, (msd_data.shape[0], msd_data.shape[1] * 2 - 1))
+    finally:
+        if c_msd:
+            LibGenesis().lib.deallocate_double2(
+                    ctypes.byref(c_msd), ctypes.byref(d0), ctypes.byref(d1))
+        if c_out:
+            ci = ctypes.c_int(msd_data.shape[0] * (msd_data.shape[1] * 2 - 1))
+            LibGenesis().lib.deallocate_double(
+                    ctypes.byref(c_out), ctypes.byref(ci))
 
 
 def avecrd_analysis(molecule: SMolecule, trajs :STrajectories,

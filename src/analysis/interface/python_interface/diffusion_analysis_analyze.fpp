@@ -52,16 +52,17 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine analyze(input, output, option)
+  subroutine analyze(msd_data, input, option, out_data)
 
     ! formal arguments
+    real(wp),                intent(in) :: msd_data(:,:)
     type(s_input),           intent(in)    :: input
-    type(s_output),          intent(in)    :: output
     type(s_option),          intent(in)    :: option
+    real(wp),                intent(out) :: out_data(:,:)
 
     ! local variables
-    integer                                :: msd_data, fit_data, ndata, ncols
-    integer                                :: iset, idata, nlines
+    integer                                :: ndata, ncols
+    integer                                :: iset, idata
     integer                                :: idx_start_fit, idx_stop_fit, iline
     integer,  allocatable, dimension(:)    :: ndofs
     real(wp)                               :: diffusion_coefficient
@@ -76,9 +77,8 @@ contains
 
     ! check data size
     !
-    nlines  = get_line_count (trim(input%msdfile))
-    ndata   = nlines
-    ncols   = get_column_count(trim(input%msdfile), 1)
+    ndata   = size(msd_data, dim=2)
+    ncols   = size(msd_data, dim=1)
 
     allocate(ndofs(ncols-1))
     if (size(option%ndofs) == 1) then
@@ -89,16 +89,10 @@ contains
       call error_msg('Analyze> Number of degrees of freedom in "ndofs"'//&
         ' does not match the number of MSD sets found in data file')
     end if
+    allocate(fittings(ncols-1))
 
     allocate(xydata(ncols, ndata))
-    allocate(fittings(ncols-1))
-    
-
-    ! read MDS data
-    !
-    call open_file(msd_data, trim(input%msdfile), IOFileInput)
-    read(msd_data, *) xydata
-    call close_file(msd_data)
+    xydata = msd_data
 
     ! convert to ps and angstroms
     !
@@ -178,33 +172,24 @@ contains
 
     ! Output results
     !
-    if (output%outfile /= '') then
+    write(MsgOut, '("Analyze> Writing fitted data")')
 
-      write(MsgOut, '("Analyze> Writing fitted data to ", A)') trim(output%outfile)
-
-      call open_file(fit_data, trim(output%outfile), IOFileOutputNew)
-
-      do idata = 1, ndata
-        write(fit_data, '('//format_float//')', advance="no") xydata(1, idata)
-        do iset = 1, ncols-1
-          write(fit_data, '(2'//format_float//')', advance="no") &
-            xydata(iset+1, idata), &
+    do idata = 1, ndata
+      out_data(1, idata) = xydata(1, idata)
+      do iset = 1, ncols-1
+        out_data(2*iset, idata) = xydata(iset+1, idata)
+        out_data(2*iset + 1, idata) = &
             fittings(iset)%coeff(1)+fittings(iset)%coeff(2)*xydata(1, idata)
-        end do
-        write(fit_data, '()')
       end do
-
-      call close_file(fit_data)
-
-    end if
+    end do
 
 
     ! Output Summary
     !
     write(MsgOut,'(A)') ''
-    write(MsgOut,'(A)') 'Analyze> Detailed information in the output files'
+    write(MsgOut,'(A)') 'Analyze> Detailed information in the output'
     write(MsgOut,'(A)') ''
-    write(MsgOut,'(A)') '  [outfile] ' // trim(output%outfile)
+    write(MsgOut,'(A)') '  [output] '
     write(MsgOut,'(A)') '    Column 1: time (ps)'
     do iset = 1, ncols-1
       write(MsgOut,'(A,i0,A,i0,A,i0)') &

@@ -4,6 +4,7 @@ import pathlib
 from libgenesis import LibGenesis
 from s_molecule import SMolecule, py2c_s_molecule
 import genesis_exe
+import msd_reader
 
 
 def test():
@@ -133,7 +134,9 @@ def test_hb_analysis_Count_snap():
 
 def test_diffusion_analysis():
     ctrl_path = pathlib.Path("test_da_analysis_inp")
-    genesis_exe.diffusion_analysis(ctrl_path)
+    msd = msd_reader.read_msd_from_file("msd.data")
+    ret = genesis_exe.diffusion_analysis(msd, ctrl_path)
+    print(ret)
 
 
 def test_avecrd_analysis():
