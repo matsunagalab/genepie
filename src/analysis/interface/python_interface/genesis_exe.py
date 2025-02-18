@@ -337,3 +337,19 @@ def wham_analysis(ctrl_path: str | bytes | os.PathLike
             )
     return
 
+
+def mbar_analysis(ctrl_path: str | bytes | os.PathLike
+                ):
+    """
+    Executes mbar_analysis.
+
+    Args:
+        ctrl_path:
+
+    Returns:
+        none
+    """
+    LibGenesis().lib.mbar_analysis_c(
+            py2c_util.pathlike_to_byte(ctrl_path),
+            )
+    return

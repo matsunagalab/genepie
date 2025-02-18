@@ -158,6 +158,16 @@ def test_wham_analysis():
     genesis_exe.wham_analysis(ctrl_path)
 
 
+def test_mbar_analysis_umbrella_1d():
+    ctrl_path = pathlib.Path("test_mbar_analysis_umbrella_1d_inp")
+    genesis_exe.mbar_analysis(ctrl_path)
+
+
+def test_mbar_analysis_umbrella_block():
+    ctrl_path = pathlib.Path("test_mbar_analysis_umbrella_block_inp")
+    genesis_exe.mbar_analysis(ctrl_path)
+
+
 def main():
     # test()
     # test_crd()
@@ -190,9 +200,15 @@ def main():
     if os.path.exists("output1_aft.pdb"):
         os.remove("output1_aft.pdb")
     # test_avecrd_analysis()
+     if os.path.exists("out"):
+        os.remove("out")
+    # test_wham_analysis()
     if os.path.exists("out"):
         os.remove("out")
-    test_wham_analysis()
+    test_mbar_analysis_umbrella_1d()
+    if os.path.exists("out"):
+        os.remove("out")
+    test_mbar_analysis_umbrella_block()
 
 
 if __name__ == "__main__":

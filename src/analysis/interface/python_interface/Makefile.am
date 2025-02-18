@@ -40,8 +40,9 @@ libpython_interface_la_SOURCES = \
         aa_analysis_c_mod.fpp \
         aa_analysis_analysis.fpp \
         wa_analysis_c_mod.fpp \
-        wa_analysis_analysis.fpp
-#        aa_analysis_analysis.fpp \
+        wa_analysis_analysis.fpp \
+        mbar_analysis_c_mod.fpp \
+        mbar_analysis_analysis.fpp
 #        kc_analysis_c_mod.fpp \
 #        kc_analysis_analysis.fpp
 
@@ -69,6 +70,7 @@ libpython_interface_la_LIBADD = \
 		../../mode_analysis/avecrd_analysis/libavecrd_analysis.a \
 		../../clustering/kmeans_clustering/libkmeans_clustering.a \
 		../../free_energy/wham_analysis/libwham_analysis.a \
+		../../free_energy/mbar_analysis/libmbar_analysis.a \
 		../../libana/libana.a ../../../lib/lib.a ../../../ \
 		-llapack -lblas -lgfortran -lmpi -lmpi_mpifh
 libpython_interface_la_FCFLAGS = $(FCFLAGS) $(PYTHON_CPPFLAGS)
@@ -99,6 +101,7 @@ if USEKCOMP
 		-I ../../mode_analysis/avecrd_analysis \
 		-I ../../clustering/kmeans_clustering \
 		-I ../../free_energy/wham_analysis \
+		-I ../../free_energy/mbar_analysis \
 		$(libpython_interface_la_FCFLAGS) -c $*.f90
 else
 	$(FPP) $(PPFLAGS) $(DEFS) $< $*.f90
@@ -115,6 +118,7 @@ else
 		-I ../../mode_analysis/avecrd_analysis \
 		-I ../../clustering/kmeans_clustering \
 		-I ../../free_energy/wham_analysis \
+		-I ../../free_energy/mbar_analysis \
 		$(libpython_interface_la_FCFLAGS) -c $*.f90
 endif
 

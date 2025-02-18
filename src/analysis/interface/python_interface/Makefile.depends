@@ -26,6 +26,10 @@ ma_analysis_analysis.lo: ma_analysis_analysis.fpp s_trajectories_c_mod.mod
 ma_analysis_analyze_c_mod.mod: ma_analysis_analysis.fpp ma_analysis_analysis.lo
 ma_analysis_c_mod.lo: ma_analysis_c_mod.fpp conv_f_c_util.mod ma_analysis_analyze_c_mod.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod 
 ma_analysis_c_mod.mod: ma_analysis_c_mod.fpp ma_analysis_c_mod.lo
+mbar_analysis_analysis.lo: mbar_analysis_analysis.fpp s_trajectories_c_mod.mod 
+mbar_analysis_analyze_c_mod.mod: mbar_analysis_analysis.fpp mbar_analysis_analysis.lo
+mbar_analysis_c_mod.lo: mbar_analysis_c_mod.fpp mbar_analysis_analyze_c_mod.mod conv_f_c_util.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod 
+mbar_analysis_c_mod.mod: mbar_analysis_c_mod.fpp mbar_analysis_c_mod.lo
 ra_analysis_analysis.lo: ra_analysis_analysis.fpp s_trajectories_c_mod.mod 
 ra_analysis_analyze_c_mod.mod: ra_analysis_analysis.fpp ra_analysis_analysis.lo
 ra_analysis_c_mod.lo: ra_analysis_c_mod.fpp ra_analysis_analyze_c_mod.mod conv_f_c_util.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod 
