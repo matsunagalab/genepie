@@ -3,7 +3,7 @@
 [INPUT]
 prmtopfile     = 
 pdbfile        = 
-cvfile         = ../../trajectories/umbrella_1d/{}.dat
+cvfile         = ../../../../tests/regression_test/test_analysis/trajectories/umbrella_1d/{}.dat
  
 [OUTPUT]
 fenefile       = fene.dat
