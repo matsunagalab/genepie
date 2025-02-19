@@ -28,7 +28,7 @@ module kc_analysis_analyze_c_mod
   use messages_mod
   use constants_mod
   use string_mod
-  use random_mod
+  ! use random_mod
   use select_atoms_mod
 
   implicit none
@@ -677,4 +677,39 @@ contains
 
   end function get_replicate_name1
 
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Function      random_get_legacy
+  !> @brief        random number generator (uniform distribution [0,1])
+  !! @authors      Takaharu Mori (TM)
+  !! @param[inout] iseed : random number seed
+  !! @note         P.A.W.Lewis et al., BM Systems Journal, 8, 136 (1969).
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  function random_get_legacy(iseed)
+
+    ! formal arguments
+    integer,                 intent(inout) :: iseed
+
+    ! local variables
+    real(dp)                 :: dseed
+    real(dp)                 :: random_get_legacy
+
+
+    if (iseed <= 1) iseed = 314159
+
+    write(MsgOut,'(a)') 'Random_Init_Velocity> Initialize the random number'
+    write(MsgOut,'(a,i0,i0)') '  seed            = ', iseed
+    write(MsgOut,'(a)')    ''
+
+    dseed = 16807.0_dp * iseed
+    dseed = mod(dseed, 2147483647.0_dp)
+
+    random_get_legacy = dseed / 2147483711.0_dp
+    iseed = dseed
+
+    return
+
+  end function random_get_legacy
 end module kc_analysis_analyze_c_mod
