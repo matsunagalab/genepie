@@ -19,9 +19,13 @@ def test_mbar_analysis_umbrella_block():
 def main():
     if os.path.exists("out"):
         os.remove("out")
+    if os.path.exists("fene.dat"):
+        os.remove("fene.dat")
     test_mbar_analysis_umbrella_1d()
     if os.path.exists("out"):
         os.remove("out")
+    if os.path.exists("fene.dat"):
+        os.remove("fene.dat")
     test_mbar_analysis_umbrella_block()
 
 

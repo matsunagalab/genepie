@@ -149,13 +149,13 @@ class LibGenesis:
                 ]
         self.lib.wa_analysis_c.restype = None
 
-        #self.lib.mbar_analysis_c.argtyes = [
-        #        ctypes.POINTER(SMoleculeC),
-        #        ctypes.POINTER(STrajectoriesC),
-        #        ctypes.POINTER(ctypes.c_int),
-        #        ctypes.c_char_p,
-        #        ]
-        #self.lib.mbar_analysis_c.restype = None
+        self.lib.mbar_analysis_c.argtyes = [
+                ctypes.POINTER(SMoleculeC),
+                ctypes.POINTER(STrajectoriesC),
+                ctypes.POINTER(ctypes.c_int),
+                ctypes.c_char_p,
+                ]
+        self.lib.mbar_analysis_c.restype = None
 
         self.lib.allocate_c_int_array.argtypes = [
                 ctypes.POINTER(ctypes.c_int),

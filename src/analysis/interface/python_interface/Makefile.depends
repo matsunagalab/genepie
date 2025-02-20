@@ -22,6 +22,10 @@ hb_analysis_analysis.lo: hb_analysis_analysis.fpp s_trajectories_c_mod.mod
 hb_analysis_analyze_c_mod.mod: hb_analysis_analysis.fpp hb_analysis_analysis.lo
 hb_analysis_c_mod.lo: hb_analysis_c_mod.fpp hb_analysis_analyze_c_mod.mod conv_f_c_util.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod 
 hb_analysis_c_mod.mod: hb_analysis_c_mod.fpp hb_analysis_c_mod.lo
+kc_analysis_analysis.lo: kc_analysis_analysis.fpp s_trajectories_c_mod.mod 
+kc_analysis_analyze_c_mod.mod: kc_analysis_analysis.fpp kc_analysis_analysis.lo
+kc_analysis_c_mod.lo: kc_analysis_c_mod.fpp conv_f_c_util.mod kc_analysis_analyze_c_mod.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod 
+kc_analysis_c_mod.mod: kc_analysis_c_mod.fpp kc_analysis_c_mod.lo
 ma_analysis_analysis.lo: ma_analysis_analysis.fpp s_trajectories_c_mod.mod 
 ma_analysis_analyze_c_mod.mod: ma_analysis_analysis.fpp ma_analysis_analysis.lo
 ma_analysis_c_mod.lo: ma_analysis_c_mod.fpp conv_f_c_util.mod ma_analysis_analyze_c_mod.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod 
@@ -46,10 +50,6 @@ trj_analysis_analysis.lo: trj_analysis_analysis.fpp s_trajectories_c_mod.mod
 trj_analysis_analyze_c_mod.mod: trj_analysis_analysis.fpp trj_analysis_analysis.lo
 trj_analysis_c_mod.lo: trj_analysis_c_mod.fpp conv_f_c_util.mod trj_analysis_analyze_c_mod.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod 
 trj_analysis_c_mod.mod: trj_analysis_c_mod.fpp trj_analysis_c_mod.lo
-kc_analysis_analysis.lo: kc_analysis_analysis.fpp s_trajectories_c_mod.mod 
-kc_analysis_analyze_c_mod.mod: kc_analysis_analysis.fpp kc_analysis_analysis.lo
-kc_analysis_c_mod.lo: kc_analysis_c_mod.fpp conv_f_c_util.mod kc_analysis_analyze_c_mod.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod 
-kc_analysis_c_mod.mod: kc_analysis_c_mod.fpp kc_analysis_c_mod.lo
 wa_analysis_analysis.lo: wa_analysis_analysis.fpp s_trajectories_c_mod.mod 
 wa_analysis_analyze_c_mod.mod: wa_analysis_analysis.fpp wa_analysis_analysis.lo
 wa_analysis_c_mod.lo: wa_analysis_c_mod.fpp wa_analysis_analyze_c_mod.mod conv_f_c_util.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod 
