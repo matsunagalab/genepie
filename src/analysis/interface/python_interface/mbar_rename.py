@@ -60,35 +60,24 @@ def copy_directory(src_dir, dst_dir):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-def replace_relative_paths(file_path):
+def replace_make(file_path):
     """
-    Replace '../' with '../../' in the specified file.
-    If '../' appears consecutively, only add one additional level.
+    'ma_XXXX.mod' -> 'mbar_XXXX.mod'
     """
-    try:
-        # Read the file content
-        with open(file_path, 'r', encoding='utf-8') as file:
-            content = file.read()
+    pattern = r"ma_([^\s]+)\.mod"
+    replacement = r"mbar_\1.mod"
 
-        # Use regex to find and replace '../'
-        # Pattern explanation:
-        # - `(../)+`: Matches one or more consecutive '../'
-        # - Replace with the same number of '../' plus one additional '../'
-        def replace_match(match):
-            # Count the number of '../' in the match
-            count = len(match.group(0)) // 3  # Each '../' is 3 characters long
-            return '../' * (count + 1)  # Add one more '../'
+    with open(file_path, 'r', encoding='utf-8') as file:
+        content = file.read()
 
-        updated_content = re.sub(r'(../)+', replace_match, content)
+    new_content = re.sub(pattern, replacement, content)
 
-        # Write the updated content back to the file
+    if content != new_content:
         with open(file_path, 'w', encoding='utf-8') as file:
-            file.write(updated_content)
-
-        print(f"Processed: {file_path}")
-    except Exception as e:
-        print(f"Error processing file {file_path}: {e}")
-
+            file.write(new_content)
+        print(f"Updated content in file: {file_path}")
+    else:
+        print(f"No changes needed in file: {file_path}")
 
 def main():
     src_directory = "../../free_energy/mbar_analysis/"
@@ -104,18 +93,10 @@ def main():
     # Execute the processing
     process_directory(target_directory, file_extension, old_string, new_string)
 
-    # create Makefile.depends
-    current_dir = os.getcwd()
-    os.chdir(target_directory)
-    command = ["make", "depend"]
-    result = subprocess.run(command, check=True, text=True,
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    print(result.stdout)
-    print(result.stderr)
-    os.chdir(current_dir)
-    print("All .fpp files have been processed.")
+    # replace Makefile.depends
+    replace_make(target_directory + "/Makefile.depends")
 
-    # replace_relative_paths(target_directory + "/Makefile")
+    print("All .fpp files have been processed.")
 
 if __name__ == "__main__":
     main()

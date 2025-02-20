@@ -7,4 +7,4 @@
 #
 #--------1---------2---------3---------4---------5---------6---------7---------8
 
-SUBDIRS = dssp_interface python_interface
+SUBDIRS = mbar_analysis dssp_interface python_interface
