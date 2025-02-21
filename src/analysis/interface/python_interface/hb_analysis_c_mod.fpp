@@ -111,6 +111,7 @@ contains
     write(MsgOut,'(A)') '[STEP4] Deallocate memory'
     write(MsgOut,'(A)') ' '
 
+    call dealloc_option(option)
     call dealloc_trajectory(trajectory)
     call dealloc_molecules_all(molecule)
   end subroutine hb_analysis_main

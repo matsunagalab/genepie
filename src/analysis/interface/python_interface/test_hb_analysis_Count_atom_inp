@@ -3,7 +3,7 @@ psffile   = RALP_DPPC.psf
 reffile   = RALP_DPPC_run.pdb
 
 [OUTPUT]
-outfile     = out
+outfile     = out1
 
 [TRAJECTORY]
 trjfile1       = RALP_DPPC_run.dcd

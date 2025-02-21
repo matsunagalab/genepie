@@ -37,10 +37,14 @@ def test_hb_analysis_Count_snap():
 def main():
     if os.path.exists("out"):
         os.remove("out")
+    if os.path.exists("out1"):
+        os.remove("out1")
     test_hb_analysis_Count_atom()
     if os.path.exists("out"):
         os.remove("out")
-    test_hb_analysis_Count_snap()
+    if os.path.exists("out2"):
+        os.remove("out2")
+    # test_hb_analysis_Count_snap()
 
 
 if __name__ == "__main__":

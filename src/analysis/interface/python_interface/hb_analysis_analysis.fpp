@@ -130,10 +130,10 @@ contains
     !  end if
     !end if
 
-    !if (output%hb_listfile /= '') then
-    !  call open_file(hb_out, output%hb_listfile, IOFileOutputNew)
-    !end if
-    !call open_file(out_unit, output%outfile, IOFileOutputNew)
+    if (output%hb_listfile /= '') then
+      call open_file(hb_out, output%hb_listfile, IOFileOutputNew)
+    end if
+    call open_file(out_unit, output%outfile, IOFileOutputNew)
 
 
     ! setup polar atoms (O, N)
@@ -211,11 +211,11 @@ contains
                 iatm = analysis_group(idx)%atom_no
                 jatm = target_group(jdx)%atom_no
 
-                !write(hb_out, 100) &
-                !     nstru, &
-                !     nama(iatm), namr(iatm), numr(iatm), seg(iatm), &
-                !     nama(jatm), namr(jatm), numr(jatm), seg(jatm), &
-                !     hb_list%hb_dist, hb_list%dha_angle, hb_list%hda_angle
+                write(hb_out, 100) &
+                     nstru, &
+                     nama(iatm), namr(iatm), numr(iatm), seg(iatm), &
+                     nama(jatm), namr(jatm), numr(jatm), seg(jatm), &
+                     hb_list%hb_dist, hb_list%dha_angle, hb_list%hda_angle
               end if
             end if
 
@@ -242,10 +242,10 @@ contains
                     iatm = analysis_group(idx)%atom_no
                     jatm = target_group(jdx)%atom_no
 
-                    !write(out_unit,108) &
-                    !     nstru - 1, continue_Hbond(jdx, idx), &
-                    !     nama(iatm), namr(iatm), numr(iatm), seg(iatm), &
-                    !     nama(jatm), namr(jatm), numr(jatm), seg(jatm)
+                    write(out_unit,108) &
+                         nstru - 1, continue_Hbond(jdx, idx), &
+                         nama(iatm), namr(iatm), numr(iatm), seg(iatm), &
+                         nama(jatm), namr(jatm), numr(jatm), seg(jatm)
 
                     continue_Hbond(jdx, idx) = 0
                   end if
@@ -255,8 +255,7 @@ contains
         end do
 
         if (option%output_type == HBOutputModeCountSnap) then
-        !  write(out_unit,'(i10,2x,i10)') nstru, hb_total
-          write(MsgOut,*) nstru, hb_total
+          write(out_unit,'(i10,2x,i10)') nstru, hb_total
         end if
 
       end if
@@ -277,20 +276,14 @@ contains
           jatm = partner_atom(partner_idx)%atom_no
 
           if (partner_atom(partner_idx)%solvent) then
-          !  write(out_unit, 104) hb_count(partner_idx, idx), &
-          !                       nama(iatm), namr(iatm), numr(iatm), seg(iatm), &
-          !                       nama(jatm), namr(jatm)
-            write(MsgOut,*) hb_count(partner_idx, idx), &
-                            nama(iatm), namr(iatm), numr(iatm), seg(iatm), &
-                            nama(jatm), namr(jatm)
+            write(out_unit, 104) hb_count(partner_idx, idx), &
+                                 nama(iatm), namr(iatm), numr(iatm), seg(iatm), &
+                                 nama(jatm), namr(jatm)
 
           else
-          !  write(out_unit, 106) hb_count(partner_idx, idx), &
-          !                       nama(iatm), namr(iatm), numr(iatm), seg(iatm), &
-          !                       nama(jatm), namr(jatm), numr(jatm), seg(jatm)
-            write(MsgOut,*) hb_count(partner_idx, idx), &
-                            nama(iatm), namr(iatm), numr(iatm), seg(iatm), &
-                            nama(jatm), namr(jatm), numr(jatm), seg(jatm)
+            write(out_unit, 106) hb_count(partner_idx, idx), &
+                                 nama(iatm), namr(iatm), numr(iatm), seg(iatm), &
+                                 nama(jatm), namr(jatm), numr(jatm), seg(jatm)
           end if
         end do
       end do
@@ -302,17 +295,17 @@ contains
           iatm = analysis_group(idx)%atom_no
           jatm =   target_group(jdx)%atom_no
 
-          !if (continue_Hbond(jdx, idx) > 0) &
-          !  write(out_unit, 108) nstru, continue_Hbond(jdx, idx), &
-          !                       nama(iatm), namr(iatm), numr(iatm), seg(iatm), &
-          !                       nama(jatm), namr(jatm), numr(jatm), seg(jatm)
+          if (continue_Hbond(jdx, idx) > 0) &
+            write(out_unit, 108) nstru, continue_Hbond(jdx, idx), &
+                                 nama(iatm), namr(iatm), numr(iatm), seg(iatm), &
+                                 nama(jatm), namr(jatm), numr(jatm), seg(jatm)
         end do
       end do
     end select
 
     ! close output file
     !
-    !call close_file(out_unit)
+    call close_file(out_unit)
 
     ! Output summary
     !
