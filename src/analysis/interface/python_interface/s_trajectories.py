@@ -14,7 +14,7 @@ class STrajectories:
     c_obj: STrajectoriesC
 
     def __init__(self, natom: int = 0, nframe: int = 0,
-                 trajs_c: STrajectoriesC = None):
+                 trajs_c: STrajectoriesC = None, mem_owner = True):
         if not trajs_c:
             trajs_c = STrajectoriesC()
             LibGenesis().lib.init_empty_s_trajectories_c(
@@ -28,6 +28,7 @@ class STrajectories:
             trajs_c.coords, shape=(trajs_c.nframe, trajs_c.natom, 3))
         self.pbc_boxes = np.ctypeslib.as_array(
             trajs_c.pbc_boxes, shape=(trajs_c.nframe, 3, 3))
+        self.mem_owner = mem_owner
 
     def __del__(self) -> None:
         self.free()
@@ -46,7 +47,7 @@ class STrajectories:
 
     def free(self):
         """deallocate resources"""
-        if self.c_obj:
+        if self.mem_owner and self.c_obj:
             LibGenesis().lib.deallocate_s_trajectories_c(
                     ctypes.byref(self.c_obj))
             self.c_obj = None
@@ -54,8 +55,8 @@ class STrajectories:
     def get_c_obj(self) -> STrajectoriesC:
         return self.c_obj
 
-    def from_trajectories_c(trajs_c: STrajectoriesC) -> Self:
-        return STrajectories(trajs_c=trajs_c)
+    def from_trajectories_c(trajs_c: STrajectoriesC, mem_owner=True) -> Self:
+        return STrajectories(trajs_c=trajs_c, mem_owner=mem_owner)
 
 
 class STrajectoriesArray:
@@ -65,7 +66,7 @@ class STrajectoriesArray:
         self.traj_array = []
         for i in range(0, len_array):
             self.traj_array.append(
-                    STrajectories.from_trajectories_c(self.src_c_obj[i]))
+                    STrajectories.from_trajectories_c(self.src_c_obj[i], mem_owner=False))
 
     def __del__(self) -> None:
         self.free()
@@ -82,7 +83,7 @@ class STrajectoriesArray:
     def __len__(self) -> int:
         return len(self.traj_array)
 
-    def free(self):
+    def free(self) -> None:
         """deallocate resources"""
         if self.src_c_obj:
             len_array = ctypes.c_int(len(self.traj_array))
