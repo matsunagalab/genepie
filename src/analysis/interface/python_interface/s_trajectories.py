@@ -29,6 +29,9 @@ class STrajectories:
         self.pbc_boxes = np.ctypeslib.as_array(
             trajs_c.pbc_boxes, shape=(trajs_c.nframe, 3, 3))
 
+    def __del__(self) -> None:
+        self.free()
+
     def __enter__(self) -> Self:
         return self
 
@@ -43,8 +46,10 @@ class STrajectories:
 
     def free(self):
         """deallocate resources"""
-        LibGenesis().lib.deallocate_s_trajectories_c(
-                ctypes.byref(self.c_obj))
+        if self.c_obj:
+            LibGenesis().lib.deallocate_s_trajectories_c(
+                    ctypes.byref(self.c_obj))
+            self.c_obj = None
 
     def get_c_obj(self) -> STrajectoriesC:
         return self.c_obj
@@ -61,6 +66,9 @@ class STrajectoriesArray:
         for i in range(0, len_array):
             self.traj_array.append(
                     STrajectories.from_trajectories_c(self.src_c_obj[i]))
+
+    def __del__(self) -> None:
+        self.free()
 
     def __enter__(self) -> Self:
         return self
@@ -83,6 +91,7 @@ class STrajectoriesArray:
                     ctypes.byref(len_array))
             self.src_c_obj = ctypes.POINTER(STrajectoriesC)()
             self.traj_array.clear()
+            self.src_c_obj = None
 
 
     def __iter__(self):
