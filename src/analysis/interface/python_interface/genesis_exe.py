@@ -399,7 +399,7 @@ def wham_analysis(ctrl_path: str | bytes | os.PathLike
         ctrl_path:
 
     Returns:
-        none
+        TODO
     """
     LibGenesis().lib.wa_analysis_c(
             py2c_util.pathlike_to_byte(ctrl_path),
@@ -416,7 +416,7 @@ def mbar_analysis(ctrl_path: str | bytes | os.PathLike
         ctrl_path:
 
     Returns:
-        none
+        TODO
     """
     LibGenesis().lib.mbar_analysis_c(
             py2c_util.pathlike_to_byte(ctrl_path),
