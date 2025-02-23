@@ -856,7 +856,7 @@ contains
 
         do ibin = 1, nbin
           write(file,fmt=fmt) center(ibin), (pmf_m(j)%v(ibin),j=1,ncol)
-          pmf(:, ibin) = pmf_m(1)%v(ibin)
+          pmf(:, ibin) = [center(ibin), (pmf_m(j)%v(ibin),j=1,ncol)]
         end do
 
         deallocate(grid, center)
