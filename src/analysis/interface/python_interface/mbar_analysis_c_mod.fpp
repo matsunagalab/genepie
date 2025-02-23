@@ -32,7 +32,7 @@
 
  contains
   ! subroutine mbar_analysis_c(molecule, s_trajes_c, ana_period, ctrl_path) &
-  subroutine mbar_analysis_c(ctrl_path) &
+  subroutine mbar_analysis_c(ctrl_path, result_fene) &
         bind(C, name="mbar_analysis_c")
     use conv_f_c_util
     implicit none
@@ -40,27 +40,31 @@
     ! type(s_trajectories_c), intent(in) :: s_trajes_c
     ! integer, intent(in) :: ana_period
     character(kind=c_char), intent(in) :: ctrl_path(*)
+    type(c_ptr), intent(out) :: result_fene
 
     ! type(s_molecule) :: f_molecule
     character(len=:), allocatable :: fort_ctrl_path
+    real(wp), pointer :: fene_f(:,:) => null()
 
     call c2f_string_allocate(ctrl_path, fort_ctrl_path)
     ! call c2f_s_molecule(molecule, f_molecule)
     ! call wa_analysis_main( &
     !     f_molecule, s_trajes_c, ana_period, fort_ctrl_path)
     call mbar_analysis_main( &
-        fort_ctrl_path)
+        fort_ctrl_path, fene_f)
+    result_fene = c_loc(fene_f)
   end subroutine mbar_analysis_c
 
   ! subroutine mbar_analysis_main( &
   !         molecule, s_trajes_c, ana_period, ctrl_filename)
   subroutine mbar_analysis_main( &
-          ctrl_filename)
+          ctrl_filename, result_fene)
     implicit none
     ! type(s_molecule), intent(inout) :: molecule
     ! type(s_trajectories_c), intent(in) :: s_trajes_c
     ! integer,                intent(in) :: ana_period
     character(*), intent(in) :: ctrl_filename
+    real(wp), pointer, intent(out) :: result_fene(:,:)
 
     ! local variables
     type(s_ctrl_data)      :: ctrl_data
@@ -97,7 +101,7 @@
     write(MsgOut,'(A)') ' '
 
     ! call analyze(molecule, s_trajes_c, ana_period, input, output, option)
-    call analyze(molecule, input, output, option)
+    call analyze(molecule, input, output, option, result_fene)
 
 
     ! [Step4] Deallocate memory

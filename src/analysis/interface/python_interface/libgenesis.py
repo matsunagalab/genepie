@@ -144,16 +144,12 @@ class LibGenesis:
         self.lib.aa_analysis_c.restype = None
 
         self.lib.wa_analysis_c.argtyes = [
-                ctypes.POINTER(SMoleculeC),
-                ctypes.POINTER(STrajectoriesC),
                 ctypes.POINTER(ctypes.c_int),
                 ctypes.c_char_p,
                 ]
         self.lib.wa_analysis_c.restype = None
 
         self.lib.mbar_analysis_c.argtyes = [
-                ctypes.POINTER(SMoleculeC),
-                ctypes.POINTER(STrajectoriesC),
                 ctypes.POINTER(ctypes.c_int),
                 ctypes.c_char_p,
                 ]

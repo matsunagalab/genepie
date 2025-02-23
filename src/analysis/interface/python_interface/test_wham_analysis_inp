@@ -2,7 +2,7 @@
 cvfile         = ../../../../tests/regression_test/test_analysis/trajectories/triala_cv/{}.dis
 
 [OUTPUT]
-pmffile        = out
+pmffile        = pmf
 
 [WHAM]
 dimension      = 1

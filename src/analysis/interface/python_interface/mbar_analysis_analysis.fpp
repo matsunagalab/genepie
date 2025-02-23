@@ -130,7 +130,8 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   ! subroutine analyze(molecule, trajes_c, ana_period, input, output, option)
-  subroutine analyze(molecule, input, output, option)
+  subroutine analyze(molecule, input, output, option, fene)
+    use s_trajectories_c_mod
 
     ! formal arguments
     type(s_molecule),        intent(in)    :: molecule
@@ -139,6 +140,8 @@ contains
     type(s_input),           intent(in)    :: input
     type(s_output),          intent(in)    :: output
     type(s_option),          intent(inout) :: option
+    real(wp), pointer,       intent(out)   :: fene(:,:)
+
 
     ! local variables
     type(s_data_k),   allocatable :: data_k(:)     ! (nbrella)
@@ -159,6 +162,13 @@ contains
     !
     if (option%check_only) &
       return
+
+    if (option%dimension == 1) then
+      allocate( fene(option%nblocks, option%num_replicas) )
+    else
+      allocate( fene(option%rest_nreplica(option%rest_func_no(2, 1)), &
+                     option%rest_nreplica(option%rest_func_no(1, 1))) )
+    end if
 
     ! read reference files if Cartesian CV
     !
@@ -331,7 +341,7 @@ contains
 
     ! output f_k and pmf
     !
-    call output_mbar(option, output, bin_k(1), f_k, pmf, weight_k, time_k)
+    call output_mbar(option, output, bin_k(1), f_k, pmf, weight_k, time_k, fene)
 
 
     return
@@ -2107,7 +2117,8 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine output_mbar(option, output, bin_k, f_k, pmf, weight_k, time_k)
+  subroutine output_mbar(option, output, bin_k, f_k, pmf, weight_k, time_k, &
+                         fene)
 
     ! formal arguments
     type(s_option),          intent(in)    :: option
@@ -2117,6 +2128,8 @@ contains
     type(s_pmf),             intent(in)    :: pmf(:)
     real(wp),                intent(in)    :: weight_k(:,:)
     real(wp),                intent(in)    :: time_k(:,:) 
+    real(wp), pointer,       intent(inout) :: fene(:,:)
+
 
     ! local variables
     integer                  :: file, i, j, nbrella, nstep, irep_x, irep_y
@@ -2152,9 +2165,11 @@ contains
       if (option%dimension == 1) then
 
         write(fmt,'(a,i0,a)') '(', option%nblocks,'f25.16)'
+        write(MsgOut,*) nbrella, option%nblocks
 
         do i = 1, nbrella
           write(file,fmt=fmt) (f_k(j)%v(i)*out_unit,j=1,option%nblocks)
+          fene(:, i) = [(f_k(j)%v(i)*out_unit,j=1,option%nblocks)]
         end do
 
       else
@@ -2173,6 +2188,7 @@ contains
 
         do j = 1, nrep_y
           write(file,fmt=fmt) (f_k2d(j,i)*out_unit,i=1,nrep_x)
+          fene(:, j) = [(f_k2d(j,i)*out_unit,i=1,nrep_x)]
         end do
 
         deallocate(f_k2d)

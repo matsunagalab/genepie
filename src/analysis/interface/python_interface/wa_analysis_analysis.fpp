@@ -109,7 +109,15 @@ contains
       return
 
     num_bins = option%num_grids(1) -1
-    allocate( pmf(2, num_bins) )
+    if (option%dimension == 1) then
+      if (option%nblocks > 1) then
+        allocate( pmf(3, num_bins) )
+      else
+        allocate( pmf(2, num_bins) )
+      end if
+    else
+      allocate( pmf(option%num_grids(1)-1, option%num_grids(2)-1) )
+    end if
 
     ! build data_k
     !
@@ -882,7 +890,7 @@ contains
 
         nbin_x = option%num_grids(1)-1
         nbin_y = option%num_grids(2)-1
-        
+
         write(fmt,'(a,i0,a)') '(',nbin_x, 'es25.16e3)'
         
         do ibin_y = 1, nbin_y
