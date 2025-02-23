@@ -888,6 +888,7 @@ contains
         do ibin_y = 1, nbin_y
           write(file,fmt=fmt) &
                (pmf_m(1)%v((ibin_x-1)+(ibin_y-1)*nbin_x+1),ibin_x=1,nbin_x)
+          pmf(:, ibin_y) = [(pmf_m(1)%v((ibin_x-1)+(ibin_y-1)*nbin_x+1),ibin_x=1,nbin_x)]
         end do
 
       end if
