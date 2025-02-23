@@ -82,7 +82,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   ! subroutine analyze(molecule, trajes_c, ana_period, input, output, option)
-  subroutine analyze(molecule, input, output, option)
+  subroutine analyze(molecule, input, output, option, pmf)
     use s_trajectories_c_mod
 
     ! formal arguments
@@ -92,12 +92,15 @@ contains
     type(s_input),           intent(in)    :: input
     type(s_output),          intent(in)    :: output
     type(s_option),          intent(in)    :: option
+    real(wp), pointer,       intent(out)   :: pmf(:,:)
+
 
     ! local variables
     type(s_data_k), allocatable :: data_k(:)     ! (nbrella)
     real(wp),       allocatable :: bias_km(:,:)  ! (nbin,nbrella)
     integer,        allocatable :: h_km(:,:)     ! (nbin,nbrella)
     type(s_pmf),    allocatable :: pmf_m(:)      ! (nblocks)
+    integer                     :: num_bins, num_grid
 
 
     ! check check only
@@ -105,6 +108,8 @@ contains
     if (option%check_only) &
       return
 
+    num_bins = option%num_grids(1) -1
+    allocate( pmf(2, num_bins) )
 
     ! build data_k
     !
@@ -131,7 +136,7 @@ contains
 
     ! output f_k and pmf
     !
-    call output_wham(option, output, pmf_m)
+    call output_wham(option, output, pmf_m, pmf)
 
     return
 
@@ -811,12 +816,14 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine output_wham(option, output, pmf_m)
+  subroutine output_wham(option, output, pmf_m, pmf)
 
     ! formal arguments
     type(s_option),          intent(in)    :: option
     type(s_output),          intent(in)    :: output
     type(s_pmf),             intent(in)    :: pmf_m(:)
+    real(wp), pointer,       intent(inout) :: pmf(:,:)
+
 
     ! local variables
     integer                  :: file, ncol, j
@@ -849,6 +856,7 @@ contains
 
         do ibin = 1, nbin
           write(file,fmt=fmt) center(ibin), (pmf_m(j)%v(ibin),j=1,ncol)
+          pmf(:, ibin) = pmf_m(1)%v(ibin)
         end do
 
         deallocate(grid, center)

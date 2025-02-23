@@ -5,7 +5,8 @@ import genesis_exe
 
 def test_wham_analysis():
     ctrl_path = pathlib.Path("test_wham_analysis_inp")
-    genesis_exe.wham_analysis(ctrl_path)
+    pmf = genesis_exe.wham_analysis(300, ctrl_path)
+    print(pmf)
 
 
 def main():

@@ -32,7 +32,7 @@ module wa_analysis_c_mod
 
 contains
   ! subroutine wa_analysis_c(molecule, s_trajes_c, ana_period, ctrl_path) &
-  subroutine wa_analysis_c(ctrl_path) &
+  subroutine wa_analysis_c(ctrl_path, result_pmf) &
         bind(C, name="wa_analysis_c")
     use conv_f_c_util
     implicit none
@@ -40,27 +40,31 @@ contains
     ! type(s_trajectories_c), intent(in) :: s_trajes_c
     ! integer, intent(in) :: ana_period
     character(kind=c_char), intent(in) :: ctrl_path(*)
+    type(c_ptr), intent(out) :: result_pmf
 
     ! type(s_molecule) :: f_molecule
     character(len=:), allocatable :: fort_ctrl_path
+    real(wp), pointer :: pmf_f(:,:) => null()
 
     call c2f_string_allocate(ctrl_path, fort_ctrl_path)
     ! call c2f_s_molecule(molecule, f_molecule)
     ! call wa_analysis_main( &
     !     f_molecule, s_trajes_c, ana_period, fort_ctrl_path)
     call wa_analysis_main( &
-        fort_ctrl_path)
+        fort_ctrl_path, pmf_f)
+    result_pmf = c_loc(pmf_f)
   end subroutine wa_analysis_c
 
   ! subroutine wa_analysis_main( &
   !         molecule, s_trajes_c, ana_period, ctrl_filename)
   subroutine wa_analysis_main( &
-          ctrl_filename)
+          ctrl_filename, result_pmf)
     implicit none
     ! type(s_molecule), intent(inout) :: molecule
     ! type(s_trajectories_c), intent(in) :: s_trajes_c
     ! integer,                intent(in) :: ana_period
     character(*), intent(in) :: ctrl_filename
+    real(wp), pointer, intent(out) :: result_pmf(:,:)
 
     ! local variables
     type(s_ctrl_data)      :: ctrl_data
@@ -97,7 +101,7 @@ contains
     write(MsgOut,'(A)') ' '
 
     ! call analyze(molecule, s_trajes_c, ana_period, input, output, option)
-    call analyze(molecule, input, output, option)
+    call analyze(molecule, input, output, option, result_pmf)
 
 
     ! [Step4] Deallocate memory
