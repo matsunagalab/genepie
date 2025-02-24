@@ -130,7 +130,8 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   ! subroutine analyze(molecule, trajes_c, ana_period, input, output, option)
-  subroutine analyze(molecule, input, output, option, fene)
+  subroutine analyze(molecule, input, output, option, &
+                     fene, n_replica, n_blocks)
     use s_trajectories_c_mod
 
     ! formal arguments
@@ -141,6 +142,8 @@ contains
     type(s_output),          intent(in)    :: output
     type(s_option),          intent(inout) :: option
     real(wp), pointer,       intent(out)   :: fene(:,:)
+    integer,                 intent(out)   :: n_replica
+    integer,                 intent(out)   :: n_blocks
 
 
     ! local variables
@@ -164,10 +167,13 @@ contains
       return
 
     if (option%dimension == 1) then
-      allocate( fene(option%nblocks, option%num_replicas) )
+      n_replica = option%num_replicas
+      n_blocks = option%nblocks
+      allocate( fene(n_blocks, n_replica) )
     else
-      allocate( fene(option%rest_nreplica(option%rest_func_no(2, 1)), &
-                     option%rest_nreplica(option%rest_func_no(1, 1))) )
+      n_replica = option%rest_nreplica(option%rest_func_no(1, 1))
+      n_blocks = option%rest_nreplica(option%rest_func_no(2, 1))
+      allocate( fene(n_blocks, n_replica) )
     end if
 
     ! read reference files if Cartesian CV

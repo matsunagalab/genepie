@@ -5,7 +5,7 @@ import genesis_exe
 
 def test_mbar_analysis():
     ctrl_path = pathlib.Path("test_mbar_analysis_umbrella_block_inp")
-    fene = genesis_exe.mbar_analysis(61, 5, ctrl_path)
+    fene = genesis_exe.mbar_analysis(ctrl_path)
     print(fene)
 
 

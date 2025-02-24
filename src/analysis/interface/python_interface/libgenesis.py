@@ -147,12 +147,16 @@ class LibGenesis:
         self.lib.wa_analysis_c.argtyes = [
                 ctypes.POINTER(ctypes.c_int),
                 ctypes.c_char_p,
+                ctypes.POINTER(ctypes.c_int),
+                ctypes.POINTER(ctypes.c_int),
                 ]
         self.lib.wa_analysis_c.restype = None
 
         self.lib.mbar_analysis_c.argtyes = [
                 ctypes.POINTER(ctypes.c_int),
                 ctypes.c_char_p,
+                ctypes.POINTER(ctypes.c_int),
+                ctypes.POINTER(ctypes.c_int),
                 ]
         self.lib.mbar_analysis_c.restype = None
 
