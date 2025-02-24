@@ -82,7 +82,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   ! subroutine analyze(molecule, trajes_c, ana_period, input, output, option)
-  subroutine analyze(molecule, input, output, option, pmf)
+  subroutine analyze(molecule, input, output, option, pmf, n_bins, n_bin_x)
     use s_trajectories_c_mod
 
     ! formal arguments
@@ -93,6 +93,8 @@ contains
     type(s_output),          intent(in)    :: output
     type(s_option),          intent(in)    :: option
     real(wp), pointer,       intent(out)   :: pmf(:,:)
+    integer,                 intent(out)   :: n_bins
+    integer,                 intent(out)   :: n_bin_x
 
 
     ! local variables
@@ -100,23 +102,25 @@ contains
     real(wp),       allocatable :: bias_km(:,:)  ! (nbin,nbrella)
     integer,        allocatable :: h_km(:,:)     ! (nbin,nbrella)
     type(s_pmf),    allocatable :: pmf_m(:)      ! (nblocks)
-    integer                     :: num_bins, num_grid
-
 
     ! check check only
     !
     if (option%check_only) &
       return
 
-    num_bins = option%num_grids(1) -1
+    n_bins = option%num_grids(1) -1
     if (option%dimension == 1) then
       if (option%nblocks > 1) then
-        allocate( pmf(3, num_bins) )
+        n_bin_x = 3
+        allocate( pmf(n_bin_x, n_bins) )
       else
-        allocate( pmf(2, num_bins) )
+        n_bin_x = 2
+        allocate( pmf(n_bin_x, n_bins) )
       end if
     else
-      allocate( pmf(option%num_grids(1)-1, option%num_grids(2)-1) )
+      n_bin_x = option%num_grids(1)-1
+      n_bins = option%num_grids(2)-1
+      allocate( pmf(n_bin_x, n_bins) )
     end if
 
     ! build data_k
