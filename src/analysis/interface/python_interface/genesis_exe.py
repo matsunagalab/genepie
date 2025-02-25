@@ -296,7 +296,7 @@ def msd_analysis(molecule: SMolecule, trajs :STrajectories,
 def hb_analysis(molecule: SMolecule, trajs :STrajectories,
                 ana_period: int,
                 ctrl_path: str | bytes | os.PathLike
-                ):
+                ) -> str:
     """
     Executes hb_analysis.
 
@@ -321,8 +321,7 @@ def hb_analysis(molecule: SMolecule, trajs :STrajectories,
             )
     s = c2py_util.conv_string(result)
     LibGenesis().lib.deallocate_c_string(ctypes.byref(result))
-    print(s)
-    return
+    return s
 
 
 def diffusion_analysis(msd_data: npt.NDArray[np.float64],

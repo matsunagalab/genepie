@@ -44,7 +44,8 @@ libpython_interface_la_SOURCES = \
         mbar_analysis_c_mod.fpp \
         mbar_analysis_analysis.fpp \
         kc_analysis_c_mod.fpp \
-        kc_analysis_analysis.fpp
+        kc_analysis_analysis.fpp \
+        dynamic_string_mod.fpp
 
 EXTRA_DIST = \
 	Makefile.depends
