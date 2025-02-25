@@ -50,8 +50,10 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine analyze(molecule, trajes_c, ana_period, fitting, option, output)
+  subroutine analyze(molecule, trajes_c, ana_period, fitting, option, output, &
+                     out_pdb_ave)
     use s_trajectories_c_mod
+    use internal_file_type_mod
 
     ! formal arguments
     type(s_molecule),        intent(inout) :: molecule
@@ -60,6 +62,7 @@ contains
     type(s_fitting),         intent(inout) :: fitting
     type(s_option),          intent(inout) :: option
     type(s_output),          intent(inout) :: output
+    character(len=:), allocatable, intent(out) :: out_pdb_ave
 
     ! local variables
     type(s_trajectory) :: trajectory
@@ -211,7 +214,7 @@ contains
 
     if (output%pdb_avefile /= '') then
       call export_molecules(molecule, option%analysis_atom, pdb_out)
-      call output_pdb(output%pdb_avefile, pdb_out)
+      call write_pdb_to_string(out_pdb_ave, pdb_out)
       call dealloc_pdb_all(pdb_out)
     end if
 

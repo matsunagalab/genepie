@@ -5,8 +5,8 @@ reffile        = BPTI_ionize.pdb
 [OUTPUT]
 #pdbfile       = output1.pdb      # PDB file
 #rmsfile       = output1.rms      # RMSD file
-#pdb_avefile    = out              # PDB file (Averaged coordinates of analysis atoms)
-pdb_aftfile   = output1_aft.pdb  # PDB file (Averaged coordinates of fitting atoms)
+pdb_avefile    = out              # PDB file (Averaged coordinates of analysis atoms)
+#pdb_aftfile   = output1_aft.pdb  # PDB file (Averaged coordinates of fitting atoms)
  
 [TRAJECTORY]
 trjfile1       = BPTI_run.dcd

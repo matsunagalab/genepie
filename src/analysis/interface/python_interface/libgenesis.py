@@ -141,6 +141,7 @@ class LibGenesis:
                 ctypes.POINTER(STrajectoriesC),
                 ctypes.POINTER(ctypes.c_int),
                 ctypes.c_char_p,
+                ctypes.c_void_p,
                 ]
         self.lib.aa_analysis_c.restype = None
 

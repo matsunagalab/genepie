@@ -383,14 +383,31 @@ def avecrd_analysis(molecule: SMolecule, trajs :STrajectories,
     Returns:
         TODO
     """
-    mol_c = py2c_s_molecule(molecule)
-    ana_period_c = ctypes.c_int(ana_period)
-    LibGenesis().lib.aa_analysis_c(
-            ctypes.byref(mol_c),
-            ctypes.byref(trajs.get_c_obj()),
-            ctypes.byref(ana_period_c),
-            py2c_util.pathlike_to_byte(ctrl_path),
-            )
+    mol_c = None
+    pdb_ave_c = None
+    try:
+        mol_c = py2c_s_molecule(molecule)
+        ana_period_c = ctypes.c_int(ana_period)
+        pdb_ave_c = ctypes.c_void_p()
+        LibGenesis().lib.aa_analysis_c(
+                ctypes.byref(mol_c),
+                ctypes.byref(trajs.get_c_obj()),
+                ctypes.byref(ana_period_c),
+                py2c_util.pathlike_to_byte(ctrl_path),
+                ctypes.byref(pdb_ave_c),
+                )
+        print("@RETURN python", flush=True)
+        if pdb_ave_c:
+            s = c2py_util.conv_string(pdb_ave_c)
+            LibGenesis().lib.deallocate_c_string(ctypes.byref(pdb_ave_c))
+            print(s)
+        else:
+            s = None
+    finally:
+        if mol_c:
+            LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
+        if pdb_ave_c:
+            LibGenesis().lib.deallocate_c_string(ctypes.byref(pdb_ave_c))
     return
 
 

@@ -32,8 +32,8 @@ module aa_analysis_c_mod
   implicit none
 
 contains
-  subroutine aa_analysis_c(molecule, s_trajes_c, ana_period, ctrl_path &
-                          ) &
+  subroutine aa_analysis_c(molecule, s_trajes_c, ana_period, ctrl_path, &
+                           out_pdb_ave_ptr) &
         bind(C, name="aa_analysis_c")
     use conv_f_c_util
     implicit none
@@ -41,23 +41,34 @@ contains
     type(s_trajectories_c), intent(in) :: s_trajes_c
     integer, intent(in) :: ana_period
     character(kind=c_char), intent(in) :: ctrl_path(*)
+    type(c_ptr), intent(out) :: out_pdb_ave_ptr
 
     type(s_molecule) :: f_molecule
     character(len=:), allocatable :: fort_ctrl_path
+    character(len=:), allocatable :: out_pdb_ave_f
+    character(kind=c_char), pointer :: out_pdb_ave_c(:)
 
     call c2f_string_allocate(ctrl_path, fort_ctrl_path)
     call c2f_s_molecule(molecule, f_molecule)
     call aa_analysis_main( &
-        f_molecule, s_trajes_c, ana_period, fort_ctrl_path)
+        f_molecule, s_trajes_c, ana_period, fort_ctrl_path, out_pdb_ave_f)
+    call dealloc_molecules_all(f_molecule)
+    if (allocated(out_pdb_ave_f)) then
+      call f2c_string(out_pdb_ave_f, out_pdb_ave_c)
+      out_pdb_ave_ptr = c_loc(out_pdb_ave_c(1))
+    else
+      out_pdb_ave_ptr = c_null_ptr
+    end if
   end subroutine aa_analysis_c
 
   subroutine aa_analysis_main( &
-          molecule, s_trajes_c, ana_period, ctrl_filename)
+          molecule, s_trajes_c, ana_period, ctrl_filename, out_pdb_ave)
     implicit none
     type(s_molecule), intent(inout) :: molecule
     type(s_trajectories_c), intent(in) :: s_trajes_c
     integer,                intent(in) :: ana_period
     character(*), intent(in) :: ctrl_filename
+    character(len=:), allocatable, intent(out) :: out_pdb_ave
 
     ! local variables
     type(s_ctrl_data)      :: ctrl_data
@@ -102,7 +113,8 @@ contains
                  ana_period, &
                  fitting,    &
                  option,     &
-                 output)
+                 output,     &
+                 out_pdb_ave)
 
 
     ! [Step4] Deallocate memory
@@ -111,7 +123,6 @@ contains
     write(MsgOut,'(A)') ' '
 
     call dealloc_trajectory(trajectory)
-    call dealloc_molecules_all(molecule)
   end subroutine aa_analysis_main
 
   !======1=========2=========3=========4=========5=========6=========7=========8
