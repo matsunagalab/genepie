@@ -14,8 +14,8 @@ def test_hb_analysis_Count_snap():
     with SMolecule.from_pdb_psf_file(pdb_path, psf_path) as mol:
         with genesis_exe.crd_convert(mol, crd_ctrl_path) as trajs:
             for t in trajs:
-                genesis_exe.hb_analysis(
-                        mol, t, 1, hb_analysis_ctrl_path)
+                print(genesis_exe.hb_analysis(
+                        mol, t, 1, hb_analysis_ctrl_path))
 
 
 def main():

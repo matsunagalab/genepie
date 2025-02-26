@@ -14,8 +14,8 @@ def test_avecrd_analysis():
     with SMolecule.from_pdb_psf_file(pdb_path, psf_path) as mol:
         with genesis_exe.crd_convert(mol, crd_ctrl_path) as trajs:
             for t in trajs:
-                genesis_exe.avecrd_analysis(
-                        mol, t, 1, aa_analysis_ctrl_path)
+                print(genesis_exe.avecrd_analysis(
+                        mol, t, 1, aa_analysis_ctrl_path))
 
 
 def main():
