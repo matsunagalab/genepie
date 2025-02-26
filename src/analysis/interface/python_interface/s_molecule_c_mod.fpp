@@ -296,12 +296,12 @@ contains
 
     call c2f_int_array(f_dst%molecule_no, c_src%molecule_no, [c_src%num_atoms])
 
-    call c2f_int_array(f_dst%bond_list, c_src%bond_list, [2, c_src%num_atoms])
-    call c2f_int_array(f_dst%enm_list, c_src%enm_list, [2, c_src%num_atoms])
-    call c2f_int_array(f_dst%angl_list, c_src%angl_list, [3, c_src%num_atoms])
-    call c2f_int_array(f_dst%dihe_list, c_src%dihe_list, [4, c_src%num_atoms])
-    call c2f_int_array(f_dst%impr_list, c_src%impr_list, [4, c_src%num_atoms])
-    call c2f_int_array(f_dst%cmap_list, c_src%cmap_list, [8, c_src%num_atoms])
+    call c2f_int_array(f_dst%bond_list, c_src%bond_list, [2, c_src%num_bonds])
+    call c2f_int_array(f_dst%enm_list, c_src%enm_list, [2, c_src%num_enm_bonds])
+    call c2f_int_array(f_dst%angl_list, c_src%angl_list, [3, c_src%num_angles])
+    call c2f_int_array(f_dst%dihe_list, c_src%dihe_list, [4, c_src%num_dihedrals])
+    call c2f_int_array(f_dst%impr_list, c_src%impr_list, [4, c_src%num_impropers])
+    call c2f_int_array(f_dst%cmap_list, c_src%cmap_list, [8, c_src%num_cmaps])
 
     call c2f_int_array(f_dst%molecule_atom_no, c_src%molecule_atom_no, [c_src%num_molecules])
     call c2f_double_array(f_dst%molecule_mass, c_src%molecule_mass, [c_src%num_molecules])
