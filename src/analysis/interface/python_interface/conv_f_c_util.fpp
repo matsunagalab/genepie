@@ -53,6 +53,21 @@ contains
     end do
   end subroutine c2f_string
 
+  subroutine cptr_to_fstring(src, f_string) bind(C, name="cptr_to_fstring")
+    implicit none
+
+    type(c_ptr), intent(in) :: src
+    character(*), intent(out) :: f_string
+    character(kind=c_char), pointer :: c_array(:)
+
+    if (.not. c_associated(src)) then
+        f_string = ' '
+        return
+    end if
+    call c_f_pointer(src, c_array, [huge(0)])
+    call c2f_string(c_array, f_string)
+  end subroutine cptr_to_fstring
+
   subroutine c2f_string_allocate(c_string, f_string, limit_len)
     implicit none
     character(kind=c_char), intent(in) :: c_string(*)

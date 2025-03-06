@@ -1,52 +1,56 @@
 aa_analysis_analysis.lo: aa_analysis_analysis.fpp internal_file_type_mod.mod s_trajectories_c_mod.mod 
 aa_analysis_analyze_c_mod.mod: aa_analysis_analysis.fpp aa_analysis_analysis.lo
-aa_analysis_c_mod.lo: aa_analysis_c_mod.fpp aa_analysis_analyze_c_mod.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod conv_f_c_util.mod 
+aa_analysis_c_mod.lo: aa_analysis_c_mod.fpp conv_f_c_util.mod aa_analysis_analyze_c_mod.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod 
 aa_analysis_c_mod.mod: aa_analysis_c_mod.fpp aa_analysis_c_mod.lo
 conv_f_c_util.lo: conv_f_c_util.fpp  
 conv_f_c_util.mod: conv_f_c_util.fpp conv_f_c_util.lo
-crd_convert_c_mod.lo: crd_convert_c_mod.fpp s_trajectories_c_mod.mod s_molecule_c_mod.mod crd_convert_convert.mod conv_f_c_util.mod 
+crd_convert_c_mod.lo: crd_convert_c_mod.fpp conv_f_c_util.mod crd_convert_convert.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod 
 crd_convert_c_mod.mod: crd_convert_c_mod.fpp crd_convert_c_mod.lo
 crd_convert_convert.lo: crd_convert_convert.fpp s_trajectories_c_mod.mod 
 crd_convert_convert.mod: crd_convert_convert.fpp crd_convert_convert.lo
+ctrl_c_mod.lo: ctrl_c_mod.fpp conv_f_c_util.mod 
+ctrl_c_mod.mod: ctrl_c_mod.fpp ctrl_c_mod.lo
 define_molecule.lo: define_molecule.fpp conv_f_c_util.mod s_molecule_c_mod.mod 
 define_molecule.mod: define_molecule.fpp define_molecule.lo
 diffusion_analysis_analyze.lo: diffusion_analysis_analyze.fpp  
 diffusion_analysis_analyze_c_mod.mod: diffusion_analysis_analyze.fpp diffusion_analysis_analyze.lo
-diffusion_analysis_main_c_mod.lo: diffusion_analysis_main_c_mod.fpp conv_f_c_util.mod diffusion_analysis_analyze_c_mod.mod 
+diffusion_analysis_main_c_mod.lo: diffusion_analysis_main_c_mod.fpp diffusion_analysis_analyze_c_mod.mod conv_f_c_util.mod 
 diffusion_analysis_c_mod.mod: diffusion_analysis_main_c_mod.fpp diffusion_analysis_main_c_mod.lo
 dr_analysis_analysis.lo: dr_analysis_analysis.fpp s_trajectories_c_mod.mod 
 dr_analysis_analyze_c_mod.mod: dr_analysis_analysis.fpp dr_analysis_analysis.lo
-dr_analysis_c_mod.lo: dr_analysis_c_mod.fpp dr_analysis_analyze_c_mod.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod conv_f_c_util.mod 
+dr_analysis_c_mod.lo: dr_analysis_c_mod.fpp conv_f_c_util.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod dr_analysis_analyze_c_mod.mod 
 dr_analysis_c_mod.mod: dr_analysis_c_mod.fpp dr_analysis_c_mod.lo
 dynamic_string_mod.lo: dynamic_string_mod.fpp  
 dynamic_string_mod.mod: dynamic_string_mod.fpp dynamic_string_mod.lo
 hb_analysis_analysis.lo: hb_analysis_analysis.fpp dynamic_string_mod.mod s_trajectories_c_mod.mod 
 hb_analysis_analyze_c_mod.mod: hb_analysis_analysis.fpp hb_analysis_analysis.lo
-hb_analysis_c_mod.lo: hb_analysis_c_mod.fpp hb_analysis_analyze_c_mod.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod conv_f_c_util.mod 
+hb_analysis_c_mod.lo: hb_analysis_c_mod.fpp conv_f_c_util.mod hb_analysis_analyze_c_mod.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod 
 hb_analysis_c_mod.mod: hb_analysis_c_mod.fpp hb_analysis_c_mod.lo
 hb_analysis_output_c_mod.lo: hb_analysis_output_c_mod.fpp  
 hb_analysis_output_c_mod.mod: hb_analysis_output_c_mod.fpp hb_analysis_output_c_mod.lo
-internal_file_type_mod.lo: internal_file_type_mod.fpp  
+internal_file_type_mod.lo: internal_file_type_mod.fpp dynamic_string_mod.mod 
 internal_file_type_mod.mod: internal_file_type_mod.fpp internal_file_type_mod.lo
-kc_analysis_analysis.lo: kc_analysis_analysis.fpp s_trajectories_c_mod.mod 
+kc_analysis_analysis.lo: kc_analysis_analysis.fpp s_trajectories_c_mod.mod internal_file_type_mod.mod 
 kc_analysis_analyze_c_mod.mod: kc_analysis_analysis.fpp kc_analysis_analysis.lo
-kc_analysis_c_mod.lo: kc_analysis_c_mod.fpp kc_analysis_analyze_c_mod.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod conv_f_c_util.mod 
+kc_analysis_c_mod.lo: kc_analysis_c_mod.fpp conv_f_c_util.mod kc_analysis_analyze_c_mod.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod 
 kc_analysis_c_mod.mod: kc_analysis_c_mod.fpp kc_analysis_c_mod.lo
 ma_analysis_analysis.lo: ma_analysis_analysis.fpp s_trajectories_c_mod.mod 
 ma_analysis_analyze_c_mod.mod: ma_analysis_analysis.fpp ma_analysis_analysis.lo
-ma_analysis_c_mod.lo: ma_analysis_c_mod.fpp ma_analysis_analyze_c_mod.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod conv_f_c_util.mod 
+ma_analysis_c_mod.lo: ma_analysis_c_mod.fpp conv_f_c_util.mod ma_analysis_analyze_c_mod.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod 
 ma_analysis_c_mod.mod: ma_analysis_c_mod.fpp ma_analysis_c_mod.lo
 mbar_analysis_analysis.lo: mbar_analysis_analysis.fpp s_trajectories_c_mod.mod 
 mbar_analysis_analyze_c_mod.mod: mbar_analysis_analysis.fpp mbar_analysis_analysis.lo
-mbar_analysis_c_mod.lo: mbar_analysis_c_mod.fpp s_trajectories_c_mod.mod mbar_analysis_analyze_c_mod.mod s_molecule_c_mod.mod conv_f_c_util.mod 
+mbar_analysis_c_mod.lo: mbar_analysis_c_mod.fpp conv_f_c_util.mod mbar_analysis_analyze_c_mod.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod 
 mbar_analysis_c_mod.mod: mbar_analysis_c_mod.fpp mbar_analysis_c_mod.lo
+pi_common_util.lo: pi_common_util.fpp  
+pi_common_util.mod: pi_common_util.fpp pi_common_util.lo
 ra_analysis_analysis.lo: ra_analysis_analysis.fpp s_trajectories_c_mod.mod 
 ra_analysis_analyze_c_mod.mod: ra_analysis_analysis.fpp ra_analysis_analysis.lo
-ra_analysis_c_mod.lo: ra_analysis_c_mod.fpp s_trajectories_c_mod.mod s_molecule_c_mod.mod conv_f_c_util.mod ra_analysis_analyze_c_mod.mod 
+ra_analysis_c_mod.lo: ra_analysis_c_mod.fpp ra_analysis_analyze_c_mod.mod conv_f_c_util.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod 
 ra_analysis_c_mod.mod: ra_analysis_c_mod.fpp ra_analysis_c_mod.lo
 rg_analysis_analysis.lo: rg_analysis_analysis.fpp s_trajectories_c_mod.mod 
 rg_analysis_analyze_c_mod.mod: rg_analysis_analysis.fpp rg_analysis_analysis.lo
-rg_analysis_c_mod.lo: rg_analysis_c_mod.fpp s_trajectories_c_mod.mod s_molecule_c_mod.mod conv_f_c_util.mod rg_analysis_analyze_c_mod.mod 
+rg_analysis_c_mod.lo: rg_analysis_c_mod.fpp conv_f_c_util.mod rg_analysis_analyze_c_mod.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod 
 rg_analysis_c_mod.mod: rg_analysis_c_mod.fpp rg_analysis_c_mod.lo
 s_molecule_c_mod.lo: s_molecule_c_mod.fpp conv_f_c_util.mod 
 s_molecule_c_mod.mod: s_molecule_c_mod.fpp s_molecule_c_mod.lo
@@ -54,11 +58,11 @@ s_trajectories_c_mod.lo: s_trajectories_c_mod.fpp
 s_trajectories_c_mod.mod: s_trajectories_c_mod.fpp s_trajectories_c_mod.lo
 trj_analysis_analysis.lo: trj_analysis_analysis.fpp s_trajectories_c_mod.mod 
 trj_analysis_analyze_c_mod.mod: trj_analysis_analysis.fpp trj_analysis_analysis.lo
-trj_analysis_c_mod.lo: trj_analysis_c_mod.fpp trj_analysis_analyze_c_mod.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod conv_f_c_util.mod 
+trj_analysis_c_mod.lo: trj_analysis_c_mod.fpp conv_f_c_util.mod s_trajectories_c_mod.mod trj_analysis_analyze_c_mod.mod s_molecule_c_mod.mod 
 trj_analysis_c_mod.mod: trj_analysis_c_mod.fpp trj_analysis_c_mod.lo
 wa_analysis_analysis.lo: wa_analysis_analysis.fpp s_trajectories_c_mod.mod 
 wa_analysis_analyze_c_mod.mod: wa_analysis_analysis.fpp wa_analysis_analysis.lo
-wa_analysis_c_mod.lo: wa_analysis_c_mod.fpp wa_analysis_analyze_c_mod.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod conv_f_c_util.mod 
+wa_analysis_c_mod.lo: wa_analysis_c_mod.fpp conv_f_c_util.mod wa_analysis_analyze_c_mod.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod 
 wa_analysis_c_mod.mod: wa_analysis_c_mod.fpp wa_analysis_c_mod.lo
 your_module.lo: your_module.fpp conv_f_c_util.mod s_molecule_c_mod.mod 
 your_module.mod: your_module.fpp your_module.lo

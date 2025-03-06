@@ -19,6 +19,7 @@ libpython_interface_la_SOURCES = \
         your_module.fpp \
         conv_f_c_util.fpp \
         s_molecule_c_mod.fpp \
+        ctrl_c_mod.fpp \
         define_molecule.fpp \
         s_trajectories_c_mod.fpp \
         crd_convert_convert.fpp \
