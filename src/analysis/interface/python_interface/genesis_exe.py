@@ -1,10 +1,13 @@
 import ctypes
 import os
+import tempfile
+from typing import Optional, List
 import numpy as np
 import numpy.typing as npt
 from libgenesis import LibGenesis
 from s_molecule import SMolecule
 from s_trajectories import STrajectories, STrajectoriesArray
+import ctrl_files
 import c2py_util
 import py2c_util
 
@@ -35,7 +38,10 @@ def crd_convert(molecule: SMolecule,
 
 def trj_analysis(molecule: SMolecule, trajs :STrajectories,
                  ana_period: int,
-                 ctrl_path: str | bytes | os.PathLike
+                 sel_group: Optional[List[str]] = None,
+                 sel_mole_name: Optional[List[str]] = None,
+                 check_only: Optional[bool] = False,
+                 distance: Optional[List[str]] = [],
                  ) -> tuple[npt.NDArray[np.float64],
                             npt.NDArray[np.float64],
                             npt.NDArray[np.float64],
@@ -49,8 +55,8 @@ def trj_analysis(molecule: SMolecule, trajs :STrajectories,
         molecule:
         trajs:
         ana_period:
-        ctrl_path:
-
+        sel_group:
+        sel_mole_name:
     Returns:
         (distance, angle, torsion, cdis, cang, ctor)
     """
@@ -70,24 +76,45 @@ def trj_analysis(molecule: SMolecule, trajs :STrajectories,
     mol_c = ctypes.c_void_p(None)
     try:
         mol_c = molecule.to_SMoleculeC()
-        LibGenesis().lib.trj_analysis_c(
-                ctypes.byref(mol_c),
-                ctypes.byref(trajs.get_c_obj()),
-                ctypes.byref(ana_period_c),
-                py2c_util.pathlike_to_byte(ctrl_path),
-                ctypes.byref(result_distance_c),
-                ctypes.byref(num_distance),
-                ctypes.byref(result_angle_c),
-                ctypes.byref(num_angle),
-                ctypes.byref(result_torsion_c),
-                ctypes.byref(num_torsion),
-                ctypes.byref(result_cdis_c),
-                ctypes.byref(num_cdis),
-                ctypes.byref(result_cang_c),
-                ctypes.byref(num_cang),
-                ctypes.byref(result_ctor_c),
-                ctypes.byref(num_ctor),
-                )
+        with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
+            ctrl_files.write_ctrl_output(
+                    ctrl,
+                    dis_file="dummy.dis",
+                    ang_file="dummy.ang",
+                    tor_file="dummy.tor",
+                    comdis_file="dummy.comdis",
+                    comang_file="dummy.comangr",
+                    comtor_file="dummy.comtor",
+                    qnt_file="dummy.qnt",
+                    )
+            ctrl_files.write_ctrl_selection(
+                    ctrl, sel_group, sel_mole_name)
+
+            ctrl.write(b"[OPTION]\n")
+            ctrl.write("check_only     = {}\n".format("YES" if check_only else "NO")
+                       .encode('utf-8'))
+            for idx, d in enumerate(distance, 1):
+                ctrl.write(f"distance{idx}      = {d}\n".encode('utf-8'))
+
+            ctrl.seek(0)
+            LibGenesis().lib.trj_analysis_c(
+                    ctypes.byref(mol_c),
+                    ctypes.byref(trajs.get_c_obj()),
+                    ctypes.byref(ana_period_c),
+                    py2c_util.pathlike_to_byte(ctrl.name),
+                    ctypes.byref(result_distance_c),
+                    ctypes.byref(num_distance),
+                    ctypes.byref(result_angle_c),
+                    ctypes.byref(num_angle),
+                    ctypes.byref(result_torsion_c),
+                    ctypes.byref(num_torsion),
+                    ctypes.byref(result_cdis_c),
+                    ctypes.byref(num_cdis),
+                    ctypes.byref(result_cang_c),
+                    ctypes.byref(num_cang),
+                    ctypes.byref(result_ctor_c),
+                    ctypes.byref(num_ctor),
+                    )
         n_frame_c = ctypes.c_int(int(trajs.nframe / ana_period))
         result_distance = (c2py_util.conv_double_ndarray(
             result_distance_c, [n_frame_c.value, num_distance.value])

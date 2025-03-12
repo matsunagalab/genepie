@@ -10,6 +10,7 @@ module conv_f_c_util
   private
 
   public :: c2f_string
+  public :: cptr_to_fstring
   public :: c2f_string_allocate
   public :: f2c_string
   public :: f2c_bool_array

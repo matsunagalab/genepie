@@ -36,7 +36,6 @@ module trj_analysis_analyze_c_mod
   private :: analyze_comang
   private :: analyze_comtor
   private :: out_result
-  private :: print_output_info
 
 contains
 
@@ -46,13 +45,12 @@ contains
   !> @brief        run analyzing trajectories
   !! @authors      NT, TM
   !! @param[in]    trj_list   : trajectory file list information
-  !! @param[in]    output     : output information
   !! @param[inout] option     : option information
   !! @param[inout] trajectory : trajectory information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine analyze(molecule, trajes_c, ana_period, output, option, &
+  subroutine analyze(molecule, trajes_c, ana_period, option, &
                      distance, num_distance, &
                      angle, num_angle, &
                      torsion, num_torsion, &
@@ -65,7 +63,6 @@ contains
     type(s_molecule),        intent(in)    :: molecule
     type(s_trajectories_c),  intent(in)    :: trajes_c
     integer,                 intent(in)    :: ana_period
-    type(s_output),          intent(in)    :: output
     type(s_option),          intent(inout) :: option
     real(wp), pointer,       intent(out)   :: distance(:,:)
     integer,                 intent(out)   :: num_distance
@@ -160,10 +157,6 @@ contains
         end if
       end if
     end do
-
-    ! Output summary
-    !
-    call print_output_info(output, option)
 
     return
 
@@ -447,81 +440,5 @@ contains
     return
 
   end subroutine out_result
-
-  !======1=========2=========3=========4=========5=========6=========7=========8
-  !
-  !  Subroutine    print_output_info
-  !> @brief        print detailed output information
-  !! @authors      TM
-  !
-  !======1=========2=========3=========4=========5=========6=========7=========8
-
-  subroutine print_output_info(output, option)
-
-    ! formal arguments
-    type(s_output),          intent(in) :: output
-    type(s_option),          intent(in) :: option
-
-    write(MsgOut,'(A)') ''
-    write(MsgOut,'(A)') 'Analyze> Detailed information in the output files'
-    write(MsgOut,'(A)') ''
-
-    if (option%out_dis)  then
-      write(MsgOut,'(A)') '  [disfile] ' // trim(output%disfile)
-      write(MsgOut,'(A)') '    Column 1: Snapshot index'
-      write(MsgOut,'(A)') '    Column 2: Distance (angstrom)'
-      write(MsgOut,'(A)') '    If multiple groups were specified in [OPTION],'
-      write(MsgOut,'(A)') '    Column N+1: Distance for the N-th selected group'
-      write(MsgOut,'(A)') ''
-    end if
-
-    if (option%out_ang)  then
-      write(MsgOut,'(A)') '  [angfile] ' // trim(output%angfile)
-      write(MsgOut,'(A)') '    Column 1: Snapshot index'
-      write(MsgOut,'(A)') '    Column 2: Angle (degree)'
-      write(MsgOut,'(A)') '    If multiple groups were specified in [OPTION],'
-      write(MsgOut,'(A)') '    Column N+1: Angle for the N-th selected group'
-      write(MsgOut,'(A)') ''
-    end if
-
-    if (option%out_tor)  then
-      write(MsgOut,'(A)') '  [torfile] ' // trim(output%torfile)
-      write(MsgOut,'(A)') '    Column 1: Snapshot index'
-      write(MsgOut,'(A)') '    Column 2: Torsion angle (degree)'
-      write(MsgOut,'(A)') '    If multiple groups were specified in [OPTION],'
-      write(MsgOut,'(A)') '    Column N+1: Torsion angle for the N-th selected group'
-      write(MsgOut,'(A)') ''
-    end if
-
-    if (option%out_cdis)  then
-      write(MsgOut,'(A)') '  [comdisfile] ' // trim(output%comdisfile)
-      write(MsgOut,'(A)') '    Column 1: Snapshot index'
-      write(MsgOut,'(A)') '    Column 2: Distance between the centers of mass (angstrom)'
-      write(MsgOut,'(A)') '    If multiple groups were specified in [OPTION],'
-      write(MsgOut,'(A)') '    Column N+1: Distance for the N-th selected group'
-      write(MsgOut,'(A)') ''
-    end if
-
-    if (option%out_cang)  then
-      write(MsgOut,'(A)') '  [comangfile] ' // trim(output%comangfile)
-      write(MsgOut,'(A)') '    Column 1: Snapshot index'
-      write(MsgOut,'(A)') '    Column 2: Angle between the centers of mass (degree)'
-      write(MsgOut,'(A)') '    If multiple groups were specified in [OPTION],'
-      write(MsgOut,'(A)') '    Column N+1: Angle for the N-th selected group'
-      write(MsgOut,'(A)') ''
-    end if
-
-    if (option%out_ctor)  then
-      write(MsgOut,'(A)') '  [comtorfile] ' // trim(output%comtorfile)
-      write(MsgOut,'(A)') '    Column 1: Snapshot index'
-      write(MsgOut,'(A)') '    Column 2: Torsion angle between the centers of mass (degree)'
-      write(MsgOut,'(A)') '    If multiple groups were specified in [OPTION],'
-      write(MsgOut,'(A)') '    Column N+1: Torsion angle for the N-th selected group'
-      write(MsgOut,'(A)') ''
-    end if
-
-    return
-
-  end subroutine print_output_info
 
 end module trj_analysis_analyze_c_mod

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import TextIO, Optional, List
 
 
@@ -100,13 +101,14 @@ def write_ctrl_input(
         "Distfile": dist_file,
     }
 
+    dst.write("b[INPUT]\n")
     for ctrl_name, value in mapping.items():
         if value is not None:
-            dst.write(f"{ctrl_name} = {value}\n")
+            dst.write(f"{ctrl_name} = {value}\n".encode('utf-8'))
 
 
 def write_ctrl_output(
-    file: TextIO,
+    dst: TextIO,
     amb_crd_file: Optional[str] = None,
     ang_file: Optional[str] = None,
     cnt_file: Optional[str] = None,
@@ -230,18 +232,24 @@ def write_ctrl_output(
         "Morphfile": morph_file,
     }
 
+    dst.write(b"[OUTPUT]\n")
     for fortran_key, value in mapping.items():
         if value is not None:
-            file.write(f"{fortran_key} = {value}\n")
+            dst.write(f"{fortran_key} = {value}\n".encode('utf-8'))
+
+
+@dataclass
+class TrajectoryParameters:
+    trjfile: Optional[str] = None
+    md_step: Optional[int] = None
+    mdout_period: Optional[int] = None
+    ana_period: Optional[int] = None
+    repeat: Optional[int] = None
 
 
 def write_trajectory_info(
-    file: TextIO,
-    trjfiles: Optional[List[str]] = None,
-    md_steps: Optional[List[int]] = None,
-    mdout_periods: Optional[List[int]] = None,
-    ana_periods: Optional[List[int]] = None,
-    repeats: Optional[List[int]] = None,
+    dst: TextIO,
+    trajectories: List[TrajectoryParameters],
     trj_format: Optional[str] = None,
     trj_type: Optional[str] = None,
     trj_natom: Optional[int] = None
@@ -250,36 +258,43 @@ def write_trajectory_info(
     Write trajectory-related information to a file.
 
     Args:
-        file: The file object to which the output will be written.
-        trjfiles: List of trajectory file names (e.g., ["trj1", "trj2"]).
-        md_steps: List of MD step values corresponding to each trajectory.
-        mdout_periods: List of MD output period values.
-        ana_periods: List of analysis period values.
-        repeats: List of repeat values.
-        trj_format: Format of the trajectory files.
-        trj_type: Type of the trajectory files.
-        trj_natom: Number of atoms in the trajectory.
+        dst: 出力先のファイルオブジェクト
+        trajectories: TrajectoryParametersのリスト
+        trj_format: トラジェクトリフォーマット
+        trj_type: トラジェクトリタイプ
+        trj_natom: 原子数
     """
-    # Validate input lengths if lists are provided
-    if trjfiles is not None and md_steps is not None and mdout_periods is not None and ana_periods is not None and repeats is not None:
-        if not (len(trjfiles) == len(md_steps) == len(mdout_periods) == len(ana_periods) == len(repeats)):
-            raise ValueError("All lists (trjfiles, md_steps, mdout_periods, ana_periods, repeats) must have the same length.")
-
-    # Write common parameters if provided
+    dst.write(b"[TRAJECTORY]\n")
+    for idx, traj in enumerate(trajectories, 1):
+        if traj.trjfile is not None:
+            dst.write(f"trjfile{idx} = {traj.trjfile}\n".encode('utf-8'))
+        if traj.md_step is not None:
+            dst.write(f"md_step{idx} = {traj.md_step}\n".encode('utf-8'))
+        if traj.mdout_period is not None:
+            dst.write(f"mdout_period{idx} = {traj.mdout_period}\n".encode('utf-8'))
+        if traj.ana_period is not None:
+            dst.write(f"ana_period{idx} = {traj.ana_period}\n".encode('utf-8'))
+        if traj.repeat is not None:
+            dst.write(f"repeat{idx} = {traj.repeat}\n".encode('utf-8'))
     if trj_format is not None:
-        file.write(f"trj_format = {trj_format}\n")
+        dst.write(f"trj_format = {trj_format}\n".encode('utf-8'))
     if trj_type is not None:
-        file.write(f"trj_type = {trj_type}\n")
+        dst.write(f"trj_type = {trj_type}\n".encode('utf-8'))
     if trj_natom is not None:
-        file.write(f"trj_natom = {trj_natom}\n")
+        dst.write(f"trj_natom = {trj_natom}\n".encode('utf-8'))
 
-    # Write trajectory-specific parameters if lists are provided
-    if trjfiles is not None and md_steps is not None and mdout_periods is not None and ana_periods is not None and repeats is not None:
-        for i, (trjfile, md_step, mdout_period, ana_period, repeat) in enumerate(
-            zip(trjfiles, md_steps, mdout_periods, ana_periods, repeats), start=1
-        ):
-            file.write(f"trjfile{i} = {trjfile}\n")
-            file.write(f"md_step{i} = {md_step}\n")
-            file.write(f"mdout_period{i} = {mdout_period}\n")
-            file.write(f"ana_period{i} = {ana_period}\n")
-            file.write(f"repeat{i} = {repeat}\n")
+
+def write_ctrl_selection(dst: TextIO, group: Optional[List[str]] = None,
+                         mole_name: Optional[List[str]] = None) -> None:
+    """
+    Write selection information to a file.
+    """
+    if group is None:
+        group = []
+    if mole_name is None:
+        mole_name = []
+    dst.write(b"[SELECTION]\n")
+    for i, g in enumerate(group, start=1):
+        dst.write(f"group{i} = {g}\n".encode('utf-8'))
+    for i, m in enumerate(mole_name, start=1):
+        dst.write(f"mole_name{i} = {m}\n".encode('utf-8'))

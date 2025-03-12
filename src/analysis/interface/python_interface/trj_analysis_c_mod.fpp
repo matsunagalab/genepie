@@ -187,7 +187,7 @@ contains
     write(MsgOut,'(A)') '[STEP3] Analysis trajectory files'
     write(MsgOut,'(A)') ' '
 
-    call analyze(molecule, s_trajes_c, ana_period, output, option, &
+    call analyze(molecule, s_trajes_c, ana_period, option, &
                  result_distance, num_distance, &
                  result_angle, num_angle, &
                  result_torsion, num_torsion, &
