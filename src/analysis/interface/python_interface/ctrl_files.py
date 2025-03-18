@@ -331,28 +331,28 @@ def write_ctrl_fitting(
     write_yes_no(dst, "mass_weight", mass_weight)
 
 
-def write_string(dst: TextIO, name: str, v: Optional[str]):
+def write_string(dst: TextIO, name: str, v: Optional[str]) -> None:
     if v is not None:
         dst.write(f"{name} = {v}\n".encode('utf-8'))
 
 
-def write_yes_no(dst: TextIO, name: str, v: Optional[bool]):
+def write_yes_no(dst: TextIO, name: str, v: Optional[bool]) -> None:
     if v is not None:
         dst.write("{} = {}\n".format(name, "YES" if v else "NO")
                    .encode('utf-8'))
 
 
-def write_int(dst: TextIO, name: str, v: Optional[int]):
+def write_int(dst: TextIO, name: str, v: Optional[int]) -> None:
     if v is not None:
         dst.write(f"{name} = {v}\n".encode('utf-8'))
 
 
-def write_float(dst: TextIO, name: str, v: Optional[float]):
+def write_float(dst: TextIO, name: str, v: Optional[float]) -> None:
     if v is not None:
         dst.write(f"{name} = {v:.12E}\n".encode('utf-8'))
 
 
-def write_value(dst: TextIO, name: str, v: Optional[Union[bool, int, float, str]]):
+def write_value(dst: TextIO, name: str, v: Optional[Union[bool, int, float, str]]) -> None:
     if v is None:
         pass
     elif isinstance(v, bool):
@@ -365,3 +365,11 @@ def write_value(dst: TextIO, name: str, v: Optional[Union[bool, int, float, str]
         write_string(dst, name, v)
     else:
         raise TypeError(f"Unsupported type for value: {type(v)}")
+
+
+def write_iterable(
+        dst: TextIO, name: str,
+        vals: Optional[Iterable[Optional[Union[bool, int, float, str]]]]
+        ) -> None:
+    for idx, v in enumerate(vals, 1):
+        write_value(dst, f"{name}{idx}", v)

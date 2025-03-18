@@ -91,19 +91,25 @@ def trj_analysis(molecule: SMolecule, trajs :STrajectories,
         with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
             ctrl_files.write_ctrl_output(
                     ctrl,
-                    dis_file="dummy.dis",
-                    ang_file="dummy.ang",
-                    tor_file="dummy.tor",
-                    comdis_file="dummy.comdis",
-                    comang_file="dummy.comangr",
-                    comtor_file="dummy.comtor",
-                    qnt_file="dummy.qnt",
+                    disfile="dummy.dis",
+                    angfile="dummy.ang",
+                    torfile="dummy.tor",
+                    comdisfile="dummy.comdis",
+                    comangfile="dummy.comangr",
+                    comtorfile="dummy.comtor",
+                    qntfile="dummy.qnt",
                     )
             ctrl_files.write_ctrl_selection(
                     ctrl, selection_group, selection_mole_name)
-            write_trj_analysis_option(
-                    ctrl, check_only, distance, dist_weight, angle, torsion,
-                    com_distance, com_angle, com_torsion)
+            ctrl.write(b"[OPTION]\n")
+            ctrl_files.write_value(ctrl, "check_only", check_only)
+            ctrl_files.write_iterable(ctrl, "distance", distance)
+            ctrl_files.write_iterable(ctrl, "dist_weight", dist_weight)
+            ctrl_files.write_iterable(ctrl, "angle", angle)
+            ctrl_files.write_iterable(ctrl, "torsion", torsion)
+            ctrl_files.write_iterable(ctrl, "com_distance", com_distance)
+            ctrl_files.write_iterable(ctrl, "com_angle", com_angle)
+            ctrl_files.write_iterable(ctrl, "com_torsion", com_torsion)
 
             ctrl.seek(0)
             LibGenesis().lib.trj_analysis_c(
@@ -173,35 +179,6 @@ def trj_analysis(molecule: SMolecule, trajs :STrajectories,
                     ctypes.byref(n_frame_c), ctypes.byref(num_distance))
         if mol_c:
             LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
-
-
-def write_trj_analysis_option(
-        dst: TextIO,
-        check_only: Optional[bool] = None,
-        distance: Optional[Iterable[str]] = [],
-        dist_weight: Optional[Iterable[str]] = [],
-        angle: Optional[Iterable[str]] = [],
-        torsion: Optional[Iterable[str]] = [],
-        com_distance: Optional[Iterable[str]] = [],
-        com_angle: Optional[Iterable[str]] = [],
-        com_torsion: Optional[Iterable[str]] = [],
-        ):
-    dst.write(b"[OPTION]\n")
-    ctrl_files.write_value(dst, "check_only", check_only)
-    for idx, d in enumerate(distance, 1):
-        dst.write(f"distance{idx}      = {d}\n".encode('utf-8'))
-    for idx, d in enumerate(dist_weight, 1):
-        dst.write(f"dist_weight{idx}      = {d}\n".encode('utf-8'))
-    for idx, d in enumerate(angle, 1):
-        dst.write(f"angle{idx}      = {d}\n".encode('utf-8'))
-    for idx, d in enumerate(torsion, 1):
-        dst.write(f"torsion{idx}      = {d}\n".encode('utf-8'))
-    for idx, d in enumerate(com_distance, 1):
-        dst.write(f"com_distance{idx}      = {d}\n".encode('utf-8'))
-    for idx, d in enumerate(com_angle, 1):
-        dst.write(f"com_angle{idx}      = {d}\n".encode('utf-8'))
-    for idx, d in enumerate(com_torsion, 1):
-        dst.write(f"com_torsion{idx}      = {d}\n".encode('utf-8'))
 
 
 def rg_analysis(molecule: SMolecule, trajs :STrajectories,
@@ -572,12 +549,14 @@ def kmeans_clustering(
     mol_c = None
     pdb_c = ctypes.c_void_p()
     cluster_idxs_c = ctypes.c_void_p()
+    ana_period_c = ctypes.c_int(ana_period)
+    cluster_size = ctypes.c_int(0)
     try:
         mol_c = molecule.to_SMoleculeC()
         with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
             ctrl_files.write_ctrl_output(
                     ctrl,
-                    indexfile = "ummy.idx",
+                    indexfile = "dummy.idx",
                     pdbfile = "dummy_{}.pdb",
                     trjfile = "dummy{}.trj")
             ctrl_files.write_ctrl_selection(
@@ -597,9 +576,6 @@ def kmeans_clustering(
             ctrl_files.write_value(ctrl, "trjout_format", trjout_format)
             ctrl_files.write_value(ctrl, "trjout_type", trjout_type)
             ctrl_files.write_value(ctrl, "iseed", iseed)
-
-            ana_period_c = ctypes.c_int(ana_period)
-            cluster_size = ctypes.c_int(0)
 
             ctrl.seek(0)
             LibGenesis().lib.kc_analysis_c(
