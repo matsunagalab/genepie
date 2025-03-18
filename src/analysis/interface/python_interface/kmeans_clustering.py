@@ -9,13 +9,27 @@ def test_kmeans_clustering():
     pdb_path = pathlib.Path("BPTI_ionize.pdb")
     psf_path = pathlib.Path("BPTI_ionize.psf")
     crd_ctrl_path = pathlib.Path("test_no_crd_inp")
-    kmeans_clustering_ctrl_path = pathlib.Path("test_kmeans_clustering_inp")
 
     with SMolecule.from_pdb_psf_file(pdb_path, psf_path) as mol:
         with genesis_exe.crd_convert(mol, crd_ctrl_path) as trajs:
             for t in trajs:
                 pdb, cluster_idx = genesis_exe.kmeans_clustering(
-                        mol, t, 1, kmeans_clustering_ctrl_path)
+                        mol, t,
+                        selection_group = ["an:CA", ],
+                        fitting_method = "TR+ROT",
+                        fitting_atom = 1,
+                        check_only = False,
+                        allow_backup    = False,
+                        analysis_atom   = 1,
+                        num_clusters    = 2,
+                        max_iteration   = 100,
+                        stop_threshold  = 98.0,
+                        num_iterations  = 5,
+                        trjout_atom     = 1,
+                        trjout_format   = "DCD",
+                        trjout_type     = "COOR",
+                        iseed           = 3141592,
+                        )
                 print(pdb)
                 print(cluster_idx)
 

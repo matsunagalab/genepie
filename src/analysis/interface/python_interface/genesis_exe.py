@@ -49,9 +49,9 @@ TrjAnalysisResult = namedtuple(
 
 def trj_analysis(molecule: SMolecule, trajs :STrajectories,
                  ana_period: Optional[int] = 1,
-                 sel_group: Optional[Iterable[str]] = None,
-                 sel_mole_name: Optional[Iterable[str]] = None,
-                 check_only: Optional[bool] = False,
+                 selection_group: Optional[Iterable[str]] = None,
+                 selection_mole_name: Optional[Iterable[str]] = None,
+                 check_only: Optional[bool] = None,
                  distance: Optional[Iterable[str]] = [],
                  dist_weight: Optional[Iterable[str]] = [],
                  angle: Optional[Iterable[str]] = [],
@@ -67,8 +67,8 @@ def trj_analysis(molecule: SMolecule, trajs :STrajectories,
         molecule:
         trajs:
         ana_period:
-        sel_group:
-        sel_mole_name:
+        selection_group:
+        selection_mole_name:
     Returns:
         (distance, angle, torsion, cdis, cang, ctor)
     """
@@ -100,8 +100,7 @@ def trj_analysis(molecule: SMolecule, trajs :STrajectories,
                     qnt_file="dummy.qnt",
                     )
             ctrl_files.write_ctrl_selection(
-                    ctrl, sel_group, sel_mole_name)
-
+                    ctrl, selection_group, selection_mole_name)
             write_trj_analysis_option(
                     ctrl, check_only, distance, dist_weight, angle, torsion,
                     com_distance, com_angle, com_torsion)
@@ -178,7 +177,7 @@ def trj_analysis(molecule: SMolecule, trajs :STrajectories,
 
 def write_trj_analysis_option(
         dst: TextIO,
-        check_only: Optional[bool] = False,
+        check_only: Optional[bool] = None,
         distance: Optional[Iterable[str]] = [],
         dist_weight: Optional[Iterable[str]] = [],
         angle: Optional[Iterable[str]] = [],
@@ -188,8 +187,7 @@ def write_trj_analysis_option(
         com_torsion: Optional[Iterable[str]] = [],
         ):
     dst.write(b"[OPTION]\n")
-    dst.write("check_only     = {}\n".format("YES" if check_only else "NO")
-               .encode('utf-8'))
+    ctrl_files.write_value(dst, "check_only", check_only)
     for idx, d in enumerate(distance, 1):
         dst.write(f"distance{idx}      = {d}\n".encode('utf-8'))
     for idx, d in enumerate(dist_weight, 1):
@@ -533,10 +531,34 @@ def mbar_analysis(ctrl_path: str | bytes | os.PathLike
     return result_fene
 
 
-def kmeans_clustering(molecule: SMolecule, trajs :STrajectories,
-                ana_period: int,
-                ctrl_path: str | bytes | os.PathLike
-                ) -> tuple[str, npt.NDArray[np.int64]]:
+KmeansClusteringResult = namedtuple(
+        'KmeansClusteringResult',
+        ['pdb_str',
+         'cluster_idxs'])
+
+
+def kmeans_clustering(
+        molecule: SMolecule, trajs :STrajectories,
+        ana_period: Optional[int] = 1,
+        selection_group: Optional[Iterable[str]] = None,
+        selection_mole_name: Optional[Iterable[str]] = None,
+        fitting_method: Optional[str] = None,
+        fitting_atom: Optional[int] = None,
+        zrot_ngrid: Optional[int] = None,
+        zrot_grid_size: Optional[float] = None,
+        mass_weight: Optional[bool] = None,
+        check_only: Optional[bool] = None,
+        allow_backup: Optional[bool] = None,
+        analysis_atom: Optional[int] = None,
+        num_clusters: Optional[int] = None,
+        max_iteration: Optional[int] = None,
+        stop_threshold: Optional[float] = None,
+        num_iterations: Optional[int] = None,
+        trjout_atom: Optional[int] = None,
+        trjout_format: Optional[str] = None,
+        trjout_type: Optional[str] = None,
+        iseed: Optional[int] = None,
+        ) -> KmeansClusteringResult:
     """
     Executes kmeans_clustering.
 
@@ -544,42 +566,66 @@ def kmeans_clustering(molecule: SMolecule, trajs :STrajectories,
         molecule:
         trajs:
         ana_period:
-        ctrl_path:
-
     Returns:
-        TODO
+        (pdb string, cluster indices)
     """
     mol_c = None
     pdb_c = ctypes.c_void_p()
-    cluster_index_c = ctypes.c_void_p()
+    cluster_idxs_c = ctypes.c_void_p()
     try:
         mol_c = molecule.to_SMoleculeC()
-        ana_period_c = ctypes.c_int(ana_period)
-        cluster_size = ctypes.c_int(0)
-        LibGenesis().lib.kc_analysis_c(
-                ctypes.byref(mol_c),
-                ctypes.byref(trajs.get_c_obj()),
-                ctypes.byref(ana_period_c),
-                py2c_util.pathlike_to_byte(ctrl_path),
-                ctypes.byref(pdb_c),
-                ctypes.byref(cluster_index_c),
-                ctypes.byref(cluster_size),
-                )
-        if pdb_c:
-            pdb = c2py_util.conv_string(pdb_c)
-            LibGenesis().lib.deallocate_c_string(ctypes.byref(pdb_c))
-        else:
-            pdb = None
-        cluster_index = (c2py_util.conv_int_ndarray(
-                cluster_index_c, cluster_size.value)
-                        if cluster_index_c else None)
-        return (pdb, cluster_index)
+        with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
+            ctrl_files.write_ctrl_output(
+                    ctrl,
+                    indexfile = "ummy.idx",
+                    pdbfile = "dummy_{}.pdb",
+                    trjfile = "dummy{}.trj")
+            ctrl_files.write_ctrl_selection(
+                    ctrl, selection_group, selection_mole_name)
+            ctrl_files.write_ctrl_fitting(
+                    ctrl, fitting_method, fitting_atom, zrot_ngrid, zrot_grid_size, mass_weight)
+            ctrl.write(b"[OPTION]\n")
+            ctrl_files.write_value(ctrl, "check_only", check_only)
+            ctrl_files.write_value(ctrl, "allow_backup", allow_backup)
+            ctrl_files.write_value(ctrl, "analysis_atom", analysis_atom)
+            ctrl_files.write_value(ctrl, "num_clusters", num_clusters)
+            ctrl_files.write_value(ctrl, "max_iteration", max_iteration)
+            ctrl_files.write_value(ctrl, "stop_threshold", stop_threshold)
+            ctrl_files.write_value(ctrl, "stop_threshold", stop_threshold)
+            ctrl_files.write_value(ctrl, "num_iterations", num_iterations)
+            ctrl_files.write_value(ctrl, "trjout_atom", trjout_atom)
+            ctrl_files.write_value(ctrl, "trjout_format", trjout_format)
+            ctrl_files.write_value(ctrl, "trjout_type", trjout_type)
+            ctrl_files.write_value(ctrl, "iseed", iseed)
+
+            ana_period_c = ctypes.c_int(ana_period)
+            cluster_size = ctypes.c_int(0)
+
+            ctrl.seek(0)
+            LibGenesis().lib.kc_analysis_c(
+                    ctypes.byref(mol_c),
+                    ctypes.byref(trajs.get_c_obj()),
+                    ctypes.byref(ana_period_c),
+                    py2c_util.pathlike_to_byte(ctrl.name),
+                    ctypes.byref(pdb_c),
+                    ctypes.byref(cluster_idxs_c),
+                    ctypes.byref(cluster_size),
+                    )
+            if pdb_c:
+                pdb = c2py_util.conv_string(pdb_c)
+                LibGenesis().lib.deallocate_c_string(ctypes.byref(pdb_c))
+            else:
+                pdb = None
+            cluster_idxs = (c2py_util.conv_int_ndarray(
+                    cluster_idxs_c, cluster_size.value)
+                            if cluster_idxs_c else None)
+            return KmeansClusteringResult(pdb, cluster_idxs)
     finally:
-        if cluster_index_c:
+        if cluster_idxs_c:
             LibGenesis().lib.deallocate_int(
-                    ctypes.byref(cluster_index_c), ctypes.byref(cluster_size))
+                    ctypes.byref(cluster_idxs_c), ctypes.byref(cluster_size))
         if pdb_c:
             LibGenesis().lib.deallocate_c_string(ctypes.byref(pdb_c))
         if mol_c:
             LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
-    return
+    return None
