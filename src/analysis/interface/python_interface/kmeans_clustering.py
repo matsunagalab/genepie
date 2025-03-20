@@ -13,7 +13,7 @@ def test_kmeans_clustering():
     with SMolecule.from_pdb_psf_file(pdb_path, psf_path) as mol:
         with genesis_exe.crd_convert(mol, crd_ctrl_path) as trajs:
             for t in trajs:
-                pdb, cluster_idx = genesis_exe.kmeans_clustering(
+                pdb, cluster_idxs = genesis_exe.kmeans_clustering(
                         mol, t,
                         selection_group = ["an:CA", ],
                         fitting_method = "TR+ROT",
@@ -31,7 +31,7 @@ def test_kmeans_clustering():
                         iseed           = 3141592,
                         )
                 print(pdb)
-                print(cluster_idx)
+                print(cluster_idxs)
 
 
 def main():

@@ -14,7 +14,7 @@ def test_drms_analysis():
     with SMolecule.from_pdb_psf_ref_file(pdb_path, psf_path, ref_path) as mol:
         with genesis_exe.crd_convert(mol, crd_ctrl_path) as trajs:
             for t in trajs:
-                d = genesis_exe.drms_analysis(
+                drms, = genesis_exe.drms_analysis(
                         mol, t,
                         selection_group = ["an: CA", ],
                         check_only = False,
@@ -28,7 +28,7 @@ def test_drms_analysis():
                         pbc_correct      = False,
                         verbose          = True,
                         )
-                print(d.drms)
+                print(drms)
 
 
 def main():

@@ -13,13 +13,13 @@ def test_rg_analysis():
     with SMolecule.from_pdb_psf_file(pdb_path, psf_path) as mol:
         with genesis_exe.crd_convert(mol, crd_ctrl_path) as trajs:
             for t in trajs:
-                d = genesis_exe.rg_analysis(
+                rg, = genesis_exe.rg_analysis(
                         mol, t,
                         selection_group = ["all", ],
                         analysis_atom  = 1,
                         mass_weighted  = True,
                         )
-                print(d.rg)
+                print(rg)
 
 
 def main():

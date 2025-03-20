@@ -223,12 +223,9 @@ def rg_analysis(molecule: SMolecule, trajs :STrajectories,
             ctrl_files.write_ctrl_fitting(
                     ctrl, fitting_method, fitting_atom)
             ctrl.write(b"[OPTION]\n")
-            ctrl_files.write_kwargs(
-                    ctrl,
-                    check_only = check_only,
-                    analysis_atom = analysis_atom,
-                    mass_weighted = mass_weighted,
-                    )
+            ctrl_files.write_value(ctrl, "check_only", check_only)
+            ctrl_files.write_value(ctrl, "analysis_atom", analysis_atom)
+            ctrl_files.write_value(ctrl, "mass_weighted", mass_weighted)
 
             ctrl.seek(0)
             LibGenesis().lib.rg_analysis_c(
@@ -292,11 +289,8 @@ def rmsd_analysis(
             ctrl_files.write_ctrl_fitting(
                     ctrl, fitting_method, fitting_atom)
             ctrl.write(b"[OPTION]\n")
-            ctrl_files.write_kwargs(
-                    ctrl,
-                    check_only = check_only,
-                    analysis_atom = analysis_atom,
-                    )
+            ctrl_files.write_value(ctrl, "check_only", check_only)
+            ctrl_files.write_value(ctrl, "analysis_atom", analysis_atom)
 
             ctrl.seek(0)
             LibGenesis().lib.ra_analysis_c(
@@ -368,19 +362,16 @@ def drms_analysis(
             ctrl_files.write_ctrl_fitting(
                     ctrl, fitting_method, fitting_atom)
             ctrl.write(b"[OPTION]\n")
-            ctrl_files.write_kwargs(
-                    ctrl,
-                    check_only = check_only,
-                    contact_groups = contact_groups,
-                    ignore_hydrogen = ignore_hydrogen,
-                    two_states = two_states,
-                    avoid_bonding = avoid_bonding,
-                    exclude_residues = exclude_residues,
-                    minimum_distance = minimum_distance,
-                    maximum_distance = maximum_distance,
-                    pbc_correct = pbc_correct,
-                    verbose = verbose,
-                    )
+            ctrl_files.write_value(ctrl, "check_only", check_only)
+            ctrl_files.write_value(ctrl, "contact_groups", contact_groups)
+            ctrl_files.write_value(ctrl, "ignore_hydrogen", ignore_hydrogen)
+            ctrl_files.write_value(ctrl, "two_states", two_states)
+            ctrl_files.write_value(ctrl, "avoid_bonding", avoid_bonding)
+            ctrl_files.write_value(ctrl, "exclude_residues", exclude_residues)
+            ctrl_files.write_value(ctrl, "minimum_distance", minimum_distance)
+            ctrl_files.write_value(ctrl, "maximum_distance", maximum_distance)
+            ctrl_files.write_value(ctrl, "pbc_correct", pbc_correct)
+            ctrl_files.write_value(ctrl, "verbose", verbose)
 
             ctrl.seek(0)
             LibGenesis().lib.dr_analysis_c(
@@ -405,10 +396,22 @@ def drms_analysis(
             LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
 
 
-def msd_analysis(molecule: SMolecule, trajs :STrajectories,
-                ana_period: int,
-                ctrl_path: str | bytes | os.PathLike
-                ) -> tuple(npt.NDArray[np.float64]):
+MsdAnalysisResult = namedtuple(
+        'MsdAnalysisResult',
+        ['msd'])
+
+
+def msd_analysis(
+        molecule: SMolecule, trajs :STrajectories,
+        ana_period: Optional[int] = 1,
+        selection_group: Optional[Iterable[str]] = None,
+        selection_mole_name: Optional[Iterable[str]] = None,
+        selection: Optional[Iterable[str]] = None,
+        mode: Optional[Iterable[int]] = None,
+        check_only: Optional[bool] = None,
+        oversample: Optional[bool] = None,
+        delta: Optional[int] = None,
+        ) -> MsdAnalysisResult:
     """
     Executes msd_analysis.
 
@@ -416,34 +419,53 @@ def msd_analysis(molecule: SMolecule, trajs :STrajectories,
         molecule:
         trajs:
         ana_period:
-        ctrl_path:
-
     Returns:
         msd
     """
-    mol_c = molecule.to_SMoleculeC()
-
+    mol_c = None
     ana_period_c = ctypes.c_int(ana_period)
     num_analysis_mols_c = ctypes.c_int(0)
     num_delta_c = ctypes.c_int(0)
-    result_msd_c = ctypes.c_void_p(None)
+    result_msd_c = ctypes.c_void_p()
+    try:
+        mol_c = molecule.to_SMoleculeC()
+        with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
+            ctrl_files.write_ctrl_output(
+                    ctrl,
+                    msdfile = "dummy.msd")
+            ctrl_files.write_ctrl_selection(
+                    ctrl, selection_group, selection_mole_name)
+            ctrl_files.write_ctrl_molecule_selection(
+                    ctrl, selection, mode)
+            ctrl.write(b"[OPTION]\n")
+            ctrl_files.write_kwargs(
+                    ctrl,
+                    check_only = check_only,
+                    oversample = oversample,
+                    delta = delta,
+                    )
 
-    LibGenesis().lib.ma_analysis_c(
-            ctypes.byref(mol_c),
-            ctypes.byref(trajs.get_c_obj()),
-            ctypes.byref(ana_period_c),
-            py2c_util.pathlike_to_byte(ctrl_path),
-            ctypes.byref(result_msd_c),
-            ctypes.byref(num_analysis_mols_c),
-            ctypes.byref(num_delta_c),
-            )
-
-    result_msd = c2py_util.conv_double_ndarray(
+            ctrl.seek(0)
+            LibGenesis().lib.ma_analysis_c(
+                    ctypes.byref(mol_c),
+                    ctypes.byref(trajs.get_c_obj()),
+                    ctypes.byref(ana_period_c),
+                    py2c_util.pathlike_to_byte(ctrl.name),
+                    ctypes.byref(result_msd_c),
+                    ctypes.byref(num_analysis_mols_c),
+                    ctypes.byref(num_delta_c),
+                    )
+        result_msd = c2py_util.conv_double_ndarray(
             result_msd_c, [num_delta_c.value, num_analysis_mols_c.value])
-    LibGenesis().lib.deallocate_double2(
-            ctypes.byref(result_msd_c),
-            ctypes.byref(num_delta_c), ctypes.byref(num_analysis_mols_c))
-    return result_msd
+        return MsdAnalysisResult(
+                result_msd)
+    finally:
+        if result_msd_c:
+            LibGenesis().lib.deallocate_double2(
+                    ctypes.byref(result_msd_c),
+                    ctypes.byref(num_delta_c), ctypes.byref(num_analysis_mols_c))
+        if mol_c:
+            LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
 
 
 def hb_analysis(molecule: SMolecule, trajs :STrajectories,

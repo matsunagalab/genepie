@@ -296,6 +296,18 @@ def write_ctrl_selection(dst: TextIO, group: Optional[Iterable[str]] = None,
                  )
 
 
+def write_ctrl_molecule_selection(dst: TextIO, selection: Optional[Iterable[str]] = None,
+                                  mode: Optional[Iterable[int]] = None) -> None:
+    """
+    Write selection information to a file.
+    """
+    dst.write(b"[MOLECULE_SELECTION]\n")
+    write_kwargs(dst,
+                 selection = selection,
+                 mode = mode,
+                 )
+
+
 def write_ctrl_fitting(
     dst: TextIO,
     fitting_method: Optional[str] = None,

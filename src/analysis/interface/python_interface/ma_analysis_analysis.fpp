@@ -156,8 +156,8 @@ contains
 
     ! open output file
     !
-    if (output%msdfile /= '') &
-      call open_file(msd_out, output%msdfile, IOFileOutputNew)
+    !if (output%msdfile /= '') &
+    !  call open_file(msd_out, output%msdfile, IOFileOutputNew)
 
     num_analysis_mols = size(option%analysis_mols)
     num_delta = option%delta
@@ -367,19 +367,19 @@ contains
     end do
 
 
-    if (output%msdfile /= '') then
-      do i = 1, option%delta
-        write(msd_out, '(i0)', advance="no") i
-        do j = 1, size(option%analysis_mols)
-          write(msd_out, '(x, es25.16e3)', advance="no") msd(j, i)
-        end do
-        write(msd_out, '()')
-      end do
-    end if
+    !if (output%msdfile /= '') then
+    !  do i = 1, option%delta
+    !    write(msd_out, '(i0)', advance="no") i
+    !    do j = 1, size(option%analysis_mols)
+    !      write(msd_out, '(x, es25.16e3)', advance="no") msd(j, i)
+    !    end do
+    !    write(msd_out, '()')
+    !  end do
+    !end if
 
     ! close output file
     !
-    if (output%msdfile /= '') call close_file(msd_out)
+    !if (output%msdfile /= '') call close_file(msd_out)
 
     ! Output summary
     !
