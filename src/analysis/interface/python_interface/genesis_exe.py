@@ -223,9 +223,12 @@ def rg_analysis(molecule: SMolecule, trajs :STrajectories,
             ctrl_files.write_ctrl_fitting(
                     ctrl, fitting_method, fitting_atom)
             ctrl.write(b"[OPTION]\n")
-            ctrl_files.write_value(ctrl, "check_only", check_only)
-            ctrl_files.write_value(ctrl, "analysis_atom", analysis_atom)
-            ctrl_files.write_value(ctrl, "mass_weighted", mass_weighted)
+            ctrl_files.write_kwargs(
+                    ctrl,
+                    check_only = check_only,
+                    analysis_atom = analysis_atom,
+                    mass_weighted = mass_weighted,
+                    )
 
             ctrl.seek(0)
             LibGenesis().lib.rg_analysis_c(
@@ -289,8 +292,11 @@ def rmsd_analysis(
             ctrl_files.write_ctrl_fitting(
                     ctrl, fitting_method, fitting_atom)
             ctrl.write(b"[OPTION]\n")
-            ctrl_files.write_value(ctrl, "check_only", check_only)
-            ctrl_files.write_value(ctrl, "analysis_atom", analysis_atom)
+            ctrl_files.write_kwargs(
+                    ctrl,
+                    check_only = check_only,
+                    analysis_atom = analysis_atom,
+                    )
 
             ctrl.seek(0)
             LibGenesis().lib.ra_analysis_c(
@@ -362,16 +368,19 @@ def drms_analysis(
             ctrl_files.write_ctrl_fitting(
                     ctrl, fitting_method, fitting_atom)
             ctrl.write(b"[OPTION]\n")
-            ctrl_files.write_value(ctrl, "check_only", check_only)
-            ctrl_files.write_value(ctrl, "contact_groups", contact_groups)
-            ctrl_files.write_value(ctrl, "ignore_hydrogen", ignore_hydrogen)
-            ctrl_files.write_value(ctrl, "two_states", two_states)
-            ctrl_files.write_value(ctrl, "avoid_bonding", avoid_bonding)
-            ctrl_files.write_value(ctrl, "exclude_residues", exclude_residues)
-            ctrl_files.write_value(ctrl, "minimum_distance", minimum_distance)
-            ctrl_files.write_value(ctrl, "maximum_distance", maximum_distance)
-            ctrl_files.write_value(ctrl, "pbc_correct", pbc_correct)
-            ctrl_files.write_value(ctrl, "verbose", verbose)
+            ctrl_files.write_kwargs(
+                    ctrl,
+                    check_only = check_only,
+                    contact_groups = contact_groups,
+                    ignore_hydrogen = ignore_hydrogen,
+                    two_states = two_states,
+                    avoid_bonding = avoid_bonding,
+                    exclude_residues = exclude_residues,
+                    minimum_distance = minimum_distance,
+                    maximum_distance = maximum_distance,
+                    pbc_correct = pbc_correct,
+                    verbose = verbose,
+                    )
 
             ctrl.seek(0)
             LibGenesis().lib.dr_analysis_c(
