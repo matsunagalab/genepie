@@ -5,9 +5,12 @@ import msd_reader
 
 
 def test_diffusion_analysis():
-    ctrl_path = pathlib.Path("test_da_analysis_inp")
     msd = msd_reader.read_msd_from_file("msd.data")
-    ret = genesis_exe.diffusion_analysis(msd, ctrl_path)
+    ret = genesis_exe.diffusion_analysis(
+            msd,
+            time_step = 2,
+            start = "20 %"
+            )
     print(ret)
 
 

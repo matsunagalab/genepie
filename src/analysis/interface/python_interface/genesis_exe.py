@@ -542,14 +542,13 @@ def hb_analysis(molecule: SMolecule, trajs :STrajectories,
 
 
 def diffusion_analysis(msd_data: npt.NDArray[np.float64],
-                       ctrl_path: str | bytes | os.PathLike,
+                       time_step: Optional[int] = None,
+                       start: Optional[str] = None,
                        ) -> npt.NDArray[np.float64]:
     """
     Executes diffusion_analysis.
 
     Args:
-        ctrl_path:
-
     Returns:
         diffusion
     """
@@ -565,11 +564,23 @@ def diffusion_analysis(msd_data: npt.NDArray[np.float64],
                 ctypes.byref(d0),
                 ctypes.byref(d1)))
         py2c_util.write_double_ndarray(msd_data, c_msd)
-        LibGenesis().lib.diffusion_analysis_c(
+        with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
+            ctrl_files.write_ctrl_output(
+                    ctrl,
+                    outfile = "dummy.out")
+            ctrl.write(b"[OPTION]\n")
+            ctrl_files.write_kwargs(
+                    ctrl,
+                    time_step = time_step,
+                    start = start,
+                    )
+
+            ctrl.seek(0)
+            LibGenesis().lib.diffusion_analysis_c(
                 ctypes.byref(c_msd),
                 ctypes.byref(d0),
                 ctypes.byref(d1),
-                py2c_util.pathlike_to_byte(ctrl_path),
+                py2c_util.pathlike_to_byte(ctrl.name),
                 ctypes.byref(c_out),
                 )
         return c2py_util.conv_double_ndarray(
