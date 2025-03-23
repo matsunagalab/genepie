@@ -11,7 +11,7 @@ def test_drms_analysis():
     ref_path = pathlib.Path("BPTI_ionize.pdb")
     crd_ctrl_path = pathlib.Path("test_no_crd_inp")
 
-    with SMolecule.from_pdb_psf_ref_file(pdb_path, psf_path, ref_path) as mol:
+    with SMolecule.from_file(pdb=pdb_path, psf=psf_path, ref=ref_path) as mol:
         with genesis_exe.crd_convert(mol, crd_ctrl_path) as trajs:
             for t in trajs:
                 drms, = genesis_exe.drms_analysis(

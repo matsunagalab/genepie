@@ -10,86 +10,87 @@ module define_molecule
   implicit none
 
   private
-  public :: define_molecule_from_pdb
-  public :: define_molecule_from_pdb_psf
+  public :: define_molecule_from_file
 
   ! Define MaxFilename if it"s not available from constants_mod
   integer, parameter :: MaxFilename = 256  ! Adjust this value as needed
 
 contains
-  subroutine define_molecule_from_pdb(pdb_filename, out_mol) &
-      bind(C, name="define_molecule_from_pdb")
+  subroutine define_molecule_from_file( &
+          pdb_filename, &
+          top_filename, &
+          gpr_filename, &
+          psf_filename, &
+          ref_filename, &
+          fit_filename, &
+          out_mol) &
+      bind(C, name="define_molecule_from_file")
+    use fileio_top_mod
+    use fileio_par_mod
+    use fileio_gpr_mod
+    use fileio_pdb_mod
+    use fileio_psf_mod
+    use fileio_crd_mod
+    use fileio_prmtop_mod
+    use fileio_ambcrd_mod
+    use fileio_grotop_mod
+    use fileio_grocrd_mod
+    use fileio_mode_mod
     use conv_f_c_util
     implicit none
     ! Input parameters
     character(kind=c_char), intent(in) :: pdb_filename(*)
+    character(kind=c_char), intent(in) :: top_filename(*)
+    character(kind=c_char), intent(in) :: gpr_filename(*)
+    character(kind=c_char), intent(in) :: psf_filename(*)
+    character(kind=c_char), intent(in) :: ref_filename(*)
+    character(kind=c_char), intent(in) :: fit_filename(*)
     ! Output parameters
     type(s_molecule_c), intent(out) :: out_mol
     ! Local variables
     type(s_inp_info) :: inp_info
     type(s_pdb) :: pdb
+    type(s_top) :: top
+    type(s_gpr) :: gpr
+    type(s_psf) :: psf
+    type(s_pdb) :: ref
+    type(s_pdb) :: fit
     type(s_molecule) :: molecule
     character(MaxFilename) :: filename
 
-    call c2f_string(pdb_filename, filename)
-    inp_info%pdbfile = trim(filename)
-    call input_files(inp_info, pdb=pdb)
-    call define_molecules(molecule, pdb=pdb)
+    if (pdb_filename(1) /= c_null_char) then
+      call c2f_string(pdb_filename, filename)
+      inp_info%pdbfile = trim(filename)
+      call input_files(inp_info, pdb=pdb)
+    end if
+    if (top_filename(1) /= c_null_char) then
+      call c2f_string(top_filename, filename)
+      inp_info%topfile = trim(filename)
+      call input_files(inp_info, top=top)
+    end if
+    if (gpr_filename(1) /= c_null_char) then
+      call c2f_string(gpr_filename, filename)
+      inp_info%gprfile = trim(filename)
+      call input_files(inp_info, gpr=gpr)
+    end if
+    if (psf_filename(1) /= c_null_char) then
+      call c2f_string(psf_filename, filename)
+      inp_info%psffile = trim(filename)
+      call input_files(inp_info, psf=psf)
+    end if
+    if (ref_filename(1) /= c_null_char) then
+      call c2f_string(ref_filename, filename)
+      inp_info%reffile = trim(filename)
+      call input_files(inp_info, ref=ref)
+    end if
+    if (fit_filename(1) /= c_null_char) then
+      call c2f_string(fit_filename, filename)
+      inp_info%fitfile = trim(filename)
+      call input_files(inp_info, fit=fit)
+    end if
+    call define_molecules(molecule, &
+        pdb=pdb, top=top, gpr=gpr, psf=psf, ref=ref, fit=fit)
     call f2c_s_molecule(molecule, out_mol)
-  end subroutine define_molecule_from_pdb
+  end subroutine define_molecule_from_file
 
-  subroutine define_molecule_from_pdb_psf(pdb_path, psf_path, out_mol) &
-      bind(C, name="define_molecule_from_pdb_psf")
-    use conv_f_c_util
-    implicit none
-    ! Input parameters
-    character(kind=c_char), intent(in) :: pdb_path(*)
-    character(kind=c_char), intent(in) :: psf_path(*)
-    ! Output parameters
-    type(s_molecule_c), intent(out) :: out_mol
-    ! Local variables
-    type(s_inp_info) :: inp_info
-    type(s_pdb) :: pdb
-    type(s_psf) :: psf
-    type(s_molecule) :: molecule
-    character(:), allocatable :: fort_pdb_path
-    character(:), allocatable :: fort_psf_path
-    call c2f_string_allocate(pdb_path, fort_pdb_path)
-    call c2f_string_allocate(psf_path, fort_psf_path)
-    inp_info%pdbfile = trim(fort_pdb_path)
-    inp_info%psffile = trim(fort_psf_path)
-    call input_files(inp_info, pdb=pdb, psf=psf)
-    call define_molecules(molecule, pdb=pdb, psf=psf)
-    call f2c_s_molecule(molecule, out_mol)
-  end subroutine define_molecule_from_pdb_psf
-
-  subroutine define_molecule_from_pdb_psf_ref(pdb_path, psf_path, ref_path, out_mol) &
-      bind(C, name="define_molecule_from_pdb_psf_ref")
-    use conv_f_c_util
-    implicit none
-    ! Input parameters
-    character(kind=c_char), intent(in) :: pdb_path(*)
-    character(kind=c_char), intent(in) :: psf_path(*)
-    character(kind=c_char), intent(in) :: ref_path(*)
-    ! Output parameters
-    type(s_molecule_c), intent(out) :: out_mol
-    ! Local variables
-    type(s_inp_info) :: inp_info
-    type(s_pdb) :: pdb
-    type(s_psf) :: psf
-    type(s_pdb) :: ref
-    type(s_molecule) :: molecule
-    character(:), allocatable :: fort_pdb_path
-    character(:), allocatable :: fort_psf_path
-    character(:), allocatable :: fort_ref_path
-    call c2f_string_allocate(pdb_path, fort_pdb_path)
-    call c2f_string_allocate(psf_path, fort_psf_path)
-    call c2f_string_allocate(ref_path, fort_ref_path)
-    inp_info%pdbfile = trim(fort_pdb_path)
-    inp_info%psffile = trim(fort_psf_path)
-    inp_info%reffile = trim(fort_ref_path)
-    call input_files(inp_info, pdb=pdb, psf=psf, ref=ref)
-    call define_molecules(molecule, pdb=pdb, psf=psf, ref=ref)
-    call f2c_s_molecule(molecule, out_mol)
-  end subroutine define_molecule_from_pdb_psf_ref
 end module define_molecule

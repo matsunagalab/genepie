@@ -10,7 +10,7 @@ def test_trj_analysis_distance():
     psf_path = pathlib.Path("BPTI_ionize.psf")
     crd_ctrl_path = pathlib.Path("test_no_crd_inp")
 
-    with SMolecule.from_pdb_psf_file(pdb_path, psf_path) as mol:
+    with SMolecule.from_file(pdb=pdb_path, psf=psf_path) as mol:
         with genesis_exe.crd_convert(mol, crd_ctrl_path) as trajs:
             for t in trajs:
                 d = genesis_exe.trj_analysis(

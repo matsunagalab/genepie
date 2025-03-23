@@ -25,16 +25,17 @@ class LibGenesis:
             raise FileNotFoundError(
                     f"Library file {lib_name} not found in {lib_dir}")
         self.lib = ctypes.CDLL(lib_path)
-        self.lib.define_molecule_from_pdb.argtypes = [
-                ctypes.c_char_p,
-                ctypes.POINTER(SMoleculeC)]
-        self.lib.define_molecule_from_pdb.restype = None
 
-        self.lib.define_molecule_from_pdb_psf.argtypes = [
+        self.lib.define_molecule_from_file.argtypes = [
                 ctypes.c_char_p,
                 ctypes.c_char_p,
-                ctypes.POINTER(SMoleculeC)]
-        self.lib.define_molecule_from_pdb_psf.restype = None
+                ctypes.c_char_p,
+                ctypes.c_char_p,
+                ctypes.c_char_p,
+                ctypes.c_char_p,
+                ctypes.POINTER(SMoleculeC),
+                ]
+        self.lib.define_molecule_from_file.restype = None
 
         self.lib.deallocate_s_molecule_c.argtypes = [
                 ctypes.POINTER(SMoleculeC)]

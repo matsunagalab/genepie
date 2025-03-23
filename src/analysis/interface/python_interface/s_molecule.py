@@ -4,7 +4,7 @@ import numpy as np
 import numpy.typing as npt
 import c2py_util
 import py2c_util
-from typing import Self
+from typing import Self, Optional, Union
 from libgenesis import LibGenesis
 from s_molecule_c import SMoleculeC
 
@@ -374,46 +374,28 @@ class SMolecule:
         return dst
 
     @staticmethod
-    def from_pdb_file(src_file_path: str | bytes | os.PathLike) -> Self:
+    def from_file(pdb: Union[str, bytes, os.PathLike] = '',
+                  top: Union[str, bytes, os.PathLike] = '',
+                  gpr: Union[str, bytes, os.PathLike] = '',
+                  psf: Union[str, bytes, os.PathLike] = '',
+                  ref: Union[str, bytes, os.PathLike] = '',
+                  fit: Union[str, bytes, os.PathLike] = '',
+                  ) -> Self:
         mol_c = SMoleculeC()
-        LibGenesis().lib.define_molecule_from_pdb(
-            py2c_util.pathlike_to_byte(src_file_path), ctypes.byref(mol_c)
-        )
-        mol_py = SMolecule.from_SMoleculeC(mol_c)
-        LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
-        return mol_py
-
-    @staticmethod
-    def from_pdb_psf_file(
-        src_pdb_path: str | bytes | os.PathLike, src_psf_path: str | bytes | os.PathLike
-    ) -> Self:
-        mol_c = SMoleculeC()
-        LibGenesis().lib.define_molecule_from_pdb_psf(
-            py2c_util.pathlike_to_byte(src_pdb_path),
-            py2c_util.pathlike_to_byte(src_psf_path),
-            ctypes.byref(mol_c),
-        )
-        mol_py = SMolecule.from_SMoleculeC(mol_c)
-        LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
-        return mol_py
-
-    @staticmethod
-    def from_pdb_psf_ref_file(
-        src_pdb_path: str | bytes | os.PathLike,
-        src_psf_path: str | bytes | os.PathLike,
-        src_ref_path: str | bytes | os.PathLike,
-    ) -> Self:
-        mol_c = SMoleculeC()
-        LibGenesis().lib.define_molecule_from_pdb_psf_ref(
-            py2c_util.pathlike_to_byte(src_pdb_path),
-            py2c_util.pathlike_to_byte(src_psf_path),
-            py2c_util.pathlike_to_byte(src_ref_path),
-            ctypes.byref(mol_c),
-        )
-        mol_py = SMolecule.from_SMoleculeC(mol_c)
-        LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
-        return mol_py
-
+        try:
+            LibGenesis().lib.define_molecule_from_file(
+                py2c_util.pathlike_to_byte(pdb),
+                py2c_util.pathlike_to_byte(top),
+                py2c_util.pathlike_to_byte(gpr),
+                py2c_util.pathlike_to_byte(psf),
+                py2c_util.pathlike_to_byte(ref),
+                py2c_util.pathlike_to_byte(fit),
+                ctypes.byref(mol_c)
+            )
+            mol_py = SMolecule.from_SMoleculeC(mol_c)
+            return mol_py
+        finally:
+            LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
 
 
 try:

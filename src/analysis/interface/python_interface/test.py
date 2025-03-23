@@ -7,7 +7,7 @@ from s_molecule import SMolecule
 def test():
     # 関数を呼び出す
     pdb_filename = pathlib.Path("molecule.pdb")
-    with SMolecule.from_pdb_file(pdb_filename) as mol:
+    with SMolecule.from_file(pdb=pdb_filename) as mol:
         # 結果を処理する
         print("num_atoms = ", mol.num_atoms)
         for i in range(max(0, mol.num_atoms - 5), mol.num_atoms):

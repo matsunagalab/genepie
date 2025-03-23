@@ -9,7 +9,7 @@ def test_crd():
     pdb_path = pathlib.Path("BPTI_ionize.pdb")
     psf_path = pathlib.Path("BPTI_ionize.psf")
     ctrl_path = pathlib.Path("test_crd_inp")
-    with SMolecule.from_pdb_psf_file(pdb_path, psf_path) as mol:
+    with SMolecule.from_file(pdb=pdb_path, psf=psf_path) as mol:
         with genesis_exe.crd_convert(mol, ctrl_path) as trajs:
             for t in trajs:
                 pass

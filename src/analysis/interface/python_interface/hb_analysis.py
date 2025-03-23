@@ -11,7 +11,7 @@ def test_hb_analysis():
     crd_ctrl_path = pathlib.Path("test_no_crd_hb_analysis_inp")
     hb_analysis_ctrl_path = pathlib.Path("test_hb_analysis_Count_atom_inp")
 
-    with SMolecule.from_pdb_psf_file(pdb_path, psf_path) as mol:
+    with SMolecule.from_file(pdb=pdb_path, psf=psf_path) as mol:
         with genesis_exe.crd_convert(mol, crd_ctrl_path) as trajs:
             for t in trajs:
                 print(genesis_exe.hb_analysis(
