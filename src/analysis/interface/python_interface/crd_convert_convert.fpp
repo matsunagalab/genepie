@@ -94,12 +94,12 @@ contains
       return
 
     ! open output files
-    if (output%trjfile /= '' .and. .not. option%split_trjpdb) &
-      call open_trj (trj_out,              &
-                     output%trjfile,       &
-                     option%trjout_format, &
-                     option%trjout_type,   &
-                     IOFileOutputNew)
+    ! if (output%trjfile /= '' .and. .not. option%split_trjpdb) &
+    !   call open_trj (trj_out,              &
+    !                  output%trjfile,       &
+    !                  option%trjout_format, &
+    !                  option%trjout_type,   &
+    !                  IOFileOutputNew)
 
     if (output%rmsfile /= '') &
       call open_file(rms_out, output%rmsfile, IOFileOutputNew)
@@ -185,7 +185,7 @@ contains
             if (option%split_trjpdb) then
               call output_split_trjpdb(nstru, molecule, trajectory, option, output)
             else
-              call write_trj(trj_out, trajectory, option%trjout_atom_trj,molecule)
+              ! call write_trj(trj_out, trajectory, option%trjout_atom_trj,molecule)
             end if
           end if
 
@@ -200,8 +200,8 @@ contains
 
     if (output%trrfile /= '') call close_file(trr_out)
     if (output%rmsfile /= '') call close_file(rms_out)
-    if (output%trjfile /= '' .and. .not. option%split_trjpdb) &
-                              call close_trj (trj_out)
+    ! if (output%trjfile /= '' .and. .not. option%split_trjpdb) &
+    !                           call close_trj (trj_out)
 
     s_trajs_c_array = c_loc(s_trajs_c_buf)
     return

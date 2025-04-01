@@ -13,8 +13,27 @@ import c2py_util
 import py2c_util
 
 
-def crd_convert(molecule: SMolecule,
-                ctrl_filename: str | bytes | os.PathLike) -> STrajectoriesArray:
+def crd_convert(
+        molecule: SMolecule,
+        traj_params: Optional[Iterable[ctrl_files.TrajectoryParameters]] = None,
+        trj_format: Optional[str] = None,
+        trj_type: Optional[str] = None,
+        trj_natom: Optional[int] = None,
+        selection_group: Optional[Iterable[str]] = None,
+        selection_mole_name: Optional[Iterable[str]] = None,
+        fitting_method: Optional[str] = None,
+        fitting_atom: Optional[int] = None,
+        zrot_ngrid: Optional[int] = None,
+        zrot_grid_size: Optional[float] = None,
+        mass_weight: Optional[bool] = None,
+        check_only: Optional[bool] = None,
+        allow_backup: Optional[bool] = None,
+        centering: Optional[bool] = None,
+        centering_atom: Optional[int] = None,
+        center_coord: Optional[tuple[float, float, float]] = None,
+        pbc_correct: Optional[str] = None,
+        rename_res: Optional[Iterable[str]] = None,
+        ) -> STrajectoriesArray:
     """
     Executes crd_convert.
 
@@ -28,12 +47,40 @@ def crd_convert(molecule: SMolecule,
     buf = ctypes.c_void_p(None)
     num_trajs_c = ctypes.c_int(0)
     mol_c = molecule.to_SMoleculeC()
-    LibGenesis().lib.crd_convert_c(
-            ctypes.byref(mol_c),
-            py2c_util.pathlike_to_byte(ctrl_filename),
-            ctypes.byref(buf),
-            ctypes.byref(num_trajs_c))
-    LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
+    try:
+        with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
+            ctrl_files.write_ctrl_output(
+                    ctrl,
+                    trjfile = "dummy.trj",
+                    )
+            ctrl_files.write_trajectory_info(
+                    ctrl, traj_params, trj_format, trj_type, trj_natom,)
+            ctrl_files.write_ctrl_selection(
+                    ctrl, selection_group, selection_mole_name)
+            ctrl_files.write_ctrl_fitting(
+                    ctrl, fitting_method, fitting_atom,
+                    zrot_ngrid, zrot_grid_size, mass_weight)
+            ctrl.write(b"[OPTION]\n")
+            ctrl_files.write_kwargs(
+                    ctrl,
+                    check_only = check_only,
+                    allow_backup = allow_backup,
+                    centering = centering,
+                    centering_atom = centering_atom,
+                    center_coord = center_coord,
+                    pbc_correct = pbc_correct,
+                    rename_res = ctrl_files.NumberingData(rename_res),
+                    )
+
+            ctrl.seek(0)
+            LibGenesis().lib.crd_convert_c(
+                    ctypes.byref(mol_c),
+                    py2c_util.pathlike_to_byte(ctrl.name),
+                    ctypes.byref(buf),
+                    ctypes.byref(num_trajs_c))
+    finally:
+        if mol_c:
+            LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
     return STrajectoriesArray(buf, num_trajs_c.value)
 
 
