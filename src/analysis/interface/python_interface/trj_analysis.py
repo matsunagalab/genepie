@@ -1,4 +1,4 @@
-wham_analysis.pyimport os
+import os
 import pathlib
 from ctrl_files import TrajectoryParameters
 from s_molecule import SMolecule
