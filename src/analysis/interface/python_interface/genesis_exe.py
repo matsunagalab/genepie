@@ -39,7 +39,6 @@ def crd_convert(
 
     Args:
         molecule:
-        ctrl_filename:
 
     Returns:
         Array of STrajectories

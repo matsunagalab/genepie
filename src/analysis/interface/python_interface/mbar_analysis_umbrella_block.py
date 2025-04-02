@@ -34,8 +34,6 @@ def test_mbar_analysis():
 
 
 def main():
-    if os.path.exists("out"):
-        os.remove("out")
     if os.path.exists("fene.dat"):
         os.remove("fene.dat")
     test_mbar_analysis()

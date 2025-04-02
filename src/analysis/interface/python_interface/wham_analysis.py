@@ -21,8 +21,6 @@ def test_wham_analysis():
 
 
 def main():
-    if os.path.exists("out"):
-        os.remove("out")
     test_wham_analysis()
 
 

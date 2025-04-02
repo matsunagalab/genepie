@@ -1,9 +1,0 @@
-[INPUT]
-msdfile        = msd.data
-
-[OUTPUT]
-outfile        = out
-
-[OPTION]
-time_step = 2
-start = 20 %

@@ -39,8 +39,8 @@ def test_crd():
 
 
 def main():
-    if os.path.exists("out"):
-        os.remove("out")
+    if os.path.exists("dummy.trj"):
+        os.remove("dummy.trj")
     test_crd()
 
 

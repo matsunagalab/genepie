@@ -1,4 +1,4 @@
-import os
+wham_analysis.pyimport os
 import pathlib
 from ctrl_files import TrajectoryParameters
 from s_molecule import SMolecule
@@ -43,8 +43,8 @@ def test_trj_analysis_distance():
 
 
 def main():
-    if os.path.exists("out"):
-        os.remove("out")
+    if os.path.exists("dummy.trj"):
+        os.remove("dummy.trj")
     test_trj_analysis_distance()
 
 

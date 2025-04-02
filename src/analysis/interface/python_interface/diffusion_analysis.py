@@ -14,8 +14,6 @@ def test_diffusion_analysis():
 
 
 def main():
-    if os.path.exists("out"):
-        os.remove("out")
     test_diffusion_analysis()
 
 

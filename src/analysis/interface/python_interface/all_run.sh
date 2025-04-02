@@ -1,9 +1,7 @@
 #!/bin/bash
 
 python crd_convert.py
-python trj_analysis_distance.py
-python trj_analysis_angle.py
-python trj_analysis_dihedral.py
+python trj_analysis.py
 python wham_analysis.py
 python mbar_analysis_umbrella_1d.py
 python mbar_analysis_umbrella_block.py
