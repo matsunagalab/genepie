@@ -7,7 +7,7 @@ from s_molecule import SMolecule
 import genesis_exe
 
 
-class TestMDTraj(unittest.TestCase):
+class TestMdAnalysis(unittest.TestCase):
 
     def test_from_mdanalysis_universe(self):
         pdb_path = pathlib.Path("BPTI_ionize.pdb")
@@ -46,7 +46,8 @@ class TestMDTraj(unittest.TestCase):
                     rename_res = ["HSE HIS", "HSE HIS"],
                     ) as trajs:
                 for t in trajs:
-                    _ = t.to_mdanalysis_universe(mol)
+                    uni = t.to_mdanalysis_universe(mol)
+                    # uni.atoms.write("test.pdb")
 
 if __name__ == "__main__":
     unittest.main()

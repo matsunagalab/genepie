@@ -550,42 +550,49 @@ try:
         """
         ids = []
         names = []
-        chainids = []
+        chain_ids = []
+        temp_factors = []
         elements = []
         occupancies = []
         formal_chages = []
         residue_names = []
-        residueids = []
+        residue_ids = []
         seg_ids = []
-        prev_resid = -1
-        prev_segid = -1
+        atom_resindex = []
+        residue_segindex = []
+        prev_resid = None
+        prev_segid = None
         for i in range(0, self.num_atoms):
             ids.append(self.atom_no[i])
             names.append(self.atom_name[i])
-            chainids.append(str(self.chain_id[i]))
+            chain_ids.append(str(self.chain_id[i]))
+            temp_factors.append(self.atom_temp_factor[i])
             elements.append(
                     SMolecule.guess_atom_element(self.atom_name[i]))
             occupancies.append(self.atom_occupancy[i])
             formal_chages.append(self.charge[i])
+            if prev_segid != self.segment_name[i]:
+                seg_ids.append(self.segment_name[i])
+                prev_segid = self.segment_name[i]
             if prev_resid != self.residue_no[i]:
-                residueids.append(self.residue_no[i])
+                residue_ids.append(self.residue_no[i])
                 residue_names.append(self.residue_name[i])
                 prev_resid = self.residue_no[i]
-            if prev_segid != self.segment_no[i]:
-                seg_ids.append(self.segment_no[i])
-                prev_segid = self.segment_no[i]
+                residue_segindex.append(len(seg_ids) - 1)
+            atom_resindex.append(len(residue_ids) - 1)
 
         attrs = []
         for vals, Attr, dtype in (
                 (ids, mdaattr.Atomids, np.int64),
                 (names, mdaattr.Atomnames, object),
-                (chainids, mdaattr.ChainIDs, object),
+                (chain_ids, mdaattr.ChainIDs, object),
+                (temp_factors, mdaattr.Tempfactors, np.float64),
                 (elements, mdaattr.Elements, object),
                 (occupancies, mdaattr.Occupancies, np.float64),
                 (formal_chages, mdaattr.FormalCharges, np.float64),
-                (residueids, mdaattr.Resids, np.int64),
+                (residue_ids, mdaattr.Resids, np.int64),
                 (residue_names, mdaattr.Resnames, object),
-                (seg_ids, mdaattr.Segids, np.int64),
+                (seg_ids, mdaattr.Segids, object),
                 ):
             attrs.append(Attr(np.array(vals, dtype=dtype)))
         top = mdaTopology(
@@ -593,6 +600,8 @@ try:
                 n_res = self.num_residues,
                 n_seg = self.num_segments,
                 attrs = attrs,
+                atom_resindex = atom_resindex,
+                residue_segindex = residue_segindex,
                 )
         return top
 
