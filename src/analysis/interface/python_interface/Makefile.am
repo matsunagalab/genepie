@@ -47,7 +47,8 @@ libpython_interface_la_SOURCES = \
         kc_analysis_c_mod.fpp \
         kc_analysis_analysis.fpp \
         dynamic_string_mod.fpp \
-        internal_file_type_mod.fpp
+        internal_file_type_mod.fpp \
+        export_molecule_c_mod.fpp
 
 EXTRA_DIST = \
 	Makefile.depends

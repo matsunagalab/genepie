@@ -1,5 +1,6 @@
 import ctypes
 import os
+import tempfile
 import numpy as np
 import numpy.typing as npt
 import c2py_util
@@ -617,6 +618,12 @@ try:
 
     @staticmethod
     def from_mdanalysis_universe(uni: mda.Universe) -> Self:
+        return from_mdanalysis_universe_inter_pdb(uni)
+
+    SMolecule.from_mdanalysis_universe = from_mdanalysis_universe
+
+    @staticmethod
+    def from_mdanalysis_universe_inver_mem(uni: mda.Universe) -> Self:
         mol = SMolecule()
         mol.num_atoms = len(uni.atoms)
 
@@ -650,7 +657,13 @@ try:
         mol.num_molecules = 1
         return mol
 
-    SMolecule.from_mdanalysis_universe = from_mdanalysis_universe
+    @staticmethod
+    def from_mdanalysis_universe_inter_pdb(uni: mda.Universe) -> Self:
+        with tempfile.NamedTemporaryFile(
+                suffix=".pdb", dir=os.getcwd(), delete=True) as inter_pdb:
+            uni.atoms.write(inter_pdb.name)
+            inter_pdb.seek(0)
+            return SMolecule.from_file(pdb=inter_pdb.name)
 
     @staticmethod
     def from_mdanalysis_topology(top: mdaTopology) -> Self:

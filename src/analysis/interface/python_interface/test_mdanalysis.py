@@ -15,7 +15,23 @@ class TestMdAnalysis(unittest.TestCase):
         # uni.atoms.guess_bonds()
         trj, mol = STrajectories.from_mdanalysis_universe(uni)
         with trj:
-            pass
+            d = genesis_exe.trj_analysis(
+                    mol, trj,
+                    distance = ["BPTI:1:ARG:CA  BPTI:2:PRO:CA",
+                                "BPTI:2:PRO:CA  BPTI:3:ASP:CA"],
+                    angle =    ["BPTI:1:ARG:CA  BPTI:2:PRO:CA  BPTI:3:ASP:CA",],
+                    torsion =  ["BPTI:1:ARG:CA  BPTI:2:PRO:CA  BPTI:3:ASP:CA   BPTI:4:PHE:CA", ])
+            print(d.distance)
+            print(d.angle)
+            print(d.torsion)
+        # with SMolecule.from_file(pdb=pdb_path) as gmol:
+            # self.assertEqual(mol.num_deg_freedom, gmol.num_deg_freedom)
+            # self.assertEqual(mol.num_atoms, gmol.num_atoms)
+            # self.assertEqual(mol.num_bonds, gmol.num_bonds)
+            # self.assertEqual(mol.num_enm_bonds, gmol.num_enm_bonds)
+            # self.assertEqual(mol.num_angles, gmol.num_angles)
+            # self.assertEqual(mol.num_dihedrals, gmol.num_dihedrals)
+            # self.assertEqual(mol.num_impropers, gmol.num_impropers)
 
     def test_to_mdanalysis_universe(self):
         pdb_path = pathlib.Path("BPTI_ionize.pdb")

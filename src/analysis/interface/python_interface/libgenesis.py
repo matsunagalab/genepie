@@ -181,6 +181,12 @@ class LibGenesis:
                 ]
         self.lib.kc_analysis_c.restype = None
 
+        self.lib.export_pdb_to_string_c.argtyes = [
+                ctypes.POINTER(SMoleculeC),
+                ctypes.c_void_p,
+                ]
+        self.lib.export_pdb_to_string_c.restype = None
+
         self.lib.allocate_c_int_array.argtypes = [
                 ctypes.POINTER(ctypes.c_int),
                 ]
