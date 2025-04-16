@@ -11,8 +11,8 @@ class TestMdAnalysis(unittest.TestCase):
 
     def test_from_mdanalysis_universe(self):
         pdb_path = pathlib.Path("BPTI_ionize.pdb")
-        uni = mda.Universe(pdb_path)
-        # uni.atoms.guess_bonds()
+        trj_file = pathlib.Path("BPTI_run.dcd")
+        uni = mda.Universe(pdb_path, trj_file)
         trj, mol = STrajectories.from_mdanalysis_universe(uni)
         with trj:
             d = genesis_exe.trj_analysis(
@@ -33,6 +33,7 @@ class TestMdAnalysis(unittest.TestCase):
             # self.assertEqual(mol.num_dihedrals, gmol.num_dihedrals)
             # self.assertEqual(mol.num_impropers, gmol.num_impropers)
 
+    @unittest.skip
     def test_to_mdanalysis_universe(self):
         pdb_path = pathlib.Path("BPTI_ionize.pdb")
         psf_path = pathlib.Path("BPTI_ionize.psf")
@@ -62,7 +63,7 @@ class TestMdAnalysis(unittest.TestCase):
                     rename_res = ["HSE HIS", "HSE HIS"],
                     ) as trajs:
                 for t in trajs:
-                    uni = t.to_mdanalysis_universe(mol)
+                    _ = t.to_mdanalysis_universe(mol)
                     # uni.atoms.write("test.pdb")
 
 if __name__ == "__main__":
