@@ -15,7 +15,8 @@ import py2c_util
 
 def crd_convert(
         molecule: SMolecule,
-        traj_params: Optional[Iterable[ctrl_files.TrajectoryParameters]] = None,
+        traj_params: Optional[
+            Iterable[ctrl_files.TrajectoryParameters]] = None,
         trj_format: Optional[str] = None,
         trj_type: Optional[str] = None,
         trj_natom: Optional[int] = None,
@@ -50,7 +51,7 @@ def crd_convert(
         with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
             ctrl_files.write_ctrl_output(
                     ctrl,
-                    trjfile = "dummy.trj",
+                    trjfile="dummy.trj",
                     )
             ctrl_files.write_trajectory_info(
                     ctrl, traj_params, trj_format, trj_type, trj_natom,)
@@ -62,13 +63,13 @@ def crd_convert(
             ctrl.write(b"[OPTION]\n")
             ctrl_files.write_kwargs(
                     ctrl,
-                    check_only = check_only,
-                    allow_backup = allow_backup,
-                    centering = centering,
-                    centering_atom = centering_atom,
-                    center_coord = center_coord,
-                    pbc_correct = pbc_correct,
-                    rename_res = ctrl_files.NumberingData(rename_res),
+                    check_only=check_only,
+                    allow_backup=allow_backup,
+                    centering=centering,
+                    centering_atom=centering_atom,
+                    center_coord=center_coord,
+                    pbc_correct=pbc_correct,
+                    rename_res=ctrl_files.NumberingData(rename_res),
                     )
 
             ctrl.seek(0)
@@ -93,7 +94,7 @@ TrjAnalysisResult = namedtuple(
          'com_torsion'])
 
 
-def trj_analysis(molecule: SMolecule, trajs :STrajectories,
+def trj_analysis(molecule: SMolecule, trajs: STrajectories,
                  ana_period: Optional[int] = 1,
                  selection_group: Optional[Iterable[str]] = None,
                  selection_mole_name: Optional[Iterable[str]] = None,
@@ -150,14 +151,14 @@ def trj_analysis(molecule: SMolecule, trajs :STrajectories,
             ctrl.write(b"[OPTION]\n")
             ctrl_files.write_kwargs(
                     ctrl,
-                    check_only = check_only,
-                    distance = ctrl_files.NumberingData(distance),
-                    dist_weight = ctrl_files.NumberingData(dist_weight),
-                    angle = ctrl_files.NumberingData(angle),
-                    torsion = ctrl_files.NumberingData(torsion),
-                    com_distance = ctrl_files.NumberingData(com_distance),
-                    com_angle = ctrl_files.NumberingData(com_angle),
-                    com_torsion = ctrl_files.NumberingData(com_torsion),
+                    check_only=check_only,
+                    distance=ctrl_files.NumberingData(distance),
+                    dist_weight=ctrl_files.NumberingData(dist_weight),
+                    angle=ctrl_files.NumberingData(angle),
+                    torsion=ctrl_files.NumberingData(torsion),
+                    com_distance=ctrl_files.NumberingData(com_distance),
+                    com_angle=ctrl_files.NumberingData(com_angle),
+                    com_torsion=ctrl_files.NumberingData(com_torsion),
                     )
 
             ctrl.seek(0)
@@ -235,16 +236,16 @@ RgAnalysisResult = namedtuple(
         ['rg'])
 
 
-def rg_analysis(molecule: SMolecule, trajs :STrajectories,
-        ana_period: Optional[int] = 1,
-        selection_group: Optional[Iterable[str]] = None,
-        selection_mole_name: Optional[Iterable[str]] = None,
-        fitting_method: Optional[str] = None,
-        fitting_atom: Optional[int] = None,
-        check_only: Optional[bool] = None,
-        analysis_atom: Optional[int] = None,
-        mass_weighted: Optional[bool] = None,
-        ) -> RgAnalysisResult:
+def rg_analysis(molecule: SMolecule, trajs: STrajectories,
+                ana_period: Optional[int] = 1,
+                selection_group: Optional[Iterable[str]] = None,
+                selection_mole_name: Optional[Iterable[str]] = None,
+                fitting_method: Optional[str] = None,
+                fitting_atom: Optional[int] = None,
+                check_only: Optional[bool] = None,
+                analysis_atom: Optional[int] = None,
+                mass_weighted: Optional[bool] = None,
+                ) -> RgAnalysisResult:
     """
     Executes rg_analysis.
 
@@ -263,7 +264,7 @@ def rg_analysis(molecule: SMolecule, trajs :STrajectories,
         with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
             ctrl_files.write_ctrl_output(
                     ctrl,
-                    rgfile = "dummy.rg")
+                    rgfile="dummy.rg")
             ctrl_files.write_ctrl_selection(
                     ctrl, selection_group, selection_mole_name)
             ctrl_files.write_ctrl_fitting(
@@ -271,9 +272,9 @@ def rg_analysis(molecule: SMolecule, trajs :STrajectories,
             ctrl.write(b"[OPTION]\n")
             ctrl_files.write_kwargs(
                     ctrl,
-                    check_only = check_only,
-                    analysis_atom = analysis_atom,
-                    mass_weighted = mass_weighted,
+                    check_only=check_only,
+                    analysis_atom=analysis_atom,
+                    mass_weighted=mass_weighted,
                     )
 
             ctrl.seek(0)
@@ -305,7 +306,7 @@ RmsdAnalysisResult = namedtuple(
 
 
 def rmsd_analysis(
-        molecule: SMolecule, trajs :STrajectories,
+        molecule: SMolecule, trajs: STrajectories,
         ana_period: Optional[int] = 1,
         selection_group: Optional[Iterable[str]] = None,
         selection_mole_name: Optional[Iterable[str]] = None,
@@ -332,7 +333,7 @@ def rmsd_analysis(
         with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
             ctrl_files.write_ctrl_output(
                     ctrl,
-                    rmsfile = "dummy.rms")
+                    rmsfile="dummy.rms")
             ctrl_files.write_ctrl_selection(
                     ctrl, selection_group, selection_mole_name)
             ctrl_files.write_ctrl_fitting(
@@ -340,8 +341,8 @@ def rmsd_analysis(
             ctrl.write(b"[OPTION]\n")
             ctrl_files.write_kwargs(
                     ctrl,
-                    check_only = check_only,
-                    analysis_atom = analysis_atom,
+                    check_only=check_only,
+                    analysis_atom=analysis_atom,
                     )
 
             ctrl.seek(0)
@@ -373,7 +374,7 @@ DrmsAnalysisResult = namedtuple(
 
 
 def drms_analysis(
-        molecule: SMolecule, trajs :STrajectories,
+        molecule: SMolecule, trajs: STrajectories,
         ana_period: Optional[int] = 1,
         selection_group: Optional[Iterable[str]] = None,
         selection_mole_name: Optional[Iterable[str]] = None,
@@ -408,7 +409,7 @@ def drms_analysis(
         with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
             ctrl_files.write_ctrl_output(
                     ctrl,
-                    rmsfile = "dummy.rms")
+                    rmsfile="dummy.rms")
             ctrl_files.write_ctrl_selection(
                     ctrl, selection_group, selection_mole_name)
             ctrl_files.write_ctrl_fitting(
@@ -416,16 +417,16 @@ def drms_analysis(
             ctrl.write(b"[OPTION]\n")
             ctrl_files.write_kwargs(
                     ctrl,
-                    check_only = check_only,
-                    contact_groups = contact_groups,
-                    ignore_hydrogen = ignore_hydrogen,
-                    two_states = two_states,
-                    avoid_bonding = avoid_bonding,
-                    exclude_residues = exclude_residues,
-                    minimum_distance = minimum_distance,
-                    maximum_distance = maximum_distance,
-                    pbc_correct = pbc_correct,
-                    verbose = verbose,
+                    check_only=check_only,
+                    contact_groups=contact_groups,
+                    ignore_hydrogen=ignore_hydrogen,
+                    two_states=two_states,
+                    avoid_bonding=avoid_bonding,
+                    exclude_residues=exclude_residues,
+                    minimum_distance=minimum_distance,
+                    maximum_distance=maximum_distance,
+                    pbc_correct=pbc_correct,
+                    verbose=verbose,
                     )
 
             ctrl.seek(0)
@@ -457,7 +458,7 @@ MsdAnalysisResult = namedtuple(
 
 
 def msd_analysis(
-        molecule: SMolecule, trajs :STrajectories,
+        molecule: SMolecule, trajs: STrajectories,
         ana_period: Optional[int] = 1,
         selection_group: Optional[Iterable[str]] = None,
         selection_mole_name: Optional[Iterable[str]] = None,
@@ -487,7 +488,7 @@ def msd_analysis(
         with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
             ctrl_files.write_ctrl_output(
                     ctrl,
-                    msdfile = "dummy.msd")
+                    msdfile="dummy.msd")
             ctrl_files.write_ctrl_selection(
                     ctrl, selection_group, selection_mole_name)
             ctrl_files.write_ctrl_molecule_selection(
@@ -495,9 +496,9 @@ def msd_analysis(
             ctrl.write(b"[OPTION]\n")
             ctrl_files.write_kwargs(
                     ctrl,
-                    check_only = check_only,
-                    oversample = oversample,
-                    delta = delta,
+                    check_only=check_only,
+                    oversample=oversample,
+                    delta=delta,
                     )
 
             ctrl.seek(0)
@@ -518,12 +519,13 @@ def msd_analysis(
         if result_msd_c:
             LibGenesis().lib.deallocate_double2(
                     ctypes.byref(result_msd_c),
-                    ctypes.byref(num_delta_c), ctypes.byref(num_analysis_mols_c))
+                    ctypes.byref(num_delta_c),
+                    ctypes.byref(num_analysis_mols_c))
         if mol_c:
             LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
 
 
-def hb_analysis(molecule: SMolecule, trajs :STrajectories,
+def hb_analysis(molecule: SMolecule, trajs: STrajectories,
                 ana_period: Optional[int] = 1,
                 selection_group: Optional[Iterable[str]] = None,
                 selection_mole_name: Optional[Iterable[str]] = None,
@@ -555,21 +557,21 @@ def hb_analysis(molecule: SMolecule, trajs :STrajectories,
         with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
             ctrl_files.write_ctrl_output(
                     ctrl,
-                    outfile = "dummy.out")
+                    outfile="dummy.out")
             ctrl_files.write_ctrl_selection(
                     ctrl, selection_group, selection_mole_name)
             ctrl.write(b"[OPTION]\n")
             ctrl_files.write_kwargs(
                     ctrl,
-                    check_only = check_only,
-                    output_type = output_type,
-                    solvent_list = solvent_list,
-                    analysis_atom = analysis_atom,
-                    target_atom = target_atom,
-                    boundary_type = boundary_type,
-                    hb_distance = hb_distance,
-                    dha_angle = dha_angle,
-                    hda_angle = hda_angle,
+                    check_only=check_only,
+                    output_type=output_type,
+                    solvent_list=solvent_list,
+                    analysis_atom=analysis_atom,
+                    target_atom=target_atom,
+                    boundary_type=boundary_type,
+                    hb_distance=hb_distance,
+                    dha_angle=dha_angle,
+                    hda_angle=hda_angle,
                     )
 
             ctrl.seek(0)
@@ -607,18 +609,18 @@ def diffusion_analysis(msd_data: npt.NDArray[np.float64],
     try:
         c_msd = ctypes.c_void_p(
                 LibGenesis().lib.allocate_c_double_array2(
-                ctypes.byref(d0),
-                ctypes.byref(d1)))
+                    ctypes.byref(d0),
+                    ctypes.byref(d1)))
         py2c_util.write_double_ndarray(msd_data, c_msd)
         with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
             ctrl_files.write_ctrl_output(
                     ctrl,
-                    outfile = "dummy.out")
+                    outfile="dummy.out")
             ctrl.write(b"[OPTION]\n")
             ctrl_files.write_kwargs(
                     ctrl,
-                    time_step = time_step,
-                    start = start,
+                    time_step=time_step,
+                    start=start,
                     )
 
             ctrl.seek(0)
@@ -647,7 +649,7 @@ AvecrdAnalysisResult = namedtuple(
 
 
 def avecrd_analysis(
-        molecule: SMolecule, trajs :STrajectories,
+        molecule: SMolecule, trajs: STrajectories,
         ana_period: Optional[int] = 1,
         selection_group: Optional[Iterable[str]] = None,
         selection_mole_name: Optional[Iterable[str]] = None,
@@ -675,7 +677,7 @@ def avecrd_analysis(
         with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
             ctrl_files.write_ctrl_output(
                     ctrl,
-                    pdb_avefile = "dummy.pdb")
+                    pdb_avefile="dummy.pdb")
             ctrl_files.write_ctrl_selection(
                     ctrl, selection_group, selection_mole_name)
             ctrl_files.write_ctrl_fitting(
@@ -683,9 +685,9 @@ def avecrd_analysis(
             ctrl.write(b"[OPTION]\n")
             ctrl_files.write_kwargs(
                     ctrl,
-                    check_only = check_only,
-                    num_iterations = num_iterations,
-                    analysis_atom = analysis_atom,
+                    check_only=check_only,
+                    num_iterations=num_iterations,
+                    analysis_atom=analysis_atom,
                     )
 
             ctrl.seek(0)
@@ -752,43 +754,42 @@ def wham_analysis(
         with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
             ctrl_files.write_ctrl_input(
                     ctrl,
-                    psffile = psffile,
-                    prmtopfile = prmtopfile,
-                    ambcrdfile = ambcrdfile,
-                    grotopfile = grotopfile,
-                    grocrdfile = grocrdfile,
-                    pdbfile = pdbfile,
-                    dcdfile = dcdfile,
-                    cvfile = cvfile,
+                    psffile=psffile,
+                    prmtopfile=prmtopfile,
+                    ambcrdfile=ambcrdfile,
+                    grotopfile=grotopfile,
+                    grocrdfile=grocrdfile,
+                    pdbfile=pdbfile,
+                    dcdfile=dcdfile,
+                    cvfile=cvfile,
                     )
             ctrl_files.write_ctrl_output(
                     ctrl,
-                    pmffile = "dummy.pmf")
+                    pmffile="dummy.pmf")
             ctrl.write(b'[WHAM]\n')
             ctrl_files.write_kwargs(
                     ctrl,
-                    check_only = check_only,
-                    allow_backup = allow_backup,
-                    dimension = dimension,
-                    nblocks = nblocks,
-                    temperature = temperature,
-                    tolerance = tolerance,
-                    rest_function = ctrl_files.NumberingData(rest_function),
-                    grids = ctrl_files.NumberingData(grids),
+                    check_only=check_only,
+                    allow_backup=allow_backup,
+                    dimension=dimension,
+                    nblocks=nblocks,
+                    temperature=temperature,
+                    tolerance=tolerance,
+                    rest_function=ctrl_files.NumberingData(rest_function),
+                    grids=ctrl_files.NumberingData(grids),
                     )
             ctrl_files.write_ctrl_selection(
                     ctrl, selection_group, selection_mole_name)
             ctrl.write(b'[RESTRAINTS]\n')
             ctrl_files.write_kwargs(
                     ctrl,
-                    function     = ctrl_files.NumberingData(function),
-                    select_index = ctrl_files.NumberingData(select_index),
-                    constant     = ctrl_files.NumberingData(constant),
-                    reference    = ctrl_files.NumberingData(reference),
-                    is_periodic  = ctrl_files.NumberingData(is_periodic),
-                    box_size     = ctrl_files.NumberingData(box_size),
+                    function=ctrl_files.NumberingData(function),
+                    select_index=ctrl_files.NumberingData(select_index),
+                    constant=ctrl_files.NumberingData(constant),
+                    reference=ctrl_files.NumberingData(reference),
+                    is_periodic=ctrl_files.NumberingData(is_periodic),
+                    box_size=ctrl_files.NumberingData(box_size),
                     )
-
 
             ctrl.seek(0)
             LibGenesis().lib.wa_analysis_c(
@@ -849,42 +850,42 @@ def mbar_analysis(
         with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
             ctrl_files.write_ctrl_input(
                     ctrl,
-                    psffile = psffile,
-                    prmtopfile = prmtopfile,
-                    ambcrdfile = ambcrdfile,
-                    grotopfile = grotopfile,
-                    grocrdfile = grocrdfile,
-                    pdbfile = pdbfile,
-                    dcdfile = dcdfile,
-                    cvfile = cvfile,
+                    psffile=psffile,
+                    prmtopfile=prmtopfile,
+                    ambcrdfile=ambcrdfile,
+                    grotopfile=grotopfile,
+                    grocrdfile=grocrdfile,
+                    pdbfile=pdbfile,
+                    dcdfile=dcdfile,
+                    cvfile=cvfile,
                     )
             ctrl_files.write_ctrl_output(
                     ctrl,
-                    fenefile = "fene.dat")
+                    fenefile="fene.dat")
             ctrl.write(b'[MBAR]\n')
             ctrl_files.write_kwargs(
                     ctrl,
-                    check_only = check_only,
-                    allow_backup = allow_backup,
-                    nreplica = nreplica,
-                    input_type = input_type,
-                    dimension = dimension,
-                    temperature = temperature,
-                    target_temperature = target_temperature,
-                    nblocks = nblocks,
-                    tolerance = tolerance,
-                    rest_function = ctrl_files.NumberingData(rest_function),
-                    grids = ctrl_files.NumberingData(grids),
+                    check_only=check_only,
+                    allow_backup=allow_backup,
+                    nreplica=nreplica,
+                    input_type=input_type,
+                    dimension=dimension,
+                    temperature=temperature,
+                    target_temperature=target_temperature,
+                    nblocks=nblocks,
+                    tolerance=tolerance,
+                    rest_function=ctrl_files.NumberingData(rest_function),
+                    grids=ctrl_files.NumberingData(grids),
                     )
             ctrl_files.write_ctrl_selection(
                     ctrl, selection_group, selection_mole_name)
             ctrl.write(b'[RESTRAINTS]\n')
             ctrl_files.write_kwargs(
                     ctrl,
-                    constant     = ctrl_files.NumberingData(constant),
-                    reference    = ctrl_files.NumberingData(reference),
-                    is_periodic  = ctrl_files.NumberingData(is_periodic),
-                    box_size     = ctrl_files.NumberingData(box_size),
+                    constant=ctrl_files.NumberingData(constant),
+                    reference=ctrl_files.NumberingData(reference),
+                    is_periodic=ctrl_files.NumberingData(is_periodic),
+                    box_size=ctrl_files.NumberingData(box_size),
                     )
 
             ctrl.seek(0)
@@ -911,7 +912,7 @@ KmeansClusteringResult = namedtuple(
 
 
 def kmeans_clustering(
-        molecule: SMolecule, trajs :STrajectories,
+        molecule: SMolecule, trajs: STrajectories,
         ana_period: Optional[int] = 1,
         selection_group: Optional[Iterable[str]] = None,
         selection_mole_name: Optional[Iterable[str]] = None,
@@ -952,27 +953,28 @@ def kmeans_clustering(
         with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
             ctrl_files.write_ctrl_output(
                     ctrl,
-                    indexfile = "dummy.idx",
-                    pdbfile = "dummy_{}.pdb",
-                    trjfile = "dummy{}.trj")
+                    indexfile="dummy.idx",
+                    pdbfile="dummy_{}.pdb",
+                    trjfile="dummy{}.trj")
             ctrl_files.write_ctrl_selection(
                     ctrl, selection_group, selection_mole_name)
             ctrl_files.write_ctrl_fitting(
-                    ctrl, fitting_method, fitting_atom, zrot_ngrid, zrot_grid_size, mass_weight)
+                    ctrl, fitting_method, fitting_atom,
+                    zrot_ngrid, zrot_grid_size, mass_weight)
             ctrl.write(b"[OPTION]\n")
             ctrl_files.write_kwargs(
                     ctrl,
-                    check_only = check_only,
-                    allow_backup = allow_backup,
-                    analysis_atom = analysis_atom,
-                    num_clusters = num_clusters,
-                    max_iteration = max_iteration,
-                    stop_threshold = stop_threshold,
-                    num_iterations = num_iterations,
-                    trjout_atom = trjout_atom,
-                    trjout_format = trjout_format,
-                    trjout_type = trjout_type,
-                    iseed = iseed,
+                    check_only=check_only,
+                    allow_backup=allow_backup,
+                    analysis_atom=analysis_atom,
+                    num_clusters=num_clusters,
+                    max_iteration=max_iteration,
+                    stop_threshold=stop_threshold,
+                    num_iterations=num_iterations,
+                    trjout_atom=trjout_atom,
+                    trjout_format=trjout_format,
+                    trjout_type=trjout_type,
+                    iseed=iseed,
                     )
 
             ctrl.seek(0)

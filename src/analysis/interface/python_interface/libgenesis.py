@@ -4,6 +4,7 @@ import threading
 from s_molecule_c import SMoleculeC
 from s_trajectories_c import STrajectoriesC
 
+
 class LibGenesis:
     """singleton
     """
@@ -239,5 +240,3 @@ class LibGenesis:
                 ctypes.POINTER(ctypes.c_void_p),
                 ]
         self.lib.deep_copy_s_trajectories_c.restype = None
-
-        

@@ -10,26 +10,26 @@ from s_molecule import SMolecule
 class STrajectories:
     natom: int
     nframe: int
-    coords: npt.NDArray[np.float64] # shape=(n_frame, n_atom, 3)
-    pbc_boxes: npt.NDArray[np.float64] # shape=(trajs_c.nframe, 3, 3)
+    coords: npt.NDArray[np.float64]  # shape=(n_frame, n_atom, 3)
+    pbc_boxes: npt.NDArray[np.float64]  # shape=(trajs_c.nframe, 3, 3)
     c_obj: STrajectoriesC
 
     def __init__(self, natom: int = 0, nframe: int = 0,
-                 trajs_c: STrajectoriesC = None, mem_owner = True):
+                 trajs_c: STrajectoriesC = None, mem_owner: bool = True):
         if not trajs_c:
             trajs_c = STrajectoriesC()
             LibGenesis().lib.init_empty_s_trajectories_c(
                     ctypes.byref(trajs_c),
-                ctypes.byref(ctypes.c_int(natom)),
-                ctypes.byref(ctypes.c_int(nframe)))
+                    ctypes.byref(ctypes.c_int(natom)),
+                    ctypes.byref(ctypes.c_int(nframe)))
         self.c_obj = trajs_c
         self.natom = trajs_c.natom
         self.nframe = trajs_c.nframe
         self.coords = np.ctypeslib.as_array(
                 ctypes.cast(trajs_c.coords, ctypes.POINTER(
-                    ctypes.c_double * trajs_c.nframe * trajs_c.natom * 3)).contents
-                ).reshape(
-                trajs_c.nframe, trajs_c.natom, 3)
+                    ctypes.c_double * trajs_c.nframe * trajs_c.natom * 3
+                    )).contents
+                ).reshape(trajs_c.nframe, trajs_c.natom, 3)
         self.pbc_boxes = np.ctypeslib.as_array(
                 ctypes.cast(trajs_c.pbc_boxes, ctypes.POINTER(
                     ctypes.c_double * trajs_c.nframe * 3 * 3)).contents
@@ -49,7 +49,7 @@ class STrajectories:
         dst_c = STrajectoriesC()
         LibGenesis().lib.deep_copy_s_trajectories_c(
                 ctypes.byref(self.c_obj), ctypes.byref(dst_c))
-        return STrajectories(trajs_c = dst_c)
+        return STrajectories(trajs_c=dst_c)
 
     def free(self):
         """deallocate resources"""
@@ -64,6 +64,7 @@ class STrajectories:
     def from_trajectories_c(trajs_c: STrajectoriesC, mem_owner=True) -> Self:
         return STrajectories(trajs_c=trajs_c, mem_owner=mem_owner)
 
+
 try:
     import mdtraj as md
 
@@ -74,7 +75,8 @@ try:
             MDTraj Trajectory
         -------
         """
-        traj = md.Trajectory(xyz=self.coords, topology=smol.to_mdtraj_topology())
+        traj = md.Trajectory(xyz=self.coords,
+                             topology=smol.to_mdtraj_topology())
         traj.unitcell_vectors = np.array(self.pbc_boxes)
         return traj
 
@@ -110,14 +112,15 @@ try:
             self, uni: mda.Universe) -> None:
         uni.load_new(self.coords, format=MemoryReader, order='fac', dt=1.0)
         for sb, ut in zip(self.pbc_boxes,  uni.trajectory):
-            ut.dimensions = triclinic_box(sb[0,:], sb[1,:], sb[2,:])
+            ut.dimensions = triclinic_box(sb[0, :], sb[1, :], sb[2, :])
 
     STrajectories.add_coordinates_to_mdanalysis_universe \
-            = add_coordinates_to_mdanalysis_universe
+        = add_coordinates_to_mdanalysis_universe
 
     @staticmethod
     def from_mdanalysis_universe(src: mda.Universe) -> tuple[Self, SMolecule]:
-        straj = STrajectories(src.atoms.n_atoms, len(src.trajectory))
+        straj = STrajectories(natom=src.atoms.n_atoms,
+                              nframe=len(src.trajectory))
         for i, ts in enumerate(src.trajectory):
             straj.coords[i, :, :] = src.atoms.positions
             straj.pbc_boxes[i, :, :] = triclinic_vectors(src.dimensions)
@@ -137,7 +140,8 @@ class STrajectoriesArray:
         self.traj_array = []
         for i in range(0, len_array):
             self.traj_array.append(
-                    STrajectories.from_trajectories_c(self.src_c_obj[i], mem_owner=False))
+                    STrajectories.from_trajectories_c(
+                        self.src_c_obj[i], mem_owner=False))
 
     def __del__(self) -> None:
         self.free()
@@ -164,7 +168,6 @@ class STrajectoriesArray:
             self.src_c_obj = ctypes.POINTER(STrajectoriesC)()
             self.traj_array.clear()
             self.src_c_obj = None
-
 
     def __iter__(self):
         return STrajectoriesArrayIterator(self)

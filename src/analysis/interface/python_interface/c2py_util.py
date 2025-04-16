@@ -22,7 +22,8 @@ def conv_bool_ndarray(src: ctypes.c_void_p, size: int | list[int]) \
     return conv_ndarray(src, size, ctypes.c_bool, np.bool_)
 
 
-def conv_int_ndarray(src: ctypes.c_void_p, size: int | list[int]) -> npt.NDArray[np.int64]:
+def conv_int_ndarray(src: ctypes.c_void_p, size: int | list[int]) \
+        -> npt.NDArray[np.int64]:
     return conv_ndarray(src, size, ctypes.c_int, np.int64)
 
 
@@ -32,7 +33,8 @@ def conv_double_ndarray(src: ctypes.c_void_p, size: int | list[int]) \
 
 
 def conv_fixed_length_string_ndarray(
-        str_array: ctypes.c_void_p, size: int | list[int]) -> npt.NDArray[np.str_]:
+        str_array: ctypes.c_void_p, size: int | list[int]) \
+                -> npt.NDArray[np.str_]:
     if str_array:
         if type(int) is int:
             size = tuple(size)
@@ -47,7 +49,8 @@ def conv_fixed_length_string_ndarray(
 
 
 def conv_pystring_ndarray(
-        str_array: ctypes.c_void_p, size: tuple[int, int]) -> npt.NDArray[np.object_]:
+        str_array: ctypes.c_void_p, size: tuple[int, int]) \
+                -> npt.NDArray[np.object_]:
     if str_array:
         ptr = ctypes.cast(str_array, ctypes.POINTER(ctypes.c_char))
         dst = np.empty(size[0], dtype=np.object_)
@@ -60,7 +63,8 @@ def conv_pystring_ndarray(
         return np.empty(0, dtype=np.object_)
 
 
-def conv_string(c_char_ptr: ctypes.c_void_p, size: int = -1, encoding: str = 'utf-8') -> str:
+def conv_string(c_char_ptr: ctypes.c_void_p, size: int = -1,
+                encoding: str = 'utf-8') -> str:
     if not c_char_ptr:
         raise ValueError("Invalid pointer: c_char_ptr is None")
     byte_str = ctypes.string_at(c_char_ptr, size)

@@ -288,7 +288,8 @@ class SMolecule:
                 src.id_singleB, src.size_id_singleB)
         dst.fepgrp = c2py_util.conv_int_ndarray(src.fepgrp, src.size_fepgrp)
         dst.fepgrp_bond = c2py_util.conv_int_ndarray(src.fepgrp_bond, (5, 5))
-        dst.fepgrp_angl = c2py_util.conv_int_ndarray(src.fepgrp_angl, (5, 5, 5))
+        dst.fepgrp_angl = c2py_util.conv_int_ndarray(
+                src.fepgrp_angl, (5, 5, 5))
         dst.fepgrp_dihe = c2py_util.conv_int_ndarray(
                 src.fepgrp_dihe, (5, 5, 5, 5))
         dst.fepgrp_cmap = c2py_util.conv_int_ndarray(
@@ -331,12 +332,14 @@ class SMolecule:
         py2c_util.write_double_ndarray(self.inv_mass, dst.inv_mass)
         py2c_util.write_int_ndarray(self.imove, dst.imove)
         py2c_util.write_double_ndarray(self.stokes_radius, dst.stokes_radius)
-        py2c_util.write_double_ndarray(self.inv_stokes_radius, dst.inv_stokes_radius)
+        py2c_util.write_double_ndarray(
+                self.inv_stokes_radius, dst.inv_stokes_radius)
 
         py2c_util.write_pystring_ndarray(self.chain_id, dst.chain_id)
         py2c_util.write_double_ndarray(self.atom_coord, dst.atom_coord)
         py2c_util.write_double_ndarray(self.atom_occupancy, dst.atom_occupancy)
-        py2c_util.write_double_ndarray(self.atom_temp_factor, dst.atom_temp_factor)
+        py2c_util.write_double_ndarray(
+                self.atom_temp_factor, dst.atom_temp_factor)
         py2c_util.write_double_ndarray(self.atom_velocity, dst.atom_velocity)
         py2c_util.write_bool_ndarray(self.light_atom_name, dst.light_atom_name)
         py2c_util.write_bool_ndarray(self.light_atom_mass, dst.light_atom_mass)
@@ -347,7 +350,8 @@ class SMolecule:
         py2c_util.write_int_ndarray(self.dihe_list, dst.dihe_list)
         py2c_util.write_int_ndarray(self.impr_list, dst.impr_list)
         py2c_util.write_int_ndarray(self.cmap_list, dst.cmap_list)
-        py2c_util.write_int_ndarray(self.molecule_atom_no, dst.molecule_atom_no)
+        py2c_util.write_int_ndarray(
+                self.molecule_atom_no, dst.molecule_atom_no)
         py2c_util.write_double_ndarray(self.molecule_mass, dst.molecule_mass)
         py2c_util.write_pystring_ndarray(self.molecule_name, dst.molecule_name)
         py2c_util.write_double_ndarray(self.atom_refcoord, dst.atom_refcoord)
@@ -357,8 +361,10 @@ class SMolecule:
         py2c_util.write_int_ndarray(self.num_atoms_fep, dst.num_atoms_fep)
         py2c_util.write_int_ndarray(self.num_bonds_fep, dst.num_bonds_fep)
         py2c_util.write_int_ndarray(self.num_angles_fep, dst.num_angles_fep)
-        py2c_util.write_int_ndarray(self.num_dihedrals_fep, dst.num_dihedrals_fep)
-        py2c_util.write_int_ndarray(self.num_impropers_fep, dst.num_impropers_fep)
+        py2c_util.write_int_ndarray(
+                self.num_dihedrals_fep, dst.num_dihedrals_fep)
+        py2c_util.write_int_ndarray(
+                self.num_impropers_fep, dst.num_impropers_fep)
         py2c_util.write_int_ndarray(self.num_cmaps_fep, dst.num_cmaps_fep)
         py2c_util.write_int_ndarray(self.bond_list_fep, dst.bond_list_fep)
         py2c_util.write_int_ndarray(self.angl_list_fep, dst.angl_list_fep)
@@ -410,7 +416,6 @@ class SMolecule:
         finally:
             LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
 
-
     @staticmethod
     def guess_atom_element(atom_name) -> str:
         """
@@ -439,6 +444,7 @@ class SMolecule:
             except KeyError:
                 pass
         return None
+
 
 try:
     import mdtraj as md
@@ -519,8 +525,8 @@ try:
         mol.num_bonds = src.n_bonds
         mol.bond_list = np.empty((src.n_bonds, 2), dtype=np.int64)
         for i, bond in enumerate(src.bonds):
-            mol.bond_list[i,0] = bond.atom1.index + 1
-            mol.bond_list[i,1] = bond.atom2.index + 1
+            mol.bond_list[i, 0] = bond.atom1.index + 1
+            mol.bond_list[i, 1] = bond.atom2.index + 1
         mol.num_molecules = 1
         return mol
 
@@ -571,7 +577,6 @@ try:
     import MDAnalysis as mda
     import MDAnalysis.core.topologyattrs as mdaattr
     from MDAnalysis.core.topology import Topology as mdaTopology
-
 
     def to_mdanalysis_topology(self) -> mdaTopology:
         """
@@ -628,17 +633,16 @@ try:
                 ):
             attrs.append(Attr(np.array(vals, dtype=dtype)))
         top = mdaTopology(
-                n_atoms = self.num_atoms,
-                n_res = self.num_residues,
-                n_seg = self.num_segments,
-                attrs = attrs,
-                atom_resindex = atom_resindex,
-                residue_segindex = residue_segindex,
+                n_atoms=self.num_atoms,
+                n_res=self.num_residues,
+                n_seg=self.num_segments,
+                attrs=attrs,
+                atom_resindex=atom_resindex,
+                residue_segindex=residue_segindex,
                 )
         return top
 
     SMolecule.to_mdanalysis_topology = to_mdanalysis_topology
-
 
     def to_mdanalysis_universe(self) -> mda.Universe:
         top = self.to_mdanalysis_topology()
@@ -681,8 +685,8 @@ try:
             mol.num_bonds = len(uni.bonds)
             mol.bond_list = np.empty((mol.num_bonds, 2), dtype=np.int64)
             for i, bond in enumerate(uni.bonds):
-                mol.bond_list[i,0] = bond.atoms[0].index
-                mol.bond_list[i,1] = bond.atoms[1].index
+                mol.bond_list[i, 0] = bond.atoms[0].index
+                mol.bond_list[i, 1] = bond.atoms[1].index
         except mda.exceptions.NoDataError:
             mol.bond_list = np.empty((0, 2), dtype=np.int64)
         mol.num_molecules = 1
@@ -698,7 +702,7 @@ try:
 
     @staticmethod
     def from_mdanalysis_topology(top: mdaTopology) -> Self:
-        return from_mdanalysis_universe(mda.Universe(topology = top))
+        return from_mdanalysis_universe(mda.Universe(topology=top))
 
     SMolecule.from_mdanalysis_topology = from_mdanalysis_topology
 
