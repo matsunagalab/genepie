@@ -464,7 +464,8 @@ try:
             if cur_residue_no != self.residue_no[i]:
                 cur_residue_no = self.residue_no[i]
                 md_residue = topology.add_residue(
-                        self.residue_name[i], md_chain)
+                        self.residue_name[i], md_chain,
+                        segment_id=self.segment_no[i])
             atom_name = "".join(self.atom_name[i])
             element = guess_atom_element_mdtraj(atom_name)
             topology.add_atom(atom_name, element, md_residue)
@@ -478,36 +479,66 @@ try:
 
     SMolecule.to_mdtraj_topology = to_mdtraj_topology
 
-    @staticmethod
     def from_mdtraj_topology(src: md.Topology) -> Self:
+        return from_mdtraj_topology_via_pdb(src)
+
+    SMolecule.from_mdtraj_topology = from_mdtraj_topology
+
+    def from_mdtraj_trajectory(src: md.Trajectory) -> Self:
+        return from_mdtraj_trajectory_via_pdb(src)
+
+    SMolecule.from_mdtraj_trajectory = from_mdtraj_trajectory
+
+    @staticmethod
+    def from_mdtraj_topology_via_mem(src: md.Topology) -> Self:
         mol = SMolecule()
         mol.num_atoms = src.n_atoms
         mol.atom_name = np.empty(src.n_atoms, dtype=np.object_)
         mol.atom_no = np.empty(src.n_atoms, dtype=np.int64)
         mol.charge = np.empty(src.n_atoms, dtype=np.float64)
         mol.residue_no = np.empty(src.n_atoms, dtype=np.int64)
+        mol.residue_c_no = np.empty(src.n_atoms, dtype=np.object_)
         mol.residue_name = np.empty(src.n_atoms, dtype=np.object_)
+        mol.segment_no = np.empty(src.n_atoms, dtype=np.int64)
+        mol.segment_name = np.empty(src.n_atoms, dtype=np.object_)
         mol.chain_id = np.empty(src.n_atoms, dtype=np.object_)
         prev_residue = None
         for i, atom in enumerate(src.atoms):
             mol.atom_name[i] = np.object_(atom.name)
-            mol.atom_no[i] = atom.index
+            mol.atom_no[i] = atom.index + 1
             mol.charge[i] = atom.formal_charge
             if prev_residue != atom.residue.index:
                 prev_residue = atom.residue.index
                 mol.num_residues += 1
-            mol.residue_no[i] = atom.residue.index
+            mol.residue_no[i] = atom.residue.index + 1
+            mol.residue_c_no[i] = 0
             mol.residue_name[i] = np.object_(atom.residue.name)
+            mol.segment_no[i] = 0
+            mol.segment_name[i] = atom.segment_id
             mol.chain_id[i] = np.object_(atom.residue.chain.chain_id)
         mol.num_bonds = src.n_bonds
         mol.bond_list = np.empty((src.n_bonds, 2), dtype=np.int64)
-        for bond in enumerate(src.bonds):
-            mol.bond_list[i,1] = bond.atom1.index
-            mol.bond_list[i,2] = bond.atom2.index
+        for i, bond in enumerate(src.bonds):
+            mol.bond_list[i,0] = bond.atom1.index + 1
+            mol.bond_list[i,1] = bond.atom2.index + 1
         mol.num_molecules = 1
         return mol
 
     SMolecule.from_mdtraj_topology = from_mdtraj_topology
+
+    @staticmethod
+    def from_mdtraj_trajectory_via_pdb(src: md.Trajectory) -> Self:
+        with tempfile.NamedTemporaryFile(
+                suffix=".pdb", dir=os.getcwd(), delete=True) as pdb_file:
+            src.save_pdb(pdb_file.name)
+            pdb_file.seek(0)
+            return SMolecule.from_file(pdb=pdb_file.name)
+
+    @staticmethod
+    def from_mdtraj_topology_via_pdb(src: md.Topology) -> Self:
+        empty_traj = md.Trajectory(xyz=np.zeros((1, src.n_atoms, 3)),
+                                   topology=src)
+        return from_mdtraj_trajectory_via_pdb(empty_traj)
 
     @staticmethod
     def guess_atom_element_mdtraj(atom_name) -> md.element.Element:
@@ -618,12 +649,12 @@ try:
 
     @staticmethod
     def from_mdanalysis_universe(uni: mda.Universe) -> Self:
-        return from_mdanalysis_universe_inter_pdb(uni)
+        return from_mdanalysis_universe_via_pdb(uni)
 
     SMolecule.from_mdanalysis_universe = from_mdanalysis_universe
 
     @staticmethod
-    def from_mdanalysis_universe_inver_mem(uni: mda.Universe) -> Self:
+    def from_mdanalysis_universe_via_mem(uni: mda.Universe) -> Self:
         mol = SMolecule()
         mol.num_atoms = len(uni.atoms)
 
@@ -658,12 +689,12 @@ try:
         return mol
 
     @staticmethod
-    def from_mdanalysis_universe_inter_pdb(uni: mda.Universe) -> Self:
+    def from_mdanalysis_universe_via_pdb(uni: mda.Universe) -> Self:
         with tempfile.NamedTemporaryFile(
-                suffix=".pdb", dir=os.getcwd(), delete=True) as inter_pdb:
-            uni.atoms.write(inter_pdb.name)
-            inter_pdb.seek(0)
-            return SMolecule.from_file(pdb=inter_pdb.name)
+                suffix=".pdb", dir=os.getcwd(), delete=True) as pdb_file:
+            uni.atoms.write(pdb_file.name)
+            pdb_file.seek(0)
+            return SMolecule.from_file(pdb=pdb_file.name)
 
     @staticmethod
     def from_mdanalysis_topology(top: mdaTopology) -> Self:

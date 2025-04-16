@@ -74,10 +74,8 @@ try:
             MDTraj Trajectory
         -------
         """
-        traj = md.Trajectory()
-        traj.top = smol.to_mdtraj_topology()
-        traj.unitcell_vectors  = self.pbc_boxes
-        traj.xyz = self.coords
+        traj = md.Trajectory(xyz=self.coords, topology=smol.to_mdtraj_topology())
+        traj.unitcell_vectors = np.array(self.pbc_boxes)
         return traj
 
     STrajectories.to_mdtraj_trajectory = to_mdtraj_trajectory
@@ -85,9 +83,9 @@ try:
     @staticmethod
     def from_mdtraj_trajectory(src: md.Trajectory) -> tuple[Self, SMolecule]:
         straj = STrajectories(src.n_atoms, src.n_frames)
-        straj.coords = src.xyz
-        straj.pbc_boxes = src.unitcell_vectors()
-        return (straj, SMolecule.from_mdtraj_topology(src.topology()))
+        straj.coords[:] = src.xyz
+        straj.pbc_boxes[:] = src.unitcell_vectors
+        return (straj, SMolecule.from_mdtraj_topology(src.topology))
 
     STrajectories.from_mdtraj_trajectory = from_mdtraj_trajectory
 
