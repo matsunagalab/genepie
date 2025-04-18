@@ -14,3 +14,5 @@ python drms_analysis.py
 python rg_analysis.py
 python msd_analysis.py
 python diffusion_analysis.py
+python test_mdanalysis.py
+python test_mdtraj.py
