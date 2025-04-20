@@ -529,15 +529,15 @@ try:
                 cur_residue_no = self.residue_no[i]
                 md_residue = topology.add_residue(
                         self.residue_name[i], md_chain,
-                        segment_id=self.segment_no[i])
+                        segment_id=self.segment_name[i])
             atom_name = "".join(self.atom_name[i])
             element = guess_atom_element_mdtraj(atom_name)
             topology.add_atom(atom_name, element, md_residue)
             atom_no_to_idx[self.atom_no[i]] = i
         # create bonds
         for i in range(0, self.num_bonds):
-            atom1 = topology.atom(atom_no_to_idx[self.bond_list[i, 1]])
-            atom2 = topology.atom(atom_no_to_idx[self.bond_list[i, 2]])
+            atom1 = topology.atom(atom_no_to_idx[self.bond_list[i, 0]])
+            atom2 = topology.atom(atom_no_to_idx[self.bond_list[i, 1]])
             topology.add_bond(atom1, atom2)
         return topology
 
@@ -545,13 +545,17 @@ try:
 
     @staticmethod
     def from_mdtraj_topology(src: md.Topology) -> Self:
-        return from_mdtraj_topology_via_pdb(src)
+        mol = from_mdtraj_topology_via_pdb(src)
+        mol.add_topology_info_from_mdtraj_topology(src)
+        return mol
 
     SMolecule.from_mdtraj_topology = from_mdtraj_topology
 
     @staticmethod
     def from_mdtraj_trajectory(src: md.Trajectory) -> Self:
-        return from_mdtraj_trajectory_via_pdb(src)
+        mol = from_mdtraj_trajectory_via_pdb(src)
+        mol.add_topology_info_from_mdtraj_topology(src.topology)
+        return mol
 
     SMolecule.from_mdtraj_trajectory = from_mdtraj_trajectory
 
@@ -629,6 +633,17 @@ try:
 
     SMolecule.guess_atom_element_mdtraj = guess_atom_element_mdtraj
 
+    def add_topology_info_from_mdtraj_topology(self, top: md.Topology) -> None:
+        # add bonds
+        bond_set = {(b[0], b[1]) for b in self.bond_list}
+        for bond in top.bonds:
+            bond_set.add((bond.atom1.index, bond.atom2.index))
+        self.num_bonds = len(bond_set)
+        self.bond_list = np.array(list(bond_set), dtype=np.int64)
+
+    SMolecule.add_topology_info_from_mdtraj_topology \
+            = add_topology_info_from_mdtraj_topology
+
 except ImportError:
     pass
 
@@ -700,6 +715,13 @@ try:
                 atom_resindex=atom_resindex,
                 residue_segindex=residue_segindex,
                 )
+        # add bonds
+        bonds = set()
+        for bond in self.bond_list:
+            bonds.add((int(bond[0]), int(bond[1])))
+        if len(bonds) > 0:
+            bonds = tuple(bonds)
+            top.add_TopologyAttr(mdaattr.Bonds(bonds))
         return top
 
     SMolecule.to_mdanalysis_topology = to_mdanalysis_topology
@@ -713,7 +735,9 @@ try:
 
     @staticmethod
     def from_mdanalysis_universe(uni: mda.Universe) -> Self:
-        return from_mdanalysis_universe_via_pdb(uni)
+        mol = from_mdanalysis_universe_via_pdb(uni)
+        mol.add_topology_info_from_mdanalysis_universe(uni)
+        return mol
 
     SMolecule.from_mdanalysis_universe = from_mdanalysis_universe
 
@@ -765,6 +789,31 @@ try:
         return from_mdanalysis_universe(mda.Universe(topology=top))
 
     SMolecule.from_mdanalysis_topology = from_mdanalysis_topology
+
+    def add_topology_info_from_mdanalysis_universe(
+            self, uni: mda.Universe) -> None:
+        # add bonds
+        try:
+            bond_set = {(b[0], b[1]) for b in self.bond_list}
+            for b in uni.bonds:
+                bond_set.add((b.atoms[0].index, b.atoms[1].index))
+            self.num_bonds = len(bond_set)
+            self.bond_list = np.array(list(bond_set), dtype=np.int64)
+        except mda.exceptions.NoDataError:
+            pass
+        try:
+            angl_set = {(a[0], a[1], a[2]) for a in self.angl_list}
+            for a in uni.angles:
+                angl_set.add((a.atoms[0].index,
+                              a.atoms[1].index,
+                              a.atoms[2].index))
+            self.num_angles = len(angl_set)
+            self.angl_list = np.array(list(angl_set), dtype=np.int64)
+        except mda.exceptions.NoDataError:
+            pass
+
+    SMolecule.add_topology_info_from_mdanalysis_universe \
+            = add_topology_info_from_mdanalysis_universe
 
 except ImportError:
     pass

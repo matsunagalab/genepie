@@ -57,7 +57,7 @@ contains
   !! @param[inout] fitting    : fitting information
   !! @param[inout] option     : option information
   !! @param[inout] output     : output information
-  !! @param[inout] s_trajs_c_array : multi flame trajectories
+  !! @param[inout] s_trajs_c_array : output multi flame trajectories
   !! @param[out]   num_trajs       : length of s_trajs_c_array
   !
   !======1=========2=========3=========4=========5=========6=========7=========8

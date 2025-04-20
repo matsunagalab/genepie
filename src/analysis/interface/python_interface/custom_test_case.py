@@ -36,29 +36,31 @@ class CustomTestCase(unittest.TestCase):
                                  msg: Optional[str] = None,
                                  delta: Optional[float] = None,
                                  except_attr: set[str] = set()):
-            edict = expected.__dict__
-            adict = actual.__dict__
+        edict = expected.__dict__
+        adict = actual.__dict__
 
-            if msg is not None:
-                msg = msg + " : "
+        if msg is not None:
+            msg = msg + " : "
+        else:
+            msg = ""
+        self.assertEqual(set(edict.keys()), set(adict.keys()),
+                         msg + "Object attribute names do not match.")
+        for key in edict:
+            if key in except_attr:
+                continue
+            ev = edict[key]
+            av = adict[key]
+            if (
+                    (isinstance(ev, np.ndarray)
+                        and (ev.dtype == np.float64)
+                        and isinstance(av, np.ndarray)
+                        and (av.dtype == np.float64))
+                    or (isinstance(ev, float) and isinstance(av, float))
+             ):
+                self.assertAlmostEqual(ev, av, places,
+                                       msg + f"{key} is not equal.", delta)
             else:
-                msg = ""
-            self.assertEqual(set(edict.keys()), set(adict.keys()),
-                             msg + "Object attribute names do not match.")
-            for key in edict:
-                if key in except_attr:
-                    continue
-                ev = edict[key]
-                av = adict[key]
-                if ((isinstance(ev, np.ndarray)
-                     and (ev.dtype == np.float64)
-                     and isinstance(av, np.ndarray)
-                     and (av.dtype == np.float64))
-                    or (isinstance(ev, float) and isinstance(av, float))):
-                    self.assertAlmostEqual(ev, av, places,
-                                           msg + f"{key} is not equal.", delta)
-                else:
-                    self.assertEqual(ev, av, msg + f"{key} is not equal.")
+                self.assertEqual(ev, av, msg + f"{key} is not equal.")
 
     def assertAlmostEqualSTrajectories(
             self, e_trj: STrajectories, a_trj: STrajectories,
@@ -67,8 +69,10 @@ class CustomTestCase(unittest.TestCase):
             delta: Optional[float] = None):
         if (places is None) and (delta is None):
             places = 4
-        if (not isinstance(e_trj, STrajectories)
-            or not isinstance(a_trj, STrajectories)):
+        if (
+                not isinstance(e_trj, STrajectories)
+                or not isinstance(a_trj, STrajectories)
+        ):
             self.fail("Both arguments must be instances of STrajectories.")
         if msg is not None:
             msg = msg + " : Strajectories"
@@ -84,8 +88,10 @@ class CustomTestCase(unittest.TestCase):
             delta: Optional[float] = None):
         if (places is None) and (delta is None):
             places = 4
-        if (not isinstance(e_mol, SMolecule)
-            or not isinstance(a_mol, SMolecule)):
+        if (
+                not isinstance(e_mol, SMolecule)
+                or not isinstance(a_mol, SMolecule)
+        ):
             self.fail("Both arguments must be instances of SMolecule.")
         if msg is not None:
             msg = msg + " : SMolecule"
@@ -156,30 +162,29 @@ class CustomTestCase(unittest.TestCase):
             grotop: Union[str, bytes, os.PathLike] = '',
             grocrd: Union[str, bytes, os.PathLike] = '',
             groref: Union[str, bytes, os.PathLike] = '',
-            ) \
-            -> tuple[STrajectoriesArray, SMolecule]:
+            ) -> tuple[STrajectoriesArray, SMolecule]:
         mol = SMolecule.from_file(
                 pdb=pdb, top=top, gpr=gpr, psf=psf, ref=ref, fit=fit,
                 prmtop=prmtop, ambcrd=ambcrd, ambref=ambref,
                 grotop=grotop, grocrd=grocrd, groref=groref)
         trajs = genesis_exe.crd_convert(
                 mol,
-                traj_params = [
+                traj_params=[
                     TrajectoryParameters(
-                        trjfile = dcd,
-                        md_step = 10,
-                        mdout_period = 1,
-                        ana_period = 1,
-                        repeat = 1,
+                        trjfile=dcd,
+                        md_step=10,
+                        mdout_period=1,
+                        ana_period=1,
+                        repeat=1,
                         ),
                     ],
-                trj_format = "DCD",
-                trj_type = "COOR+BOX",
-                trj_natom = 0,
-                selection_group = ["all", ],
-                fitting_method = "NO",
-                fitting_atom = 1,
-                check_only = False,
-                pbc_correct = "NO",
+                trj_format="DCD",
+                trj_type="COOR+BOX",
+                trj_natom=0,
+                selection_group=["all", ],
+                fitting_method="NO",
+                fitting_atom=1,
+                check_only=False,
+                pbc_correct="NO",
                 )
         return (trajs, mol)

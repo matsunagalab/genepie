@@ -64,10 +64,6 @@ class LibGenesis:
                 ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)]
         self.lib.deallocate_s_trajectories_c_array.restype = None
 
-        self.lib.test_conv_c2f.argtypes = [
-                ctypes.POINTER(SMoleculeC)]
-        self.lib.test_conv_c2f.restype = None
-
         self.lib.crd_convert_c.argtypes = [
                 ctypes.POINTER(SMoleculeC),
                 ctypes.c_char_p,
