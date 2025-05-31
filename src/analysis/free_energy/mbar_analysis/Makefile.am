@@ -14,69 +14,66 @@ endif
 
 SUBDIRS := ../../libana .
 
-bin_PROGRAMS = mbar_analysis
-noinst_LIBRARIES = libmbar_analysis.a
-# noinst_LTLIBRARIES = libmbar_analysis.la
+noinst_LTLIBRARIES = libmbar_analysis.la
+bin_PROGRAMS = mbar_analysis$(EXEEXT)
 
-mbar_analysis_SOURCES = \
+libmbar_analysis_la_SOURCES = \
         ma_matrix.fpp \
         ma_option_str.fpp \
         ma_option.fpp \
         ma_control.fpp \
         ma_setup.fpp \
-        ma_analyze.fpp \
-        ma_main.fpp
+        ma_analyze.fpp
+
+mbar_analysis_SOURCES = ma_main.fpp
+
+ma_main.o: ma_main.fpp $(noinst_LTLIBRARIES)
+
+libmbar_analysis_la_LIBADD = \
+	$(top_srcdir)/src/lib/lib.la \
+	$(top_srcdir)/src/analysis/libana/libana.la \
+	$(INT_LAPACK_LIB)
+
+mbar_analysis_LDADD = \
+	libmbar_analysis.la
+
+AM_FCFLAGS = \
+	-I$(top_srcdir)/src/lib \
+	-I$(top_srcdir)/src/analysis/libana
 
 EXTRA_DIST = \
 	Makefile.depends
-
-mbar_analysis_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-mbar_analysis_ADDLIBANA = ../../libana/libana.a
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends
 MAINTAINERCLEANFILES = Makefile.in
 
-CLEANFILES = $(bin_PROGRAMS) $(mbar_analysis_OBJECTS) *.f90 *~ *.mod
+CLEANFILES = $(bin_PROGRAMS) *.f90 *~ *.mod
 
-ma_analyze.o : ma_analyze.fpp
+.fpp.f90:
 if USEKCOMP
 	cp $*.fpp $*.f90
 	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
-	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana $(FCFLAGS_DISABLEFARC) -c $*.f90
 else
 	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana $(FCFLAGS_DISABLEFARC) -c $*.f90
 endif
 
-.fpp.o:
+.f90.lo:
 if USEKCOMP
-	cp $*.fpp $*.f90
-	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
 	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana $(FCFLAGS) -c $*.f90
-else
-	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana $(FCFLAGS) -c $*.f90
 endif
+	$(LIBTOOL) --mode=compile $(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
+		$(AM_FCFLAGS) $(FCFLAGS) -c $*.f90
 
-mbar_analysis$(EXEEXT) : $(mbar_analysis_ADDLIBANA) $(mbar_analysis_ADDLIB) \
-						$(mbar_analysis_OBJECTS)
-	$(FC) -o $(bin_PROGRAMS) $(mbar_analysis_OBJECTS) \
-		$(mbar_analysis_ADDLIBANA) $(mbar_analysis_ADDLIB) $(LDFLAGS)
-
-$(noinst_LIBRARIES) : $(mbar_analysis_OBJECTS)
-	$(AR) $(ARFLAGS) cr $@ $(mbar_analysis_OBJECTS)
-
-libmbar_analysis.o : ;
+.f90.o:
+if USEKCOMP
+	mv $*.cpp.f90 $*.f90
+endif
+	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
+		$(AM_FCFLAGS) $(FCFLAGS) -c $*.f90
 
 depend: clean_depend
-	python ../../../../fortdep.py *.fpp > $(DEPENDS)
+	python $(top_srcdir)/fortdep.py --objext lo *.fpp > $(DEPENDS)
 
 clean_depend:
 	rm -f $(DEPENDS)

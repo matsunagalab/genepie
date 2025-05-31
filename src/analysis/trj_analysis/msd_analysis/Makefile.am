@@ -14,11 +14,10 @@ endif
 
 SUBDIRS := ../../libana .
 
-bin_PROGRAMS = msd_analysis
-noinst_LIBRARIES = libmsd_analysis.a
-# noinst_LTLIBRARIES = libmsd_analysis.la
+noinst_LTLIBRARIES = libmsd_analysis.la
+bin_PROGRAMS = msd_analysis$(EXEEXT)
 
-msd_analysis_SOURCES = \
+libmsd_analysis_la_SOURCES = \
 	one_molecule_str.fpp \
 	molecule_manipulate.fpp \
 	molecule_select.fpp \
@@ -26,46 +25,57 @@ msd_analysis_SOURCES = \
 	ma_option.fpp \
 	ma_control.fpp \
 	ma_setup.fpp \
-	ma_analyze.fpp \
-	ma_main.fpp
+	ma_analyze.fpp
+
+msd_analysis_SOURCES = ma_main.fpp
+
+ma_main.o: ma_main.fpp $(noinst_LTLIBRARIES)
+
+libmsd_analysis_la_LIBADD = \
+	$(top_srcdir)/src/lib/lib.la \
+	$(top_srcdir)/src/analysis/libana/libana.la \
+	$(INT_LAPACK_LIB)
+
+msd_analysis_LDADD = \
+	libmsd_analysis.la
+
+AM_FCFLAGS = \
+	-I$(top_srcdir)/src/lib \
+	-I$(top_srcdir)/src/analysis/libana
 
 EXTRA_DIST = \
 	Makefile.depends
-
-msd_analysis_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-msd_analysis_ADDLIBANA = ../../libana/libana.a
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends
 MAINTAINERCLEANFILES = Makefile.in
 
-CLEANFILES = $(bin_PROGRAMS) $(msd_analysis_OBJECTS) *.f90 *~ *.mod
+CLEANFILES = $(bin_PROGRAMS) *.f90 *~ *.mod
 
-.fpp.o:
+.fpp.f90:
 if USEKCOMP
 	cp $*.fpp $*.f90
 	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
-	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana $(FCFLAGS) -c $*.f90
 else
 	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana $(FCFLAGS) -c $*.f90
 endif
 
-msd_analysis$(EXEEXT) : $(msd_analysis_OBJECTS) \
-		$(msd_analysis_ADDLIBANA) $(msd_analysis_ADDLIB)
-	$(FC) -o $(bin_PROGRAMS) $(msd_analysis_OBJECTS) \
-		$(msd_analysis_ADDLIBANA) $(msd_analysis_ADDLIB) $(LDFLAGS)
+.f90.lo:
+if USEKCOMP
+	mv $*.cpp.f90 $*.f90
+endif
+	$(LIBTOOL) --mode=compile $(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
+		$(AM_FCFLAGS) $(FCFLAGS) -c $*.f90
 
-$(noinst_LIBRARIES) : $(msd_analysis_OBJECTS)
-	$(AR) $(ARFLAGS) cr $@ $(msd_analysis_OBJECTS)
-
-libmsd_analysis.o : ;
+.f90.o:
+if USEKCOMP
+	mv $*.cpp.f90 $*.f90
+endif
+	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
+		$(AM_FCFLAGS) $(FCFLAGS) -c $*.f90
 
 depend: clean_depend
-	python ../../../../fortdep.py *.fpp > $(DEPENDS)
+	python $(top_srcdir)/fortdep.py --objext lo *.fpp > $(DEPENDS)
 
 clean_depend:
 	rm -f $(DEPENDS)

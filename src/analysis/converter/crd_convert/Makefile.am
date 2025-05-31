@@ -14,55 +14,65 @@ endif
 
 SUBDIRS := ../../libana .
 
-bin_PROGRAMS = crd_convert
-noinst_LIBRARIES = libcrd_convert.a
-# noinst_LTLIBRARIES = libcrd_convert.la
+noinst_LTLIBRARIES = libcrd_convert.la
+bin_PROGRAMS = crd_convert$(EXEEXT)
 
-crd_convert_SOURCES = \
+libcrd_convert_la_SOURCES = \
 	cc_option_str.fpp \
 	cc_option.fpp \
 	cc_control.fpp \
 	cc_setup.fpp \
-	cc_convert.fpp \
-	cc_main.fpp
+	cc_convert.fpp
+
+crd_convert_SOURCES = cc_main.fpp
+
+cc_main.o: cc_main.fpp $(noinst_LTLIBRARIES)
+
+libcrd_convert_la_LIBADD = \
+	$(top_srcdir)/src/lib/lib.la \
+	$(top_srcdir)/src/analysis/libana/libana.la \
+	$(INT_LAPACK_LIB)
+
+crd_convert_LDADD = \
+	libcrd_convert.la
+
+AM_FCFLAGS = \
+	-I$(top_srcdir)/src/lib \
+	-I$(top_srcdir)/src/analysis/libana
 
 EXTRA_DIST = \
-	Makefile.depends 
-
-crd_convert_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-crd_convert_ADDLIBANA = ../../libana/libana.a
+	Makefile.depends
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends
 MAINTAINERCLEANFILES = Makefile.in
 
-CLEANFILES = $(bin_PROGRAMS) $(crd_convert_OBJECTS) *.f90 *~ *.mod
+CLEANFILES = $(bin_PROGRAMS) *.f90 *~ *.mod
 
-.fpp.o:
+.fpp.f90:
 if USEKCOMP
 	cp $*.fpp $*.f90
 	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
-	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana $(FCFLAGS) -c $*.f90
 else
 	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana $(FCFLAGS) -c $*.f90
 endif
 
-crd_convert$(EXEEXT) : $(crd_convert_ADDLIBANA) $(crd_convert_ADDLIB) \
-						$(crd_convert_OBJECTS)
-	$(FC) -o $(bin_PROGRAMS) $(crd_convert_OBJECTS) \
-		$(crd_convert_ADDLIBANA) $(crd_convert_ADDLIB) $(LDFLAGS)
+.f90.lo:
+if USEKCOMP
+	mv $*.cpp.f90 $*.f90
+endif
+	$(LIBTOOL) --mode=compile $(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
+		$(AM_FCFLAGS) $(FCFLAGS) -c $*.f90
 
-$(noinst_LIBRARIES) : $(crd_convert_OBJECTS)
-	$(AR) $(ARFLAGS) cr $@ $(crd_convert_OBJECTS)
-
-libcrd_convert.o : ;
+.f90.o:
+if USEKCOMP
+	mv $*.cpp.f90 $*.f90
+endif
+	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
+		$(AM_FCFLAGS) $(FCFLAGS) -c $*.f90
 
 depend: clean_depend
-	python ../../../../fortdep.py *.fpp > $(DEPENDS)
+	python $(top_srcdir)/fortdep.py --objext lo *.fpp > $(DEPENDS)
 
 clean_depend:
 	rm -f $(DEPENDS)

@@ -17,9 +17,9 @@ endif
 
 SUBDIRS = $(LAPACK_DIR) $(SCALAPACK_DIR) $(QSIMULATE_DIR) $(JSON_FORTRAN_DIR)
 
-noinst_LIBRARIES = lib.a
+lib_LTLIBRARIES = lib.la
 
-lib_a_SOURCES = \
+lib_la_SOURCES = \
 	constants.fpp \
 	mpi_parallel.fpp \
 	messages.fpp \
@@ -102,45 +102,65 @@ lib_a_SOURCES = \
 	ffte_param.h
 
 EXTRA_DIST = \
-	Makefile.depends 
+	Makefile.depends
 
 SUFFIXES = .fpp .c .f
 DEPENDS	= Makefile.depends
 
-CLEANFILES = $(noinst_LIBRARIES) $(lib_a_OBJECTS) *.f90 *~ *.mod
+generated_f90 = $(foreach src,$(lib_la_SOURCES),$(if $(filter %.fpp,$(src)),$(src:.fpp=.f90)))
 
-ffte_kernel.o : ffte_kernel.fpp
+CLEANFILES = $(generated_f90) *~ *.mod
+
+ffte_kernel.f90 : ffte_kernel.fpp
 if USEKCOMP
 	cp $*.fpp $*.f90
 	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
-	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I. $(FCFLAGS_FFTE_KERNEL_FPP__PGI__SP) -c $*.f90
 else
 	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I. $(FCFLAGS_FFTE_KERNEL_FPP__PGI__SP) -c $*.f90
 endif
 
-.fpp.o:
+ffte_kernel.o : ffte_kernel.f90
+if USEKCOMP
+	mv $*.cpp.f90 $*.f90
+	$(LIBTOOL) --mode=compile $(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I. $(FCFLAGS_FFTE_KERNEL_FPP__PGI__SP) -c $*.f90
+else
+	$(LIBTOOL) --mode=compile $(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I. $(FCFLAGS_FFTE_KERNEL_FPP__PGI__SP) -c $*.f90
+endif
+
+.fpp.f90:
 if USEKCOMP
 	cp $*.fpp $*.f90
 	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
-	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I. $(FCFLAGS) -c $*.f90
 else
 	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I. $(FCFLAGS) -c $*.f90
 endif
 
-.f.o:
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I. $(FCFLAGS) -c -o $@ $*.f 
+.f90.lo:
+if USEKCOMP
+	mv $*.cpp.f90 $*.f90
+	$(LIBTOOL) --mode=compile $(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I. $(FCFLAGS) -c $*.f90
+else
+	$(LIBTOOL) --mode=compile $(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I. $(FCFLAGS) -c $*.f90
+endif
 
-lib.a : $(lib_a_OBJECTS)
-	$(AR) $(ARFLAGS) cr $(noinst_LIBRARIES) $(lib_a_OBJECTS)
+.f.lo:
+	$(LIBTOOL) --mode=compile $(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I. $(FCFLAGS) -c -o $@ $*.f
 
 depend: clean_depend
-	python ../../fortdep.py *.fpp > $(DEPENDS)
+	python ../../fortdep.py --libtool *.fpp > $(DEPENDS)
 
 clean_depend:
 	rm -f $(DEPENDS)
+
+all-local: copy-static-lib
+
+# copy ./.libs/lib.a to ./lib.a
+copy-static-lib:
+	if test -f $(builddir)/.libs/lib.a; then \
+		cp $(builddir)/.libs/lib.a $(builddir)/lib.a; \
+	fi
+
+clean-local:
+	rm -f $(builddir)/lib.a
 
 -include $(DEPENDS)

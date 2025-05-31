@@ -14,55 +14,65 @@ endif
 
 SUBDIRS := ../../libana .
 
-bin_PROGRAMS = wham_analysis
-noinst_LIBRARIES = libwham_analysis.a
-# noinst_LTLIBRARIES = libwham_analysis.la
+noinst_LTLIBRARIES = libwham_analysis.la
+bin_PROGRAMS = wham_analysis$(EXEEXT)
 
-wham_analysis_SOURCES = \
+libwham_analysis_la_SOURCES = \
         wa_option_str.fpp \
         wa_option.fpp \
         wa_control.fpp \
         wa_setup.fpp \
-        wa_analyze.fpp \
-        wa_main.fpp
+        wa_analyze.fpp
+
+wham_analysis_SOURCES = wa_main.fpp
+
+wa_main.o: wa_main.fpp $(noinst_LTLIBRARIES)
+
+libwham_analysis_la_LIBADD = \
+	$(top_srcdir)/src/lib/lib.la \
+	$(top_srcdir)/src/analysis/libana/libana.la \
+	$(INT_LAPACK_LIB)
+
+wham_analysis_LDADD = \
+	libwham_analysis.la
+
+AM_FCFLAGS = \
+	-I$(top_srcdir)/src/lib \
+	-I$(top_srcdir)/src/analysis/libana
 
 EXTRA_DIST = \
-	Makefile.depends 
-
-wham_analysis_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-wham_analysis_ADDLIBANA = ../../libana/libana.a
+	Makefile.depends
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends
 MAINTAINERCLEANFILES = Makefile.in
 
-CLEANFILES = $(bin_PROGRAMS) $(wham_analysis_OBJECTS) *.f90 *~ *.mod
+CLEANFILES = $(bin_PROGRAMS) *.f90 *~ *.mod
 
-.fpp.o:
+.fpp.f90:
 if USEKCOMP
 	cp $*.fpp $*.f90
 	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
-	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana $(FCFLAGS) -c $*.f90
 else
 	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana $(FCFLAGS) -c $*.f90
 endif
 
-wham_analysis$(EXEEXT) : $(wham_analysis_ADDLIBANA) $(wham_analysis_ADDLIB) \
-							$(wham_analysis_OBJECTS)
-	$(FC) -o $(bin_PROGRAMS) $(wham_analysis_OBJECTS) \
-		$(wham_analysis_ADDLIBANA) $(wham_analysis_ADDLIB) $(LDFLAGS)
+.f90.lo:
+if USEKCOMP
+	mv $*.cpp.f90 $*.f90
+endif
+	$(LIBTOOL) --mode=compile $(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
+		$(AM_FCFLAGS) $(FCFLAGS) -c $*.f90
 
-$(noinst_LIBRARIES) : $(wham_analysis_OBJECTS)
-	$(AR) $(ARFLAGS) cr $@ $(wham_analysis_OBJECTS)
-
-libwham_analysis.o : ;
+.f90.o:
+if USEKCOMP
+	mv $*.cpp.f90 $*.f90
+endif
+	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
+		$(AM_FCFLAGS) $(FCFLAGS) -c $*.f90
 
 depend: clean_depend
-	python ../../../../fortdep.py *.fpp > $(DEPENDS)
+	python $(top_srcdir)/fortdep.py --objext lo *.fpp > $(DEPENDS)
 
 clean_depend:
 	rm -f $(DEPENDS)

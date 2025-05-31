@@ -12,18 +12,17 @@
 # usage: fortdep.py [list of files (*.fpp)]
 
 from __future__ import print_function
-import os
 import re
 import sys
 import getopt
-import glob
+
 
 class FortranFile:
 
   # class variables
-  re_fcomment = re.compile( "(^[^!]*)!(.*$)" )
-  re_module   = re.compile( "^(.*;+|\s*)\s*module\s*([^\s,]*)\s*", re.I )
-  re_use      = re.compile( "^(.*;+\s*|\s*)use\s+([^\s,]*)\s*", re.I )
+  re_fcomment = re.compile( r"(^[^!]*)!(.*$)" )
+  re_module   = re.compile( r"^(.*;+|\s*)\s*module\s*([^\s,]*)\s*", re.I )
+  re_use      = re.compile( r"^(.*;+\s*|\s*)use\s+([^\s,]*)\s*", re.I )
   mod_ext     = ".mod"
 
   def __init__( self, fname = "", ext = ".o" ):
@@ -82,41 +81,48 @@ class FortranFile:
       print( m, file=output )
 
   def recipe( self, mods_avail = [], static_deps = "" ):
-    depmods = []
+    deps = [self.filename, ]
     for m in self.depmods:
       if m.lower() in mods_avail or not mods_avail:
-        depmods.append(m)
+        deps.append(m)
+    if static_deps:
+        deps.append(static_deps)
     ret = ""
-    ret += self.objname + ": " + self.filename + " " + " ".join(depmods) + " " + static_deps
+    ret += self.objname + ": " + " ".join(deps)
     if len(self.modules) > 0:
       ret += "\n"
       ret += " ".join(self.modules) + ": " + self.filename + " " + self.objname
     return ret
+
 
 def usage( ret = 0 ):
   print( "fortdep: fortran dependency inspector", file = sys.stderr )
   print( "usage:   fortdep [options] files > [output]", file = sys.stderr )
   print( "options:", file = sys.stderr )
   print( "        -s [static dependencies for obj]", file = sys.stderr )
-
+  print( "        --objext [object file extension (default o)]", file = sys.stderr )
   sys.exit(ret)
 
-if __name__ == "__main__":
+
+def main():
   static_deps = ""
 
   # for future extension
   try:
-    opts, args = getopt.getopt( sys.argv[1:], "hs:e:f:" )
+    opts, args = getopt.getopt( sys.argv[1:], "hs:e:f:", ["objext=", ] )
   except getopt.GetoptError:
     print( "Error, failed to parse options", file = sys.stderr )
 
   if len(args) == 0:
     usage()
 
+  obj_ext = ".o"
   # parse opts
   for o,a in opts:
     if o in ( "-s" ):
       static_deps = a
+    elif o in ( "--objext" ):
+      obj_ext = "." + a
     elif o in ( "-h" ):
       usage()
 
@@ -124,7 +130,7 @@ if __name__ == "__main__":
   mods_in_this_dir = []
   # build a list of modules
   for f in args:
-    ff = FortranFile( f )
+    ff = FortranFile( f, ext=obj_ext )
     ff.parse()
     files.append( ff )
     mods = ff.getMyModuleFilenames()
@@ -141,3 +147,7 @@ if __name__ == "__main__":
 
   for ff in files:
     print( ff.recipe( mods_in_this_dir, static_deps ) )
+
+
+if __name__ == "__main__":
+    main()

@@ -14,55 +14,65 @@ endif
 
 SUBDIRS := ../../libana .
 
-bin_PROGRAMS = diffusion_analysis
-noinst_LIBRARIES = libdiffusion_analysis.a
-# noinst_LTLIBRARIES = libdiffusion_analysis.la
+noinst_LTLIBRARIES = libdiffusion_analysis.la
+bin_PROGRAMS = diffusion_analysis$(EXEEXT)
 
-diffusion_analysis_SOURCES = \
-  	da_option_str.fpp \
-        da_option.fpp \
-        da_control.fpp \
-  	da_setup.fpp \
-        da_analyze.fpp \
-        da_main.fpp
+libdiffusion_analysis_la_SOURCES = \
+	da_option_str.fpp \
+	da_option.fpp \
+	da_control.fpp \
+	da_setup.fpp \
+	da_analyze.fpp
+
+diffusion_analysis_SOURCES = da_main.fpp
+
+da_main.o: da_main.fpp $(noinst_LTLIBRARIES)
+
+libdiffusion_analysis_la_LIBADD = \
+	$(top_srcdir)/src/lib/lib.la \
+	$(top_srcdir)/src/analysis/libana/libana.la \
+	$(INT_LAPACK_LIB)
+
+diffusion_analysis_LDADD = \
+	libdiffusion_analysis.la
+
+AM_FCFLAGS = \
+	-I$(top_srcdir)/src/lib \
+	-I$(top_srcdir)/src/analysis/libana
 
 EXTRA_DIST = \
 	Makefile.depends
-
-diffusion_analysis_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-diffusion_analysis_ADDLIBANA = ../../libana/libana.a
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends
 MAINTAINERCLEANFILES = Makefile.in
 
-CLEANFILES = $(bin_PROGRAMS) $(diffusion_analysis_OBJECTS) *.f90 *~ *.mod
+CLEANFILES = $(bin_PROGRAMS) *.f90 *~ *.mod
 
-.fpp.o:
+.fpp.f90:
 if USEKCOMP
 	cp $*.fpp $*.f90
 	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
-	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana $(FCFLAGS) -c $*.f90
 else
 	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana $(FCFLAGS) -c $*.f90
 endif
 
-diffusion_analysis$(EXEEXT) : $(diffusion_analysis_OBJECTS) \
-		$(diffusion_analysis_ADDLIBANA) $(diffusion_analysis_ADDLIB)
-	$(FC) -o $(bin_PROGRAMS) $(diffusion_analysis_OBJECTS) \
-		$(diffusion_analysis_ADDLIBANA) $(diffusion_analysis_ADDLIB) $(LDFLAGS)
+.f90.lo:
+if USEKCOMP
+	mv $*.cpp.f90 $*.f90
+endif
+	$(LIBTOOL) --mode=compile $(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
+		$(AM_FCFLAGS) $(FCFLAGS) -c $*.f90
 
-$(noinst_LIBRARIES) : $(diffusion_analysis_OBJECTS)
-	$(AR) $(ARFLAGS) cr $@ $(diffusion_analysis_OBJECTS)
-
-libdiffusion_analysis.o : ;
+.f90.o:
+if USEKCOMP
+	mv $*.cpp.f90 $*.f90
+endif
+	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
+		$(AM_FCFLAGS) $(FCFLAGS) -c $*.f90
 
 depend: clean_depend
-	python ../../../../fortdep.py *.fpp > $(DEPENDS)
+	python $(top_srcdir)/fortdep.py --objext lo *.fpp > $(DEPENDS)
 
 clean_depend:
 	rm -f $(DEPENDS)

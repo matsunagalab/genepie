@@ -971,7 +971,7 @@ else
       fi
 
     elif test x"${FC_ACT}" = x"gfortran"; then
-      FCFLAGS="-O3 -ffast-math -march=native -ffree-line-length-none -fPIC"
+      FCFLAGS="-O3 -ffast-math -march=native -ffree-line-length-none"
       echo ${FC_GNU_VER}
       if test ${FC_GNU_VER} -gt 100000; then
         if test x"${with_msmpi}" = x"no"; then

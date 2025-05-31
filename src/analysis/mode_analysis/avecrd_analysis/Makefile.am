@@ -14,55 +14,65 @@ endif
 
 SUBDIRS := ../../libana .
 
-bin_PROGRAMS = avecrd_analysis
-noinst_LIBRARIES = libavecrd_analysis.a
-# noinst_LTLIBRARIES = libavecrd_analysis.la
+noinst_LTLIBRARIES = libavecrd_analysis.la
+bin_PROGRAMS = avecrd_analysis$(EXEEXT)
 
-avecrd_analysis_SOURCES = \
+libavecrd_analysis_la_SOURCES = \
 	aa_option_str.fpp \
 	aa_option.fpp \
 	aa_control.fpp \
 	aa_setup.fpp \
-	aa_analyze.fpp \
-	aa_main.fpp
+	aa_analyze.fpp
+
+avecrd_analysis_SOURCES = aa_main.fpp
+
+aa_main.o: aa_main.fpp $(noinst_LTLIBRARIES)
+
+libavecrd_analysis_la_LIBADD = \
+	$(top_srcdir)/src/lib/lib.la \
+	$(top_srcdir)/src/analysis/libana/libana.la \
+	$(INT_LAPACK_LIB)
+
+avecrd_analysis_LDADD = \
+	libavecrd_analysis.la
+
+AM_FCFLAGS = \
+	-I$(top_srcdir)/src/lib \
+	-I$(top_srcdir)/src/analysis/libana
 
 EXTRA_DIST = \
-	Makefile.depends 
-
-avecrd_analysis_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-avecrd_analysis_ADDLIBANA = ../../libana/libana.a
+	Makefile.depends
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends
 MAINTAINERCLEANFILES = Makefile.in
 
-CLEANFILES = $(bin_PROGRAMS) $(avecrd_analysis_OBJECTS) *.f90 *~ *.mod
+CLEANFILES = $(bin_PROGRAMS) *.f90 *~ *.mod
 
-.fpp.o:
+.fpp.f90:
 if USEKCOMP
 	cp $*.fpp $*.f90
 	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
-	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana $(FCFLAGS) -c $*.f90
 else
 	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana $(FCFLAGS) -c $*.f90
 endif
 
-avecrd_analysis$(EXEEXT) : $(avecrd_analysis_ADDLIBANA) $(avecrd_analysis_ADDLIB) \
-							$(avecrd_analysis_OBJECTS)
-	$(FC) -o $(bin_PROGRAMS) $(avecrd_analysis_OBJECTS) \
-		$(avecrd_analysis_ADDLIBANA) $(avecrd_analysis_ADDLIB) $(LDFLAGS)
+.f90.lo:
+if USEKCOMP
+	mv $*.cpp.f90 $*.f90
+endif
+	$(LIBTOOL) --mode=compile $(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
+		$(AM_FCFLAGS) $(FCFLAGS) -c $*.f90
 
-$(noinst_LIBRARIES) : $(avecrd_analysis_OBJECTS)
-	$(AR) $(ARFLAGS) cr $@ $(avecrd_analysis_OBJECTS)
-
-libavecrd_analysis.o : ;
+.f90.o:
+if USEKCOMP
+	mv $*.cpp.f90 $*.f90
+endif
+	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
+		$(AM_FCFLAGS) $(FCFLAGS) -c $*.f90
 
 depend: clean_depend
-	python ../../../../fortdep.py *.fpp > $(DEPENDS)
+	python $(top_srcdir)/fortdep.py --objext lo *.fpp > $(DEPENDS)
 
 clean_depend:
 	rm -f $(DEPENDS)

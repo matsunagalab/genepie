@@ -1,17 +1,18 @@
-SUBDIRS := ../../libana \
-		   ../../converter/crd_convert \
-		   ../../trj_analysis/trj_analysis \
-		   ../../trj_analysis/diffusion_analysis \
-		   ../../trj_analysis/drms_analysis \
-		   ../../trj_analysis/hb_analysis \
-		   ../../trj_analysis/msd_analysis \
-		   ../../trj_analysis/rg_analysis \
-		   ../../trj_analysis/rmsd_analysis \
-		   ../../clustering/kmeans_clustering \
-		   ../mbar_analysis \
-		   ../../free_energy/wham_analysis \
-		   ../../mode_analysis/avecrd_analysis \
-		   .
+SUBDIRS := \
+        ../../libana \
+        ../../converter/crd_convert \
+        ../../trj_analysis/trj_analysis \
+        ../../trj_analysis/diffusion_analysis \
+        ../../trj_analysis/drms_analysis \
+        ../../trj_analysis/hb_analysis \
+        ../../trj_analysis/msd_analysis \
+        ../../trj_analysis/rg_analysis \
+        ../../trj_analysis/rmsd_analysis \
+        ../../clustering/kmeans_clustering \
+        ../mbar_analysis \
+        ../../free_energy/wham_analysis \
+        ../../mode_analysis/avecrd_analysis \
+        .
 
 lib_LTLIBRARIES = libpython_interface.la
 
@@ -49,84 +50,77 @@ libpython_interface_la_SOURCES = \
         internal_file_type_mod.fpp \
         export_molecule_c_mod.fpp
 
-EXTRA_DIST = \
-	Makefile.depends
+EXTRA_DIST = Makefile.depends
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends
 
 # Ensure Position-Independent Code is generated
-AM_FCFLAGS = -fPIC
+# AM_FCFLAGS = -fPIC
 
 libpython_interface_la_LDFLAGS = -module -avoid-version -export-dynamic -shared -no-undefined
 libpython_interface_la_LDFLAGS += -Wl,-undefined,dynamic_lookup
 libpython_interface_la_LDFLAGS += $(shell mpif90 --showme:link)
 libpython_interface_la_LIBADD = \
-		../../converter/crd_convert/libcrd_convert.a \
-		../../trj_analysis/trj_analysis/libtrj_analysis.a \
-		../../trj_analysis/rg_analysis/librg_analysis.a \
-		../../trj_analysis/rmsd_analysis/librmsd_analysis.a \
-		../../trj_analysis/drms_analysis/libdrms_analysis.a \
-		../../trj_analysis/msd_analysis/libmsd_analysis.a \
-		../../trj_analysis/hb_analysis/libhb_analysis.a \
-		../../trj_analysis/diffusion_analysis/libdiffusion_analysis.a \
-		../../mode_analysis/avecrd_analysis/libavecrd_analysis.a \
-		../../clustering/kmeans_clustering/libkmeans_clustering.a \
-		../../free_energy/wham_analysis/libwham_analysis.a \
-		../mbar_analysis/libmbar_analysis.a \
-		../../libana/libana.a ../../../lib/lib.a ../../../ \
-		-llapack -lblas -lgfortran -lmpi -lmpi_mpifh
-libpython_interface_la_FCFLAGS = $(FCFLAGS) $(PYTHON_CPPFLAGS)
+        $(top_srcdir)/src/analysis/converter/crd_convert/libcrd_convert.la \
+        $(top_srcdir)/src/analysis/trj_analysis/trj_analysis/libtrj_analysis.la \
+        $(top_srcdir)/src/analysis/trj_analysis/rg_analysis/librg_analysis.la \
+        $(top_srcdir)/src/analysis/trj_analysis/rmsd_analysis/librmsd_analysis.la \
+        $(top_srcdir)/src/analysis/trj_analysis/drms_analysis/libdrms_analysis.la \
+        $(top_srcdir)/src/analysis/trj_analysis/msd_analysis/libmsd_analysis.la \
+        $(top_srcdir)/src/analysis/trj_analysis/hb_analysis/libhb_analysis.la \
+        $(top_srcdir)/src/analysis/trj_analysis/diffusion_analysis/libdiffusion_analysis.la \
+        $(top_srcdir)/src/analysis/mode_analysis/avecrd_analysis/libavecrd_analysis.la \
+        $(top_srcdir)/src/analysis/clustering/kmeans_clustering/libkmeans_clustering.la \
+        $(top_srcdir)/src/analysis/free_energy/wham_analysis/libwham_analysis.la \
+        $(top_srcdir)/src/analysis/interface/mbar_analysis/libmbar_analysis.la \
+        $(top_srcdir)/src/analysis/libana/libana.la \
+        $(top_srcdir)/src/lib/lib.la \
+        -llapack -lblas -lgfortran -lmpi -lmpi_mpifh
+libpython_interface_la_FCFLAGS = \
+	$(FCFLAGS) $(PYTHON_CPPFLAGS) \
+	-I$(top_srcdir)/src/ \
+	-I$(top_srcdir)/src/lib \
+	-I$(top_srcdir)/src/analysis/libana \
+	-I$(top_srcdir)/src/analysis/converter/crd_convert \
+	-I$(top_srcdir)/src/analysis/trj_analysis/trj_analysis \
+	-I$(top_srcdir)/src/analysis/trj_analysis/rg_analysis \
+	-I$(top_srcdir)/src/analysis/trj_analysis/rmsd_analysis \
+	-I$(top_srcdir)/src/analysis/trj_analysis/drms_analysis \
+	-I$(top_srcdir)/src/analysis/trj_analysis/msd_analysis \
+	-I$(top_srcdir)/src/analysis/trj_analysis/hb_analysis \
+	-I$(top_srcdir)/src/analysis/trj_analysis/diffusion_analysis \
+	-I$(top_srcdir)/src/analysis/mode_analysis/avecrd_analysis \
+	-I$(top_srcdir)/src/analysis/clustering/kmeans_clustering \
+	-I$(top_srcdir)/src/analysis/free_energy/wham_analysis \
+	-I$(top_srcdir)/src/analysis/interface/mbar_analysis
+
 
 # Add these lines
 CCLD = $(FC)
 LINK = $(LIBTOOL) --tag=FC --mode=link $(FC) $(AM_CFLAGS) $(CFLAGS) \
        $(AM_FCFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 
-# FC = mpif90
-# CC = mpicc
-
-.fpp.lo:
+.fpp.f90:
 if USEKCOMP
 	cp $< $*.f90
 	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
-	mv $*.cpp.f90 $*.f90
-	$(LIBTOOL) --tag=FC --mode=compile $(FC) $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana \
-		-I../../converter/crd_convert \
-		-I ../../trj_analysis/trj_analysis \
-		-I ../../trj_analysis/rg_analysis \
-		-I ../../trj_analysis/rmsd_analysis \
-		-I ../../trj_analysis/drms_analysis \
-		-I ../../trj_analysis/msd_analysis \
-		-I ../../trj_analysis/hb_analysis \
-		-I ../../trj_analysis/diffusion_analysis \
-		-I ../../mode_analysis/avecrd_analysis \
-		-I ../../clustering/kmeans_clustering \
-		-I ../../free_energy/wham_analysis \
-		-I ../mbar_analysis \
-		$(libpython_interface_la_FCFLAGS) -c $*.f90
 else
 	$(FPP) $(PPFLAGS) $(DEFS) $< $*.f90
+endif
+
+.f90.lo:
+if USEKCOMP
+	mv $*.cpp.f90 $*.f90
 	$(LIBTOOL) --tag=FC --mode=compile $(FC) $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana \
-		-I../../converter/crd_convert \
-		-I ../../trj_analysis/trj_analysis \
-		-I ../../trj_analysis/rg_analysis \
-		-I ../../trj_analysis/rmsd_analysis \
-		-I ../../trj_analysis/drms_analysis \
-		-I ../../trj_analysis/msd_analysis \
-		-I ../../trj_analysis/hb_analysis \
-		-I ../../trj_analysis/diffusion_analysis \
-		-I ../../mode_analysis/avecrd_analysis \
-		-I ../../clustering/kmeans_clustering \
-		-I ../../free_energy/wham_analysis \
-		-I ../mbar_analysis \
+		$(libpython_interface_la_FCFLAGS) -c $*.f90
+else
+	$(LIBTOOL) --tag=FC --mode=compile $(FC) $(DEFAULT_INCLUDES) $(INCLUDES) \
 		$(libpython_interface_la_FCFLAGS) -c $*.f90
 endif
 
 depend: clean_depend
-	python ../../../../fortdep.py *.fpp | sed -e 's/\.o/.lo/g' > $(DEPENDS)
+	python $(top_srcdir)/fortdep.py --objext lo *.fpp > $(DEPENDS)
 
 clean_depend:
 	rm -f $(DEPENDS)
