@@ -26,8 +26,8 @@ density_analysis_SOURCES = \
 EXTRA_DIST = \
 	Makefile.depends 
 
-density_analysis_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-density_analysis_ADDLIBANA = ../../libana/libana.a
+density_analysis_ADDLIB = ../../../lib/.libs/lib.a $(INT_LAPACK_LIB)
+density_analysis_ADDLIBANA = ../../libana/.libs/libana.a
 density_analysis_ADDLIBSPANA = ../libspana/libspana.a
 
 SUFFIXES = .fpp

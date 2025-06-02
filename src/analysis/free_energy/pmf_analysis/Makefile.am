@@ -27,8 +27,8 @@ pmf_analysis_SOURCES = \
 EXTRA_DIST = \
 	Makefile.depends 
 
-pmf_analysis_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-pmf_analysis_ADDLIBANA = ../../libana/libana.a
+pmf_analysis_ADDLIB = ../../../lib/.libs/lib.a $(INT_LAPACK_LIB)
+pmf_analysis_ADDLIBANA = ../../libana/.libs/libana.a
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends

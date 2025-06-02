@@ -63,15 +63,4 @@ depend: clean_depend
 clean_depend:
 	rm -f $(DEPENDS)
 
-all-local: copy-static-lib
-
-# copy ./.libs/libana.a to ./libana.a
-copy-static-lib:
-	if test -f $(builddir)/.libs/libana.a; then \
-		cp $(builddir)/.libs/libana.a $(builddir)/libana.a; \
-	fi
-
-clean-local:
-	rm -f $(builddir)/libana.a
-
 -include $(DEPENDS)

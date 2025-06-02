@@ -27,8 +27,8 @@ qmmm_generator_SOURCES = \
 EXTRA_DIST = \
 	Makefile.depends 
 
-qmmm_generator_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-qmmm_generator_ADDLIBANA = ../../libana/libana.a
+qmmm_generator_ADDLIB = ../../../lib/.libs/lib.a $(INT_LAPACK_LIB)
+qmmm_generator_ADDLIBANA = ../../libana/.libs/libana.a
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends

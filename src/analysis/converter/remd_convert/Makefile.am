@@ -27,8 +27,8 @@ remd_convert_SOURCES = \
 EXTRA_DIST = \
 	Makefile.depends 
 
-remd_convert_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-remd_convert_ADDLIBANA = ../../libana/libana.a
+remd_convert_ADDLIB = ../../../lib/.libs/lib.a $(INT_LAPACK_LIB)
+remd_convert_ADDLIBANA = ../../libana/.libs/libana.a
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends

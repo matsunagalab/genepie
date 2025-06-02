@@ -39,8 +39,8 @@ rst_upgrade_SOURCES = \
 EXTRA_DIST = \
 	Makefile.depends 
 
-rst_upgrade_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-rst_upgrade_ADDLIBANA = ../../libana/libana.a
+rst_upgrade_ADDLIB = ../../../lib/.libs/lib.a $(INT_LAPACK_LIB)
+rst_upgrade_ADDLIBANA = ../../libana/.libs/libana.a
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends

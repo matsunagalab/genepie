@@ -25,8 +25,8 @@ hbond_analysis_SOURCES = \
 EXTRA_DIST = \
 	Makefile.depends 
 
-hbond_analysis_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-hbond_analysis_ADDLIBANA = ../../libana/libana.a
+hbond_analysis_ADDLIB = ../../../lib/.libs/lib.a $(INT_LAPACK_LIB)
+hbond_analysis_ADDLIBANA = ../../libana/.libs/libana.a
 hbond_analysis_ADDLIBSPANA = ../libspana/libspana.a
 
 SUFFIXES = .fpp

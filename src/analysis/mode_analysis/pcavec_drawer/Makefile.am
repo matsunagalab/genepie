@@ -27,8 +27,8 @@ pcavec_drawer_SOURCES = \
 EXTRA_DIST = \
 	Makefile.depends 
 
-pcavec_drawer_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-pcavec_drawer_ADDLIBANA = ../../libana/libana.a
+pcavec_drawer_ADDLIB = ../../../lib/.libs/lib.a $(INT_LAPACK_LIB)
+pcavec_drawer_ADDLIBANA = ../../libana/.libs/libana.a
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends

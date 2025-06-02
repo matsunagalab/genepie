@@ -28,12 +28,12 @@ EXTRA_DIST =\
 			Makefile.depends
 
 if QSIMULATE
-energy_analysis_ADDLIB = ../../../lib/lib.a ../../../lib/qsimulate/libqs.a ../../../lib/json-fortran/libjsonfortran.a
+energy_analysis_ADDLIB = ../../../lib/.libs/lib.a ../../../lib/qsimulate/libqs.a ../../../lib/json-fortran/libjsonfortran.a
 else
-energy_analysis_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
+energy_analysis_ADDLIB = ../../../lib/.libs/lib.a $(INT_LAPACK_LIB)
 endif
 
-energy_analysis_ADDLIBANA = ../../libana/libana.a
+energy_analysis_ADDLIBANA = ../../libana/.libs/libana.a
 optional_base = at_input.o at_boundary.o at_boundary_str.o \
 	at_dynvars.o at_dynvars_str.o at_restraints.o \
 	at_restraints_str.o at_remd.o at_remd_str.o \

@@ -29,8 +29,8 @@ rst_convert_SOURCES = \
 EXTRA_DIST = \
 	Makefile.depends 
 
-rst_convert_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-rst_convert_ADDLIBANA = ../../libana/libana.a
+rst_convert_ADDLIB = ../../../lib/.libs/lib.a $(INT_LAPACK_LIB)
+rst_convert_ADDLIBANA = ../../libana/.libs/libana.a
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends

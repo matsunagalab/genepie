@@ -123,7 +123,7 @@ spdyn_SOURCES += \
 	spdyn.fpp
 endif
 
-spdyn_ADDLIB = ../lib/lib.a $(INT_LAPACK_LIB)
+spdyn_ADDLIB = ../lib/.libs/lib.a $(INT_LAPACK_LIB)
 
 prst_setup_SOURCES = \
 	sp_domain_str.fpp \
@@ -230,7 +230,7 @@ prst_setup_SOURCES += \
 	prst_setup.fpp
 endif
 
-prst_setup_ADDLIB = ../lib/lib.a $(INT_LAPACK_LIB)
+prst_setup_ADDLIB = ../lib/.libs/lib.a $(INT_LAPACK_LIB)
 
 SUFFIXES = .fpp
 

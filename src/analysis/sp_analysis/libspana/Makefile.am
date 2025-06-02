@@ -32,8 +32,8 @@ libspana_a_SOURCES = \
 EXTRA_DIST = \
 	Makefile.depends 
 
-libspana_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-libspana_ADDLIBANA = ../../libana/libana.a
+libspana_ADDLIB = ../../../lib/.libs/lib.a $(INT_LAPACK_LIB)
+libspana_ADDLIBANA = ../../libana/.libs/libana.a
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends

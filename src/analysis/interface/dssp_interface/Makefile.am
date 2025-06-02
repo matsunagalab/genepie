@@ -27,8 +27,8 @@ dssp_interface_SOURCES = \
 EXTRA_DIST = \
 	Makefile.depends 
 
-dssp_interface_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-dssp_interface_ADDLIBANA = ../../libana/libana.a
+dssp_interface_ADDLIB = ../../../lib/.libs/lib.a $(INT_LAPACK_LIB)
+dssp_interface_ADDLIBANA = ../../libana/.libs/libana.a
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends

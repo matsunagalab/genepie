@@ -93,10 +93,10 @@ at_energy_linear_object = \
 	at_energy_table_linear_bondcorr.o 
 
 if QSIMULATE
-  atdyn_ADDLIB = ../lib/lib.a ../lib/qsimulate/libqs.a ../lib/json-fortran/libjsonfortran.a $(INT_LAPACK_LIB)
+  atdyn_ADDLIB = ../lib/.libs/lib.a ../lib/qsimulate/libqs.a ../lib/json-fortran/libjsonfortran.a $(INT_LAPACK_LIB)
   INCLUDE_DIR = -I../lib -I../lib/json-fortran
 else
-  atdyn_ADDLIB = ../lib/lib.a $(INT_LAPACK_LIB)
+  atdyn_ADDLIB = ../lib/.libs/lib.a $(INT_LAPACK_LIB)
   INCLUDE_DIR = -I../lib
 endif
 

@@ -27,8 +27,8 @@ qval_residcg_analysis_SOURCES = \
 EXTRA_DIST = \
 	Makefile.depends 
 
-qval_residcg_analysis_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-qval_residcg_analysis_ADDLIBANA = ../../libana/libana.a
+qval_residcg_analysis_ADDLIB = ../../../lib/.libs/lib.a $(INT_LAPACK_LIB)
+qval_residcg_analysis_ADDLIBANA = ../../libana/.libs/libana.a
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends

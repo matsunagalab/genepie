@@ -28,8 +28,8 @@ pcrd_convert_SOURCES = \
 EXTRA_DIST = \
 	Makefile.depends 
 
-pcrd_convert_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-pcrd_convert_ADDLIBANA = ../../libana/libana.a
+pcrd_convert_ADDLIB = ../../../lib/.libs/lib.a $(INT_LAPACK_LIB)
+pcrd_convert_ADDLIBANA = ../../libana/.libs/libana.a
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends

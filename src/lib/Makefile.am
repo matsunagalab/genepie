@@ -155,15 +155,4 @@ depend: clean_depend
 clean_depend:
 	rm -f $(DEPENDS)
 
-all-local: copy-static-lib
-
-# copy ./.libs/lib.a to ./lib.a
-copy-static-lib:
-	if test -f $(builddir)/.libs/lib.a; then \
-		cp $(builddir)/.libs/lib.a $(builddir)/lib.a; \
-	fi
-
-clean-local:
-	rm -f $(builddir)/lib.a
-
 -include $(DEPENDS)

@@ -27,8 +27,8 @@ flccrd_analysis_SOURCES = \
 EXTRA_DIST = \
 	Makefile.depends 
 
-flccrd_analysis_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-flccrd_analysis_ADDLIBANA = ../../libana/libana.a
+flccrd_analysis_ADDLIB = ../../../lib/.libs/lib.a $(INT_LAPACK_LIB)
+flccrd_analysis_ADDLIBANA = ../../libana/.libs/libana.a
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends

@@ -27,8 +27,8 @@ lipidthick_analysis_SOURCES = \
 EXTRA_DIST = \
 	Makefile.depends 
 
-lipidthick_analysis_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-lipidthick_analysis_ADDLIBANA = ../../libana/libana.a
+lipidthick_analysis_ADDLIB = ../../../lib/.libs/lib.a $(INT_LAPACK_LIB)
+lipidthick_analysis_ADDLIBANA = ../../libana/.libs/libana.a
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends

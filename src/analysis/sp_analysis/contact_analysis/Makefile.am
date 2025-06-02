@@ -25,8 +25,8 @@ contact_analysis_SOURCES = \
 EXTRA_DIST = \
 	Makefile.depends 
 
-contact_analysis_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-contact_analysis_ADDLIBANA = ../../libana/libana.a
+contact_analysis_ADDLIB = ../../../lib/.libs/lib.a $(INT_LAPACK_LIB)
+contact_analysis_ADDLIBANA = ../../libana/.libs/libana.a
 contact_analysis_ADDLIBSPANA = ../libspana/libspana.a
 
 SUFFIXES = .fpp

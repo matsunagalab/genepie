@@ -27,8 +27,8 @@ morph_generator_SOURCES = \
 EXTRA_DIST = \
 	Makefile.depends 
 
-morph_generator_ADDLIB = ../../../lib/lib.a
-morph_generator_ADDLIBANA = ../../libana/libana.a
+morph_generator_ADDLIB = ../../../lib/.libs/lib.a
+morph_generator_ADDLIBANA = ../../libana/.libs/libana.a
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends

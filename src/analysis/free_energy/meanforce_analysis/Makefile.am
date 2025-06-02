@@ -27,8 +27,8 @@ meanforce_analysis_SOURCES = \
 EXTRA_DIST = \
 	Makefile.depends 
 
-meanforce_analysis_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-meanforce_analysis_ADDLIBANA = ../../libana/libana.a
+meanforce_analysis_ADDLIB = ../../../lib/.libs/lib.a $(INT_LAPACK_LIB)
+meanforce_analysis_ADDLIBANA = ../../libana/.libs/libana.a
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends
