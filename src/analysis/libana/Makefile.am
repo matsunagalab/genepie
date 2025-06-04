@@ -58,7 +58,7 @@ else
 endif
 
 depend: clean_depend
-	python ../../../fortdep.py --libtool *.fpp > $(DEPENDS)
+	python $(top_srcdir)/fortdep.py --objext lo *.fpp > $(DEPENDS)
 
 clean_depend:
 	rm -f $(DEPENDS)

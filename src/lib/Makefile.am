@@ -150,7 +150,7 @@ endif
 	$(LIBTOOL) --mode=compile $(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I. $(FCFLAGS) -c -o $@ $*.f
 
 depend: clean_depend
-	python ../../fortdep.py --libtool *.fpp > $(DEPENDS)
+	python $(top_srcdir)/fortdep.py --objext lo *.fpp > $(DEPENDS)
 
 clean_depend:
 	rm -f $(DEPENDS)

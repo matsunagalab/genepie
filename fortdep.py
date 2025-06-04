@@ -112,6 +112,7 @@ def main():
     opts, args = getopt.getopt( sys.argv[1:], "hs:e:f:", ["objext=", ] )
   except getopt.GetoptError:
     print( "Error, failed to parse options", file = sys.stderr )
+    sys.exit(1)
 
   if len(args) == 0:
     usage()

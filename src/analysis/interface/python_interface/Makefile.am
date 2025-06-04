@@ -101,6 +101,8 @@ CCLD = $(FC)
 LINK = $(LIBTOOL) --tag=FC --mode=link $(FC) $(AM_CFLAGS) $(CFLAGS) \
        $(AM_FCFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 
+-include $(DEPENDS)
+
 .fpp.f90:
 if USEKCOMP
 	cp $< $*.f90
@@ -112,17 +114,12 @@ endif
 .f90.lo:
 if USEKCOMP
 	mv $*.cpp.f90 $*.f90
-	$(LIBTOOL) --tag=FC --mode=compile $(FC) $(DEFAULT_INCLUDES) $(INCLUDES) \
-		$(libpython_interface_la_FCFLAGS) -c $*.f90
-else
-	$(LIBTOOL) --tag=FC --mode=compile $(FC) $(DEFAULT_INCLUDES) $(INCLUDES) \
-		$(libpython_interface_la_FCFLAGS) -c $*.f90
 endif
+	$(LIBTOOL) --tag=FC --mode=compile $(FC) $(DEFAULT_INCLUDES) $(INCLUDES) \
+		$(libpython_interface_la_FCFLAGS) -c $*.f90
 
 depend: clean_depend
 	python $(top_srcdir)/fortdep.py --objext lo *.fpp > $(DEPENDS)
 
 clean_depend:
 	rm -f $(DEPENDS)
-
--include $(DEPENDS)
