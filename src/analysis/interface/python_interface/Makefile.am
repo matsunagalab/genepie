@@ -14,7 +14,8 @@ SUBDIRS := \
         ../../mode_analysis/avecrd_analysis \
         .
 
-noinst_LTLIBRARIES = libpython_interface.la
+#noinst_LTLIBRARIES = libpython_interface.la
+lib_LTLIBRARIES = libpython_interface.la
 
 libpython_interface_la_SOURCES = \
         conv_f_c_util.fpp \
@@ -59,27 +60,16 @@ MAINTAINERCLEANFILES = Makefile.in
 CLEANFILES = *.f90 *~ *.mod
 
 # Ensure Position-Independent Code is generated
-# AM_FCFLAGS = -fPIC
+AM_FCFLAGS = -fPIC
 
-libpython_interface_la_LDFLAGS = -module -avoid-version -export-dynamic -shared -no-undefined
+libpython_interface_la_LDFLAGS = -module -avoid-version -export-dynamic -shared -no-undefined -Wl,-undefined,dynamic_lookup -L$(libdir) 
 libpython_interface_la_LDFLAGS += -Wl,-undefined,dynamic_lookup
 libpython_interface_la_LDFLAGS += $(shell mpif90 --showme:link)
+libpython_interface_la_LDFLAGS += -lgfortran -lmpi -lmpi_mpifh
 libpython_interface_la_LIBADD = \
-        $(top_srcdir)/src/analysis/converter/crd_convert/libcrd_convert.la \
-        $(top_srcdir)/src/analysis/trj_analysis/trj_analysis/libtrj_analysis.la \
-        $(top_srcdir)/src/analysis/trj_analysis/rg_analysis/librg_analysis.la \
-        $(top_srcdir)/src/analysis/trj_analysis/rmsd_analysis/librmsd_analysis.la \
-        $(top_srcdir)/src/analysis/trj_analysis/drms_analysis/libdrms_analysis.la \
-        $(top_srcdir)/src/analysis/trj_analysis/msd_analysis/libmsd_analysis.la \
-        $(top_srcdir)/src/analysis/trj_analysis/hb_analysis/libhb_analysis.la \
-        $(top_srcdir)/src/analysis/trj_analysis/diffusion_analysis/libdiffusion_analysis.la \
-        $(top_srcdir)/src/analysis/mode_analysis/avecrd_analysis/libavecrd_analysis.la \
-        $(top_srcdir)/src/analysis/clustering/kmeans_clustering/libkmeans_clustering.la \
-        $(top_srcdir)/src/analysis/free_energy/wham_analysis/libwham_analysis.la \
-        $(top_srcdir)/src/analysis/interface/mbar_analysis/libmbar_analysis.la \
-        $(top_srcdir)/src/analysis/libana/libana.la \
-        $(top_srcdir)/src/lib/lib.la \
-        -llapack -lblas -lgfortran -lmpi -lmpi_mpifh
+        $(top_srcdir)/src/lib/lib.a \
+        $(top_srcdir)/src/analysis/libana/libana.a
+#        -llapack -lblas -lgfortran -lmpi -lmpi_mpifh
 libpython_interface_la_FCFLAGS = \
 	$(FCFLAGS) $(PYTHON_CPPFLAGS) \
 	-I$(top_srcdir)/src/ \
