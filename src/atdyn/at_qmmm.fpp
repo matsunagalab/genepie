@@ -5740,7 +5740,7 @@ contains
 
         lkatm = iatom
         if (main_rank) &
-        write(MsgOut,'(i6,x,a4,x,i6,x,a4,x,a6,x,a6'' - '',$)') &
+        write(MsgOut,'(i6,x,a4,x,i6,x,a4,x,a6,x,a6, '' - '',$)') &
           lkatm,                           &
           molecule%segment_name(lkatm),    &
           molecule%residue_no(lkatm),      &
