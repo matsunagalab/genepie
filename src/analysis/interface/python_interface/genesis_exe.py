@@ -1,16 +1,81 @@
 import ctypes
 from collections import namedtuple
 import os
+import sys
 import tempfile
 from typing import Iterable, NamedTuple, Optional
 import numpy as np
 import numpy.typing as npt
+from contextlib import contextmanager
 from libgenesis import LibGenesis
 from s_molecule import SMolecule
 from s_trajectories import STrajectories, STrajectoriesArray
 import ctrl_files
 import c2py_util
 import py2c_util
+
+
+@contextmanager
+def suppress_stdout():
+    """Context manager to temporarily suppress stdout"""
+    with open(os.devnull, "w") as devnull:
+        old_stdout = os.dup(sys.stdout.fileno())
+        os.dup2(devnull.fileno(), sys.stdout.fileno())
+        try:
+            yield
+        finally:
+            os.dup2(old_stdout, sys.stdout.fileno())
+            os.close(old_stdout)
+
+
+@contextmanager
+def capture_stdout():
+    """Context manager to capture stdout - notebook compatible"""
+    import io
+    from contextlib import redirect_stdout
+    
+    # Capture both Python stdout and file descriptor output
+    captured_python = io.StringIO()
+    
+    # For C library output, we need to capture file descriptor level
+    old_stdout = os.dup(1)
+    read_fd, write_fd = os.pipe()
+    
+    try:
+        os.dup2(write_fd, 1)  # Redirect stdout file descriptor
+        
+        with redirect_stdout(captured_python):
+            yield captured_python
+            
+    finally:
+        os.dup2(old_stdout, 1)
+        os.close(old_stdout)
+        os.close(write_fd)
+        os.close(read_fd)
+
+
+@contextmanager
+def suppress_stdout_simple():
+    """Simple context manager to suppress stdout - most reliable for notebooks"""
+    # This approach redirects file descriptors at the OS level
+    saved_stdout = os.dup(1)
+    saved_stderr = os.dup(2)
+    
+    try:
+        # Redirect stdout and stderr to /dev/null
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, 1)
+        os.dup2(devnull, 2)
+        os.close(devnull)
+        
+        yield
+        
+    finally:
+        # Restore stdout and stderr
+        os.dup2(saved_stdout, 1)
+        os.dup2(saved_stderr, 2)
+        os.close(saved_stdout)
+        os.close(saved_stderr)
 
 
 def crd_convert(
@@ -73,11 +138,12 @@ def crd_convert(
                     )
 
             ctrl.seek(0)
-            LibGenesis().lib.crd_convert_c(
-                    ctypes.byref(mol_c),
-                    py2c_util.pathlike_to_byte(ctrl.name),
-                    ctypes.byref(buf),
-                    ctypes.byref(num_trajs_c))
+            with suppress_stdout_simple():
+                LibGenesis().lib.crd_convert_c(
+                        ctypes.byref(mol_c),
+                        py2c_util.pathlike_to_byte(ctrl.name),
+                        ctypes.byref(buf),
+                        ctypes.byref(num_trajs_c))
     finally:
         if mol_c:
             LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
@@ -162,24 +228,25 @@ def trj_analysis(molecule: SMolecule, trajs: STrajectories,
                     )
 
             ctrl.seek(0)
-            LibGenesis().lib.trj_analysis_c(
-                    ctypes.byref(mol_c),
-                    ctypes.byref(trajs.get_c_obj()),
-                    ctypes.byref(ana_period_c),
-                    py2c_util.pathlike_to_byte(ctrl.name),
-                    ctypes.byref(result_distance_c),
-                    ctypes.byref(num_distance),
-                    ctypes.byref(result_angle_c),
-                    ctypes.byref(num_angle),
-                    ctypes.byref(result_torsion_c),
-                    ctypes.byref(num_torsion),
-                    ctypes.byref(result_cdis_c),
-                    ctypes.byref(num_cdis),
-                    ctypes.byref(result_cang_c),
-                    ctypes.byref(num_cang),
-                    ctypes.byref(result_ctor_c),
-                    ctypes.byref(num_ctor),
-                    )
+            with suppress_stdout_simple():
+                LibGenesis().lib.trj_analysis_c(
+                        ctypes.byref(mol_c),
+                        ctypes.byref(trajs.get_c_obj()),
+                        ctypes.byref(ana_period_c),
+                        py2c_util.pathlike_to_byte(ctrl.name),
+                        ctypes.byref(result_distance_c),
+                        ctypes.byref(num_distance),
+                        ctypes.byref(result_angle_c),
+                        ctypes.byref(num_angle),
+                        ctypes.byref(result_torsion_c),
+                        ctypes.byref(num_torsion),
+                        ctypes.byref(result_cdis_c),
+                        ctypes.byref(num_cdis),
+                        ctypes.byref(result_cang_c),
+                        ctypes.byref(num_cang),
+                        ctypes.byref(result_ctor_c),
+                        ctypes.byref(num_ctor),
+                        )
         n_frame_c = ctypes.c_int(int(trajs.nframe / ana_period))
         result_distance = (c2py_util.conv_double_ndarray(
             result_distance_c, [n_frame_c.value, num_distance.value])
@@ -278,13 +345,14 @@ def rg_analysis(molecule: SMolecule, trajs: STrajectories,
                     )
 
             ctrl.seek(0)
-            LibGenesis().lib.rg_analysis_c(
-                    ctypes.byref(mol_c),
-                    ctypes.byref(trajs.get_c_obj()),
-                    ctypes.byref(ana_period_c),
-                    py2c_util.pathlike_to_byte(ctrl.name),
-                    ctypes.byref(result_rg_c),
-                    )
+            with suppress_stdout_simple():
+                LibGenesis().lib.rg_analysis_c(
+                        ctypes.byref(mol_c),
+                        ctypes.byref(trajs.get_c_obj()),
+                        ctypes.byref(ana_period_c),
+                        py2c_util.pathlike_to_byte(ctrl.name),
+                        ctypes.byref(result_rg_c),
+                        )
         n_frame_c = ctypes.c_int(int(trajs.nframe / ana_period))
         result_rg = (c2py_util.conv_double_ndarray(
             result_rg_c, n_frame_c.value)
@@ -346,13 +414,14 @@ def rmsd_analysis(
                     )
 
             ctrl.seek(0)
-            LibGenesis().lib.ra_analysis_c(
-                    ctypes.byref(mol_c),
-                    ctypes.byref(trajs.get_c_obj()),
-                    ctypes.byref(ana_period_c),
-                    py2c_util.pathlike_to_byte(ctrl.name),
-                    ctypes.byref(result_rmsd_c),
-                    )
+            with suppress_stdout_simple():
+                LibGenesis().lib.ra_analysis_c(
+                        ctypes.byref(mol_c),
+                        ctypes.byref(trajs.get_c_obj()),
+                        ctypes.byref(ana_period_c),
+                        py2c_util.pathlike_to_byte(ctrl.name),
+                        ctypes.byref(result_rmsd_c),
+                        )
         n_frame_c = ctypes.c_int(int(trajs.nframe / ana_period))
         result_rmsd = (c2py_util.conv_double_ndarray(
             result_rmsd_c, n_frame_c.value)
@@ -430,13 +499,14 @@ def drms_analysis(
                     )
 
             ctrl.seek(0)
-            LibGenesis().lib.dr_analysis_c(
-                    ctypes.byref(mol_c),
-                    ctypes.byref(trajs.get_c_obj()),
-                    ctypes.byref(ana_period_c),
-                    py2c_util.pathlike_to_byte(ctrl.name),
-                    ctypes.byref(result_drms_c),
-                    )
+            with suppress_stdout_simple():
+                LibGenesis().lib.dr_analysis_c(
+                        ctypes.byref(mol_c),
+                        ctypes.byref(trajs.get_c_obj()),
+                        ctypes.byref(ana_period_c),
+                        py2c_util.pathlike_to_byte(ctrl.name),
+                        ctypes.byref(result_drms_c),
+                        )
         n_frame_c = ctypes.c_int(int(trajs.nframe / ana_period))
         result_drms = (c2py_util.conv_double_ndarray(
             result_drms_c, n_frame_c.value)
@@ -502,15 +572,16 @@ def msd_analysis(
                     )
 
             ctrl.seek(0)
-            LibGenesis().lib.ma_analysis_c(
-                    ctypes.byref(mol_c),
-                    ctypes.byref(trajs.get_c_obj()),
-                    ctypes.byref(ana_period_c),
-                    py2c_util.pathlike_to_byte(ctrl.name),
-                    ctypes.byref(result_msd_c),
-                    ctypes.byref(num_analysis_mols_c),
-                    ctypes.byref(num_delta_c),
-                    )
+            with suppress_stdout_simple():
+                LibGenesis().lib.ma_analysis_c(
+                        ctypes.byref(mol_c),
+                        ctypes.byref(trajs.get_c_obj()),
+                        ctypes.byref(ana_period_c),
+                        py2c_util.pathlike_to_byte(ctrl.name),
+                        ctypes.byref(result_msd_c),
+                        ctypes.byref(num_analysis_mols_c),
+                        ctypes.byref(num_delta_c),
+                        )
         result_msd = c2py_util.conv_double_ndarray(
             result_msd_c, [num_delta_c.value, num_analysis_mols_c.value])
         return MsdAnalysisResult(
@@ -575,13 +646,14 @@ def hb_analysis(molecule: SMolecule, trajs: STrajectories,
                     )
 
             ctrl.seek(0)
-            LibGenesis().lib.hb_analysis_c(
-                    ctypes.byref(mol_c),
-                    ctypes.byref(trajs.get_c_obj()),
-                    ctypes.byref(ana_period_c),
-                    py2c_util.pathlike_to_byte(ctrl.name),
-                    ctypes.byref(result),
-                    )
+            with suppress_stdout_simple():
+                LibGenesis().lib.hb_analysis_c(
+                        ctypes.byref(mol_c),
+                        ctypes.byref(trajs.get_c_obj()),
+                        ctypes.byref(ana_period_c),
+                        py2c_util.pathlike_to_byte(ctrl.name),
+                        ctypes.byref(result),
+                        )
         s = c2py_util.conv_string(result)
         return s
     finally:
@@ -624,13 +696,14 @@ def diffusion_analysis(msd_data: npt.NDArray[np.float64],
                     )
 
             ctrl.seek(0)
-            LibGenesis().lib.diffusion_analysis_c(
-                ctypes.byref(c_msd),
-                ctypes.byref(d0),
-                ctypes.byref(d1),
-                py2c_util.pathlike_to_byte(ctrl.name),
-                ctypes.byref(c_out),
-                )
+            with suppress_stdout_simple():
+                LibGenesis().lib.diffusion_analysis_c(
+                    ctypes.byref(c_msd),
+                    ctypes.byref(d0),
+                    ctypes.byref(d1),
+                    py2c_util.pathlike_to_byte(ctrl.name),
+                    ctypes.byref(c_out),
+                    )
         return c2py_util.conv_double_ndarray(
                 c_out, (msd_data.shape[0], msd_data.shape[1] * 2 - 1))
     finally:
@@ -691,13 +764,14 @@ def avecrd_analysis(
                     )
 
             ctrl.seek(0)
-            LibGenesis().lib.aa_analysis_c(
-                    ctypes.byref(mol_c),
-                    ctypes.byref(trajs.get_c_obj()),
-                    ctypes.byref(ana_period_c),
-                    py2c_util.pathlike_to_byte(ctrl.name),
-                    ctypes.byref(pdb_ave_c),
-                    )
+            with suppress_stdout_simple():
+                LibGenesis().lib.aa_analysis_c(
+                        ctypes.byref(mol_c),
+                        ctypes.byref(trajs.get_c_obj()),
+                        ctypes.byref(ana_period_c),
+                        py2c_util.pathlike_to_byte(ctrl.name),
+                        ctypes.byref(pdb_ave_c),
+                        )
             if pdb_ave_c:
                 pdb_ave = c2py_util.conv_string(pdb_ave_c)
                 LibGenesis().lib.deallocate_c_string(ctypes.byref(pdb_ave_c))
@@ -792,12 +866,13 @@ def wham_analysis(
                     )
 
             ctrl.seek(0)
-            LibGenesis().lib.wa_analysis_c(
-                    py2c_util.pathlike_to_byte(ctrl.name),
-                    ctypes.byref(result_pmf_c),
-                    ctypes.byref(n_bins),
-                    ctypes.byref(n_bin_x),
-                    )
+            with suppress_stdout_simple():
+                LibGenesis().lib.wa_analysis_c(
+                        py2c_util.pathlike_to_byte(ctrl.name),
+                        ctypes.byref(result_pmf_c),
+                        ctypes.byref(n_bins),
+                        ctypes.byref(n_bin_x),
+                        )
             result_pmf = c2py_util.conv_double_ndarray(
                     result_pmf_c, [n_bins.value, n_bin_x.value])
 
@@ -889,12 +964,13 @@ def mbar_analysis(
                     )
 
             ctrl.seek(0)
-            LibGenesis().lib.mbar_analysis_c(
-                    py2c_util.pathlike_to_byte(ctrl.name),
-                    ctypes.byref(result_fene_c),
-                    ctypes.byref(n_replica),
-                    ctypes.byref(n_blocks),
-                    )
+            with suppress_stdout_simple():
+                LibGenesis().lib.mbar_analysis_c(
+                        py2c_util.pathlike_to_byte(ctrl.name),
+                        ctypes.byref(result_fene_c),
+                        ctypes.byref(n_replica),
+                        ctypes.byref(n_blocks),
+                        )
             result_fene = c2py_util.conv_double_ndarray(
                     result_fene_c, [n_replica.value, n_blocks.value])
             return result_fene
@@ -977,15 +1053,16 @@ def kmeans_clustering(
                     )
 
             ctrl.seek(0)
-            LibGenesis().lib.kc_analysis_c(
-                    ctypes.byref(mol_c),
-                    ctypes.byref(trajs.get_c_obj()),
-                    ctypes.byref(ana_period_c),
-                    py2c_util.pathlike_to_byte(ctrl.name),
-                    ctypes.byref(pdb_c),
-                    ctypes.byref(cluster_idxs_c),
-                    ctypes.byref(cluster_size),
-                    )
+            with suppress_stdout_simple():
+                LibGenesis().lib.kc_analysis_c(
+                        ctypes.byref(mol_c),
+                        ctypes.byref(trajs.get_c_obj()),
+                        ctypes.byref(ana_period_c),
+                        py2c_util.pathlike_to_byte(ctrl.name),
+                        ctypes.byref(pdb_c),
+                        ctypes.byref(cluster_idxs_c),
+                        ctypes.byref(cluster_size),
+                        )
             if pdb_c:
                 pdb_str = c2py_util.conv_string(pdb_c)
                 LibGenesis().lib.deallocate_c_string(ctypes.byref(pdb_c))
