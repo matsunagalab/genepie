@@ -1,21 +1,23 @@
-% GENESIS 解析ツール群における Python インターフェース機能追加 関連ドキュメント
-% 2025.6
+### Python interface for GENESIS analysis tools (June, 2025)
 
-# 概要
+# Contents
 
-* ダウンロード・コンパイル方法
-* 回帰テスト実行方法
-* ディレクトリ・ファイル構造
+* Required Environment
+* Download and Compilation Method
+* Chignolin Data Download
+* Jupyter Notebook Execution
+* Regression Test Execution
+* Directory and File Structure
 
-# 必要環境
+# Required Environment
 
 ```
-gfortran 10（GCC 10） 以降が対応
+gfortran 10 (GCC 10) or later is supported
 ```
 
-# ダウンロード・コンパイル方法
+# Download and Compilation Method
 
-* github から GENESIS をダウンロードしてから、作業用ブランチ develop に変更
+* Download GENESIS from github and switch to the working branch develop
 
 ```
 $ git clone git@github.com:matsunagalab/genesis.git
@@ -23,7 +25,7 @@ $ cd genesis/
 $ git checkout develop
 ```
 
-* Python環境を構築
+* Python Environment
 
 ```
 $ brew install uv
@@ -32,14 +34,14 @@ $ source .venv/bin/activate
 $ uv pip install torch torchvision torchaudio nglview numpy mdtraj MDAnalysis plotly jupyterlab py3Dmol scikit-learn
 ```
 
-* mbar_analysis と msd_analysis の module 名の名前競合を回避するために、src/analysis/interface/mbar_analysis に mbar_analysis 関連の module 名を置換したファイル生成 (automake などの前に必要)
+* To avoid module name conflicts between mbar_analysis and msd_analysis, generate files with replaced module names related to mbar_analysis in src/analysis/interface/mbar_analysis (required before automake etc.)
 
 ```
 $ cd src/analysis/interface/python_interface
 $ python mbar_rename.py
 ```
 
-* GENESIS をインストールすると同時に、Python interface もコンパイルされる (LAPACK は必要)。
+* When installing GENESIS, the Python interface is also compiled simultaneously (LAPACK is required).
 
 ```
 $ cd genesis
@@ -53,7 +55,7 @@ $ automake -a
 $ ./configure LAPACK_LIBS="-L/usr/local/lib -llapack -lblas"
 $ make
 $ make install
-# 環境変数
+# Environment variables
 $ cd lib/
 $ export LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH
 $ cd ../src/analysis/interface/python_interface/
@@ -61,7 +63,7 @@ $ export PYTHONPATH=$(pwd):$PYTHONPATH
 $ cd ../../..
 ```
 
-# Chignolin data のダウンロード
+# Chignolin Data Download
 
 ```
 $ brew install wget
@@ -69,21 +71,21 @@ $ wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1-
 $ wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1spt4dX3OWDZdG84i7RNSpShuh-dvCE3c' -O chignolin.dcd
 ```
 
-# Jupyter Notebook 実行
+# Jupyter Notebook Execution
 
 ```
 $ .venv/bin/jupyterlab
-# demo.ipynb を開く
+# Open demo.ipynb
 ```
 
-# 回帰テスト実行方法
+# Regression Test Execution
 
 ```
 $ cd genesis/src/analysis/interface/python_interface
 $ ./all_run.sh
 ```
 
-all_run.sh の内容は以下の通り。全回帰テストを実行する。
+The contents of all_run.sh are as follows. It executes all regression tests.
 
 ```
 #!/bin/bash
@@ -106,20 +108,20 @@ python test_mdanalysis.py
 python test_mdtraj.py
 ```
 
-または、個別に解析ツールを実行したいときは、例えば
+Or when you want to run individual analysis tools, for example
 
 ```
 $ python rmsd_analysis.py
 ```
 
-など。
+etc.
 
-## Python スクリプトの編集
+## Python Script Editing
 
-必要に応じて編集する。例えば rmsd_analysis.py の場合
-* s_molecule を生成するための PDB/PSF ファイルのパスを書く : pdb_path / psf_path
-* s_trajectory を生成するための crd_convert 実行の(inp ファイルの)キーワードを crd_convert の引数に書く
-* 解析のための(inp ファイルの)キーワードを trj_analysis の引数に書く
+Edit as needed. For example, in the case of rmsd_analysis.py
+* Write the path to PDB/PSF files for generating s_molecule: pdb_path / psf_path
+* Write the keywords (from inp file) for crd_convert execution to generate s_trajectory in the arguments of crd_convert
+* Write the keywords (from inp file) for analysis in the arguments of trj_analysis
 
 ```
 import os
@@ -176,151 +178,151 @@ if __name__ == "__main__":
     main()
 ```
 
-* trj_analysis.py スクリプトは、CustomTestCase クラスを使って回帰テストを実装したため crd_convert のキーワードを custom_test_case.py で書いている。
+* The trj_analysis.py script implements regression tests using the CustomTestCase class, so the keywords for crd_convert are written in custom_test_case.py.
 
-# ディレクトリ・ファイル構造
+# Directory and File Structure
 
-## ディレクトリ
+## Directories
 
-* genesis/src/analysis/interface/python_interface に全ファイルが存在 (以下で説明)
-* genesis/src/analysis/interface/mbar_analysis に mbar_rename.py によって作成される mbar_analysis 関連の module 名変更ファイルが存在 (module名変更しただけなので内容説明省略)
+* All files exist in genesis/src/analysis/interface/python_interface (explained below)
+* Files with changed module names related to mbar_analysis created by mbar_rename.py exist in genesis/src/analysis/interface/mbar_analysis (content description omitted as only module names were changed)
 
-## ファイル
+## Files
 
-### s_molecule 構造体関連
+### s_molecule structure related
 
-|ファイル名           |内容                                         |
+|File name            |Content                                      |
 |:--------------------|:--------------------------------------------|
-|s_molecule.py        |Python s_molecule クラス定義、Python s_molecule/s_molecule_c 相互変換、入力ファイルから Python s_molecule オブジェクト生成/解放|
-|s_molecule_c.py      |s_molecule_c クラス定義                      |
-|s_molecule_c_mod.fpp |s_molecule_c/s_molecule 相互変換、s_molecule_c メモリ確保/解放|
-|define_molecule.fpp  |入力ファイルから s_molecule_c 作成           |
+|s_molecule.py        |Python s_molecule class definition, Python s_molecule/s_molecule_c mutual conversion, Python s_molecule object creation/deallocation from input files|
+|s_molecule_c.py      |s_molecule_c class definition                |
+|s_molecule_c_mod.fpp |s_molecule_c/s_molecule mutual conversion, s_molecule_c memory allocation/deallocation|
+|define_molecule.fpp  |s_molecule_c creation from input file       |
 
-### s_trajectories 構造体関連
+### s_trajectories structure related
 
-|ファイル名               |内容                                           |
+|File name                |Content                                        |
 |:------------------------|:----------------------------------------------|
-|s_trajectories.py        |Python s_trajectory クラス定義                 |
-|s_trajectories_c.py      |s_trajectory_c クラス定義                      |
-|s_trajectories_c_mod.fpp |s_trajectory_c 初期化/コピー/フレーム入手/メモリ確保/解放など|
+|s_trajectories.py        |Python s_trajectory class definition          |
+|s_trajectories_c.py      |s_trajectory_c class definition               |
+|s_trajectories_c_mod.fpp |s_trajectory_c initialization/copy/frame acquisition/memory allocation/deallocation etc.|
 
-### 共通プログラム関連
+### Common program related
 
-|ファイル名               |内容                                           |
+|File name                |Content                                        |
 |:------------------------|:----------------------------------------------|
-|c2py_util.py             |C データ -> numpy NDArray 変換                 |
-|py2c_util.py             |numpy NDArray -> C データ変換                  |
-|conv_f_c_util.fpp        |C データ <-> FORTRAN データ変換                |
-|genesis_exe.py           |Python から FORTRAN 関数呼び出す               |
-|libgenesis.py            |FORTRAN サブルーチンの C 型定義                |
-|mbar_rename.py           |mbar_analysis 関連の module 名置換ファイル生成ツール|
-|ctrl_c_mod.fpp           |iso_c_binding版コントロールデータ              |
-|ctrl_files.py            |一時的コントロールファイル出力                 |
+|c2py_util.py             |C data -> numpy NDArray conversion            |
+|py2c_util.py             |numpy NDArray -> C data conversion            |
+|conv_f_c_util.fpp        |C data <-> FORTRAN data conversion            |
+|genesis_exe.py           |Call FORTRAN functions from Python            |
+|libgenesis.py            |C type definition of FORTRAN subroutines      |
+|mbar_rename.py           |mbar_analysis related module name replacement file generation tool|
+|ctrl_c_mod.fpp           |iso_c_binding version control data            |
+|ctrl_files.py            |Temporary control file output                  |
 
-### crd_convert 関連
+### crd_convert related
 
-|ファイル名               |内容                                           |
+|File name                |Content                                        |
 |:------------------------|:----------------------------------------------|
-|crd_convert.py           |crd_convert 回帰テスト実行プログラム           |
-|crd_convert_c_mod.fpp    |GENESIS の cc_main.fpp と cc_setup.fpp の機能  |
-|crd_convert_convert.fpp  |GENESIS の cc_convert.fpp の機能               |
+|crd_convert.py           |crd_convert regression test execution program |
+|crd_convert_c_mod.fpp    |GENESIS cc_main.fpp and cc_setup.fpp functionality|
+|crd_convert_convert.fpp  |GENESIS cc_convert.fpp functionality          |
 
-### trj_analysis 関連
+### trj_analysis related
 
-|ファイル名                |内容                                         |
-|:-------------------------|:--------------------------------------------|
-|trj_analysis.py           |trj_analysis 回帰テスト実行プログラム(Distance/Angle/Dihedral)|
-|trj_analysis_c_mod.fpp    |GENESIS の ta_main.fpp と ta_setup.fpp の機能|
-|trj_analysis_analysis.fpp |GENESIS の ta_analyze.fpp の機能             |
+|File name                 |Content                                       |
+|:-------------------------|:---------------------------------------------|
+|trj_analysis.py           |trj_analysis regression test execution program (Distance/Angle/Dihedral)|
+|trj_analysis_c_mod.fpp    |GENESIS ta_main.fpp and ta_setup.fpp functionality|
+|trj_analysis_analysis.fpp |GENESIS ta_analyze.fpp functionality         |
 
-### wham_analysis 関連
+### wham_analysis related
 
-|ファイル名                |内容                                         |
-|:-------------------------|:--------------------------------------------|
-|wham_analysis.py          |wham_analysis 回帰テスト実行プログラム       |
-|wa_analysis_c_mod.fpp     |GENESIS の wa_main.fpp と wa_setup.fpp の機能|
-|wa_analysis_analysis.fpp  |GENESIS の wa_analyze.fpp の機能             |
+|File name                 |Content                                       |
+|:-------------------------|:---------------------------------------------|
+|wham_analysis.py          |wham_analysis regression test execution program|
+|wa_analysis_c_mod.fpp     |GENESIS wa_main.fpp and wa_setup.fpp functionality|
+|wa_analysis_analysis.fpp  |GENESIS wa_analyze.fpp functionality         |
 
-### mbar_analysis 関連
+### mbar_analysis related
 
-|ファイル名                |内容                                                        |
-|:-------------------------------|:-----------------------------------------------------|
-|mbar_analysis.py                |mbar_analysis 回帰テスト実行プログラ                  |
-|mbar_analysis_umbrella_1d.py    |mbar_analysis 回帰テスト実行プログラム(Umbrella 1D)   |
-|mbar_analysis_umbrella_block.py |mbar_analysis 回帰テスト実行プログラム(Umbrella Block)|
-|mbar_analysis_c_mod.fpp         |GENESIS の ma_main.fpp と ma_setup.fpp の機能         |
-|mbar_analysis_analysis.fpp      |GENESIS の ma_analyze.fpp の機能                      |
+|File name                        |Content                                                    |
+|:-------------------------------|:------------------------------------------------------|
+|mbar_analysis.py                |mbar_analysis regression test execution program        |
+|mbar_analysis_umbrella_1d.py    |mbar_analysis regression test execution program (Umbrella 1D)|
+|mbar_analysis_umbrella_block.py |mbar_analysis regression test execution program (Umbrella Block)|
+|mbar_analysis_c_mod.fpp         |GENESIS ma_main.fpp and ma_setup.fpp functionality    |
+|mbar_analysis_analysis.fpp      |GENESIS ma_analyze.fpp functionality                  |
 
-* mbar_rename.py 実行後に genesis/src/analysis/interface/mbar_analysis に mbar_analysis 関連の module 名変更ファイルが存在
+* After executing mbar_rename.py, files with changed module names related to mbar_analysis exist in genesis/src/analysis/interface/mbar_analysis
 
-### avecrd_analysis 関連
+### avecrd_analysis related
 
-|ファイル名                |内容                                         |
-|:-------------------------|:--------------------------------------------|
-|avecrd_analysis.py        |avecrd_analysis 回帰テスト実行プログラム     |
-|aa_analysis_c_mod.fpp     |GENESIS の aa_main.fpp と aa_setup.fpp の機能|
-|aa_analysis_analysis.fpp  |GENESIS の aa_analyze.fpp の機能             |
+|File name                 |Content                                       |
+|:-------------------------|:---------------------------------------------|
+|avecrd_analysis.py        |avecrd_analysis regression test execution program|
+|aa_analysis_c_mod.fpp     |GENESIS aa_main.fpp and aa_setup.fpp functionality|
+|aa_analysis_analysis.fpp  |GENESIS aa_analyze.fpp functionality         |
 
-### kmeans_clustering 関連
+### kmeans_clustering related
 
-|ファイル名                |内容                                         |
-|:-------------------------|:--------------------------------------------|
-|kmeans_clustering.py      |kmeans_clustering 回帰テスト実行プログラム   |
-|kc_analysis_c_mod.fpp     |GENESIS の kc_main.fpp と kc_setup.fpp の機能|
-|kc_analysis_analysis.fpp  |GENESIS の kc_analyze.fpp の機能             |
+|File name                 |Content                                       |
+|:-------------------------|:---------------------------------------------|
+|kmeans_clustering.py      |kmeans_clustering regression test execution program|
+|kc_analysis_c_mod.fpp     |GENESIS kc_main.fpp and kc_setup.fpp functionality|
+|kc_analysis_analysis.fpp  |GENESIS kc_analyze.fpp functionality         |
 
-### hb_analysis 関連
+### hb_analysis related
 
-|ファイル名                |内容                                         |
-|:-------------------------|:--------------------------------------------|
-|hb_analysis_count_atom.py |hb_analysis 回帰テスト実行プログラム         |
-|hb_analysis_count_snap.py |hb_analysis 回帰テスト実行プログラム         |
-|hb_analysis_c_mod.fpp     |GENESIS の hb_main.fpp と hb_setup.fpp の機能|
-|hb_analysis_analysis.fpp  |GENESIS の hb_analyze.fpp の機能             |
+|File name                 |Content                                       |
+|:-------------------------|:---------------------------------------------|
+|hb_analysis_count_atom.py |hb_analysis regression test execution program|
+|hb_analysis_count_snap.py |hb_analysis regression test execution program|
+|hb_analysis_c_mod.fpp     |GENESIS hb_main.fpp and hb_setup.fpp functionality|
+|hb_analysis_analysis.fpp  |GENESIS hb_analyze.fpp functionality         |
 
-### rmsd_analysis 関連
+### rmsd_analysis related
 
-|ファイル名                |内容                                         |
-|:-------------------------|:--------------------------------------------|
-|rmsd_analysis.py          |rmsd_analysis 回帰テスト実行プログラム       |
-|ra_analysis_c_mod.fpp     |GENESIS の ra_main.fpp と ra_setup.fpp の機能|
-|ra_analysis_analysis.fpp  |GENESIS の ra_analyze.fpp の機能             |
+|File name                 |Content                                       |
+|:-------------------------|:---------------------------------------------|
+|rmsd_analysis.py          |rmsd_analysis regression test execution program|
+|ra_analysis_c_mod.fpp     |GENESIS ra_main.fpp and ra_setup.fpp functionality|
+|ra_analysis_analysis.fpp  |GENESIS ra_analyze.fpp functionality         |
 
-### drms_analysis 関連
+### drms_analysis related
 
-|ファイル名                |内容                                         |
-|:-------------------------|:--------------------------------------------|
-|drms_analysis.py          |drms_analysis 回帰テスト実行プログラム       |
-|dr_analysis_c_mod.fpp     |GENESIS の dr_main.fpp と dr_setup.fpp の機能|
-|dr_analysis_analysis.fpp  |GENESIS の dr_analyze.fpp の機能             |
+|File name                 |Content                                       |
+|:-------------------------|:---------------------------------------------|
+|drms_analysis.py          |drms_analysis regression test execution program|
+|dr_analysis_c_mod.fpp     |GENESIS dr_main.fpp and dr_setup.fpp functionality|
+|dr_analysis_analysis.fpp  |GENESIS dr_analyze.fpp functionality         |
 
-### rg_analysis 関連
+### rg_analysis related
 
-|ファイル名                |内容                                         |
-|:-------------------------|:--------------------------------------------|
-|rg_analysis.py            |rg_analysis 回帰テスト実行プログラム         |
-|rg_analysis_c_mod.fpp     |GENESIS の rg_main.fpp と rg_setup.fpp の機能|
-|rg_analysis_analysis.fpp  |GENESIS の rg_analyze.fpp の機能             |
+|File name                 |Content                                       |
+|:-------------------------|:---------------------------------------------|
+|rg_analysis.py            |rg_analysis regression test execution program|
+|rg_analysis_c_mod.fpp     |GENESIS rg_main.fpp and rg_setup.fpp functionality|
+|rg_analysis_analysis.fpp  |GENESIS rg_analyze.fpp functionality         |
 
-### msd_analysis 関連
+### msd_analysis related
 
-|ファイル名                  |内容                                         |
-|:---------------------------|:--------------------------------------------|
-|msd_analysis.py             |msd_analysis 回帰テスト実行プログラム         |
-|ma_analysis_c_mod.fpp       |GENESIS の ma_main.fpp と ma_setup.fpp の機能|
-|ma_analysis_analysis.fpp    |GENESIS の ma_analyze.fpp の機能             |
+|File name                   |Content                                       |
+|:---------------------------|:---------------------------------------------|
+|msd_analysis.py             |msd_analysis regression test execution program|
+|ma_analysis_c_mod.fpp       |GENESIS ma_main.fpp and ma_setup.fpp functionality|
+|ma_analysis_analysis.fpp    |GENESIS ma_analyze.fpp functionality         |
 
-### diffusion_analysis 関連
+### diffusion_analysis related
 
-|ファイル名                        |内容                                         |
-|:---------------------------------|:--------------------------------------------|
-|diffusion_analysis.py             |diffusion_analysis 回帰テスト実行プログラム  |
-|diffusion_analysis_main_c_mod.fpp |GENESIS の da_main.fpp と da_setup.fpp の機能|
-|diffusion_analysis_analyze.fpp    |GENESIS の da_analyze.fpp の機能             |
+|File name                        |Content                                       |
+|:---------------------------------|:---------------------------------------------|
+|diffusion_analysis.py             |diffusion_analysis regression test execution program|
+|diffusion_analysis_main_c_mod.fpp |GENESIS da_main.fpp and da_setup.fpp functionality|
+|diffusion_analysis_analyze.fpp    |GENESIS da_analyze.fpp functionality         |
 
-### MDTraj, MDAnalysis 関連
+### MDTraj, MDAnalysis related
 
-|ファイル名                       |内容                                 |
-|:---------------------------------|:-----------------------------------|
-|test_mdanalysis.py                |MdAnalysis 回帰テスト実行プログラム |
-|test_mdtraj.py                    |MdTraj 回帰テスト実行プログラム     |
+|File name                        |Content                              |
+|:---------------------------------|:------------------------------------|
+|test_mdanalysis.py                |MdAnalysis regression test execution program|
+|test_mdtraj.py                    |MdTraj regression test execution program|
