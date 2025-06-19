@@ -88,7 +88,7 @@ $ cd /path/to/genesis/
 # Chignolin Data Download
 
 ```
-$ cd /path/to/genesis/
+$ cd /path/to/genesis/demo/
 $ brew install wget
 $ wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1-aThTB9Qtka8exHQTIDnZGf-IZXx75XE' -O chignolin.pdb
 $ wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1spt4dX3OWDZdG84i7RNSpShuh-dvCE3c' -O chignolin.dcd
@@ -97,8 +97,8 @@ $ wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1s
 # Jupyter Notebook Execution
 
 ```
-$ cd /path/to/genesis/
-$ .venv/bin/jupyterlab
+$ cd /path/to/genesis/demo/
+$ ../.venv/bin/jupyterlab
 # Open demo.ipynb in JupyterLab
 ```
 
