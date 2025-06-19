@@ -99,7 +99,7 @@ $ wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1s
 
 ```
 $ cd /path/to/genesis/demo/
-$ ../.venv/bin/jupyterlab
+$ jupyterlab
 # Open demo.ipynb in JupyterLab
 ```
 
