@@ -82,7 +82,7 @@ $ cd /path/to/genesis/lib/
 $ export LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH
 $ cd ../src/analysis/interface/python_interface/
 $ export PYTHONPATH=$(pwd):$PYTHONPATH
-$ cd ../../..
+$ cd /path/to/genesis/
 ```
 
 # Chignolin Data Download
