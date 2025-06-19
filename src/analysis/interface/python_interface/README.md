@@ -39,12 +39,13 @@ $ uv pip install torch torchvision torchaudio nglview numpy mdtraj MDAnalysis pl
 ```
 $ cd src/analysis/interface/python_interface
 $ python mbar_rename.py
+$ cd -
 ```
 
 * When installing GENESIS, the Python interface is also compiled simultaneously (LAPACK is required).
 
 ```
-$ cd genesis
+$ cd /path/to/genesis/
 $ autoscan
 $ autoheader
 $ mkdir m4
