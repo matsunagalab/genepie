@@ -60,6 +60,23 @@ $ ./configure LAPACK_LIBS="-L/usr/local/lib -llapack -lblas" # In case of Mac, p
 $ make
 $ make install
 
+genesis) yasu@r1$:genesis$ ls bin
+atdyn*                 drms_analysis*         kmeans_clustering*     pmf_analysis*          rmsd_analysis*
+avecrd_analysis*       dssp_interface*        lipidthick_analysis*   prjcrd_analysis*       rpath_generator*
+cg_convert*            eigmat_analysis*       mbar_analysis*         qmmm_generator*        rst_convert*
+comcrd_analysis*       emmap_generator*       meanforce_analysis*    qval_analysis*         rst_upgrade*
+contact_analysis*      energy_analysis*       morph_generator*       qval_residcg_analysis* sasa_analysis*
+crd_convert*           flccrd_analysis*       msd_analysis*          rdf_analysis*          spdyn*
+density_analysis*      fret_analysis*         pathcv_analysis*       remd_convert*          tilt_analysis*
+diffusion_analysis*    hb_analysis*           pcavec_drawer*         rg_analysis*           trj_analysis*
+distmat_analysis*      hbond_analysis*        pcrd_convert*          ring_analysis*         wham_analysis*
+(genesis) yasu@r1$:genesis$ 
+(genesis) yasu@r1$:genesis$ 
+(genesis) yasu@r1$:genesis$ ls lib
+libpython_interface.la* libpython_interface.so*
+(genesis) yasu@r1$:genesis$ 
+
+
 # Environment variables
 $ cd /path/to/genesis/lib/
 $ export LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH
