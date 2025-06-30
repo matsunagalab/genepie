@@ -28,14 +28,14 @@ Download GENESIS code from GitHub and switch to the working branch `develop`.
 ```
 $ git clone https://github.com/matsunagalab/genesis.git
 $ cd genesis/
-$ git checkout develop
+$ git checkout 85654c5c3ad1734e868a565175824ee954fd2b5d
 ```
 
 Constrct a virtual environment for python by using `uv`. In the following, please use the following virtual environment.
 
 ```
 $ cd /path/to/genesis/
-$ brew install uv
+$ brew install uv # in case of Mac
 $ uv venv --python=python3.11
 $ source .venv/bin/activate
 (genesis) $ uv pip install torch torchvision torchaudio nglview numpy mdtraj MDAnalysis plotly jupyterlab py3Dmol scikit-learn
