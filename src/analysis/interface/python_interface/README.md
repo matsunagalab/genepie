@@ -23,19 +23,23 @@ wget
 
 # Download and compile source code
 
-Download GENESIS code from GitHub and switch to the working branch `develop`.
+Download GENESIS code from GitHub and switch to the working branch `python_interface`.
 
 ```
 $ git clone https://github.com/matsunagalab/genesis.git
 $ cd genesis/
-$ git checkout develop
+$ git checkout python_interface
 ```
 
 Constrct a virtual environment for python by using `uv`. In the following, please use the following virtual environment.
 
 ```
 $ cd /path/to/genesis/
+
+# For Mac users
 $ brew install uv
+# For Ubuntu users, see https://docs.astral.sh/uv/getting-started/installation/
+
 $ uv venv --python=python3.11
 $ source .venv/bin/activate
 (genesis) $ uv pip install torch torchvision torchaudio nglview numpy mdtraj MDAnalysis plotly jupyterlab py3Dmol scikit-learn
