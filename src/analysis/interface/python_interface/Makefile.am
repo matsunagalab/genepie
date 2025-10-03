@@ -1,3 +1,9 @@
+if INTERNAL_LAPACK
+  INT_LAPACK_LIB=$(LAPACK_LIB1)
+else
+  INT_LAPACK_LIB=
+endif
+
 SUBDIRS := ../../libana \
 		   ../../converter/crd_convert \
 		   ../../trj_analysis/trj_analysis \
@@ -75,7 +81,9 @@ libpython_interface_la_LIBADD = \
 		../../free_energy/wham_analysis/libwham_analysis.a \
 		../mbar_analysis/libmbar_analysis.a \
 		../../libana/libana.a ../../../lib/lib.a ../../../ \
-		-llapack -lblas -lgfortran -lmpi -lmpi_mpifh
+		$(INT_LAPACK_LIB) $(LDFLAGS) \
+		-lgfortran 
+
 libpython_interface_la_FCFLAGS = $(FCFLAGS) $(PYTHON_CPPFLAGS)
 
 # Add these lines
