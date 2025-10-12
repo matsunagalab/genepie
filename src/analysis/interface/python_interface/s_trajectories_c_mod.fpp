@@ -1,6 +1,7 @@
 module s_trajectories_c_mod
   use, intrinsic :: iso_c_binding
   use trajectory_str_mod
+  use select_atoms_str_mod
   implicit none
   private
 
@@ -14,6 +15,7 @@ module s_trajectories_c_mod
 
   public :: get_frame
   public :: set_frame
+  public :: set_frame_filtered
   public :: deep_copy_s_trajectories_c
   public :: init_empty_s_trajectories_c
   public :: deallocate_s_trajectories_c
@@ -121,6 +123,28 @@ contains
     coords(:, :, frame_idx) = src_traj%coord
     boxes(:, :, frame_idx) = src_traj%pbc_box
   end subroutine
+
+  subroutine set_frame_filtered(out_traj, src_traj, frame_idx, selatoms)
+    type(s_trajectories_c), intent(inout) :: out_traj
+    type(s_trajectory), intent(in) :: src_traj
+    integer, intent(in) :: frame_idx
+    type(s_selatoms), intent(in) :: selatoms
+
+    real(C_double), pointer :: coords(:,:,:), boxes(:,:,:)
+    integer :: i, atom_idx
+
+    call C_F_POINTER(out_traj%coords, coords, [3, out_traj%natom, out_traj%nframe])
+    call C_F_POINTER(out_traj%pbc_boxes, boxes, [3, 3, out_traj%nframe])
+    
+    ! Copy only selected atoms
+    do i = 1, size(selatoms%idx)
+      atom_idx = selatoms%idx(i)
+      coords(:, i, frame_idx) = src_traj%coord(:, atom_idx)
+    end do
+    
+    ! Copy PBC box (unchanged)
+    boxes(:, :, frame_idx) = src_traj%pbc_box
+  end subroutine set_frame_filtered
 
   subroutine join_s_trajectories_c(trajs_array, len, joined) &
       bind(C, name="join_s_trajectories_c")

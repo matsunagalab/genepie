@@ -108,9 +108,9 @@ libpython_interface.la* libpython_interface.so*
 ```
 (genesis) $ cd /path/to/genesis/demo/
 (genesis) $ brew install wget
-(genesis) $ wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1-aThTB9Qtka8exHQTIDnZGf-IZXx75XE' -O chignolin.pdb
-(genesis) $ wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1spt4dX3OWDZdG84i7RNSpShuh-dvCE3c' -O chignolin.dcd
-(genesis) $ wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1771QgNhVCqwxz8Fg23h5J3v8HX7oC87R' -O chignolin.psf
+(genesis) $ wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1WyFzvhuMjlwp2pNjga9B8RvTKoygBh-a' -O chignolin.pdb
+(genesis) $ wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1DZFUbCBVdCsfKzzrroIslre0eSctMaY-' -O chignolin.dcd
+(genesis) $ wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1L1Y7YdSz46sTI1lQ7PoQJIqqbzM4F9Vh' -O chignolin.psf
 ```
 
 # Jupyter notebook

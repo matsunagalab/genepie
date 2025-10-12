@@ -128,8 +128,14 @@ contains
         call read_trj(trj_in, trajectory)
 
         if (itrj == 1) then
-            call init_empty_s_trajectories_c( &
-                s_trajs_c_buf(irun), size(trajectory%coord, dim=2), sum(trj_list%md_steps))
+            ! Initialize trajectory with selected atom count
+            if (allocated(option%trjout_atom%idx)) then
+              call init_empty_s_trajectories_c( &
+                  s_trajs_c_buf(irun), size(option%trjout_atom%idx), sum(trj_list%md_steps))
+            else
+              call init_empty_s_trajectories_c( &
+                  s_trajs_c_buf(irun), size(trajectory%coord, dim=2), sum(trj_list%md_steps))
+            end if
         end if
 
 
@@ -189,7 +195,12 @@ contains
             end if
           end if
 
-          call set_frame(s_trajs_c_buf(irun), trajectory, itrj)
+          ! Filter trajectory coordinates based on selected atoms
+          if (allocated(option%trjout_atom%idx)) then
+            call set_frame_filtered(s_trajs_c_buf(irun), trajectory, itrj, option%trjout_atom)
+          else
+            call set_frame(s_trajs_c_buf(irun), trajectory, itrj)
+          end if
         end if
 
       end do

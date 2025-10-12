@@ -100,18 +100,40 @@ def crd_convert(
         center_coord: Optional[tuple[float, float, float]] = None,
         pbc_correct: Optional[str] = None,
         rename_res: Optional[Iterable[str]] = None,
-        ) -> STrajectoriesArray:
+        ) -> tuple[STrajectoriesArray, SMolecule]:
     """
     Executes crd_convert.
 
     Args:
-        molecule:
+        molecule: SMolecule object containing molecular structure
+        traj_params: List of trajectory parameters
+        trj_format: Trajectory format (e.g., "DCD")
+        trj_type: Trajectory type (e.g., "COOR")
+        trj_natom: Number of atoms in trajectory
+        selection_group: List of atom selection groups
+        selection_mole_name: List of molecule names for selection
+        fitting_method: Fitting method (e.g., "TR+ROT")
+        fitting_atom: Fitting atom selection
+        zrot_ngrid: Z-rotation grid size
+        zrot_grid_size: Z-rotation grid size
+        mass_weight: Whether to use mass weighting
+        check_only: Whether to only check parameters
+        allow_backup: Whether to allow backup files
+        centering: Whether to center coordinates
+        centering_atom: Centering atom selection
+        center_coord: Center coordinates
+        pbc_correct: PBC correction method
+        rename_res: List of residue names to rename
 
     Returns:
-        Array of STrajectories
+        Tuple of (STrajectoriesArray, SMolecule) where the SMolecule contains
+        only the atoms selected by selection_group, or the original molecule
+        if no selection_group is specified.
     """
     buf = ctypes.c_void_p(None)
     num_trajs_c = ctypes.c_int(0)
+    selected_atom_indices_c = ctypes.c_void_p(None)
+    num_selected_atoms_c = ctypes.c_int(0)
     mol_c = molecule.to_SMoleculeC()
     try:
         with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
@@ -121,10 +143,16 @@ def crd_convert(
                     )
             ctrl_files.write_trajectory_info(
                     ctrl, traj_params, trj_format, trj_type, trj_natom,)
+            # Use "all" as default selection when no selection is specified
+            # This ensures that group1 is available for fitting and output
+            selection_group_to_use = selection_group if selection_group else ["all"]
             ctrl_files.write_ctrl_selection(
-                    ctrl, selection_group, selection_mole_name)
+                    ctrl, selection_group_to_use, selection_mole_name)
+            # Only specify fitting_atom if selection_group is provided
+            # When no selection is specified, don't specify fitting_atom
+            fitting_atom_to_use = fitting_atom if selection_group else None
             ctrl_files.write_ctrl_fitting(
-                    ctrl, fitting_method, fitting_atom,
+                    ctrl, fitting_method, fitting_atom_to_use,
                     zrot_ngrid, zrot_grid_size, mass_weight)
             ctrl.write(b"[OPTION]\n")
             ctrl_files.write_kwargs(
@@ -144,11 +172,24 @@ def crd_convert(
                         ctypes.byref(mol_c),
                         py2c_util.pathlike_to_byte(ctrl.name),
                         ctypes.byref(buf),
-                        ctypes.byref(num_trajs_c))
+                        ctypes.byref(num_trajs_c),
+                        ctypes.byref(selected_atom_indices_c),
+                        ctypes.byref(num_selected_atoms_c))
     finally:
         if mol_c:
             LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
-    return STrajectoriesArray(buf, num_trajs_c.value)
+    
+    # Create subset molecule based on selected atom indices
+    if num_selected_atoms_c.value > 0 and selected_atom_indices_c:
+        atom_indices = c2py_util.conv_int_ndarray(
+            selected_atom_indices_c, num_selected_atoms_c.value)
+        # Convert from 1-based (FORTRAN) to 0-based (Python) indexing
+        subset_mol = molecule.subset_atoms(atom_indices - 1)
+    else:
+        # No selection or no atoms selected, return original molecule
+        subset_mol = molecule
+    
+    return (STrajectoriesArray(buf, num_trajs_c.value), subset_mol)
 
 
 TrjAnalysisResult = namedtuple(

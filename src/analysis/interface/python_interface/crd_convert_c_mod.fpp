@@ -32,28 +32,35 @@ module crd_convert_c_mod
 
 contains
   subroutine crd_convert_c( &
-          molecule, ctrl_path, s_trajes_c_array, num_trajs) &
+          molecule, ctrl_path, s_trajes_c_array, num_trajs, &
+          selected_atom_indices, num_selected_atoms) &
           bind(C, name="crd_convert_c")
     implicit none
     type(s_molecule_c), intent(inout) :: molecule
     character(kind=c_char), intent(in) :: ctrl_path(*)
     type(c_ptr), intent(out) :: s_trajes_c_array
     integer(c_int), intent(out) :: num_trajs
+    type(c_ptr), intent(out) :: selected_atom_indices
+    integer(c_int), intent(out) :: num_selected_atoms
     character(len=:), allocatable :: fort_ctrl_path
     type(s_molecule) :: f_molecule
 
     call c2f_string_allocate(ctrl_path, fort_ctrl_path)
     call c2f_s_molecule(molecule, f_molecule)
 
-    call crd_convert_main(f_molecule, fort_ctrl_path, s_trajes_c_array, num_trajs)
+    call crd_convert_main(f_molecule, fort_ctrl_path, s_trajes_c_array, num_trajs, &
+                         selected_atom_indices, num_selected_atoms)
   end subroutine crd_convert_c
 
-  subroutine crd_convert_main(molecule, ctrl_filename, s_trajes_c_array, num_trajs)
+  subroutine crd_convert_main(molecule, ctrl_filename, s_trajes_c_array, num_trajs, &
+                              selected_atom_indices, num_selected_atoms)
     implicit none
     type(s_molecule), intent(inout) :: molecule
     character(*), intent(in) :: ctrl_filename
     type(c_ptr), intent(out) :: s_trajes_c_array
     integer(c_int), intent(out) :: num_trajs
+    type(c_ptr), intent(out) :: selected_atom_indices
+    integer(c_int), intent(out) :: num_selected_atoms
     type(s_ctrl_data)      :: ctrl_data
     type(s_trj_list)       :: trj_list
     type(s_trajectory)     :: trajectory
@@ -102,6 +109,18 @@ contains
                  output,     &
                  s_trajes_c_array, &
                  num_trajs)
+
+    ! Extract selected atom indices from option%trjout_atom
+    write(MsgOut,'(A)') 'About to extract selected atom indices...'
+    write(MsgOut,'(A,I8)') 'Extract_Selected_Atom_Indices> Number of selected atoms: ', &
+         size(option%trjout_atom%idx)
+    if (size(option%trjout_atom%idx) > 0) then
+      write(MsgOut,'(A,10I8)') 'Extract_Selected_Atom_Indices> First 10 indices: ', &
+           option%trjout_atom%idx(1:min(10, size(option%trjout_atom%idx)))
+    end if
+    write(MsgOut,'(A)') 'Calling extract_selected_atom_indices...'
+    call extract_selected_atom_indices(option%trjout_atom, selected_atom_indices, num_selected_atoms)
+    write(MsgOut,'(A)') 'extract_selected_atom_indices completed.'
 
 
     ! [Step4] Deallocate memory
@@ -205,5 +224,53 @@ contains
     return
 
   end subroutine setup
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    extract_selected_atom_indices
+  !> @brief        extract selected atom indices from s_selatoms to C array
+  !! @authors      Generated
+  !! @param[in]    selatoms              : selected atoms structure
+  !! @param[out]   selected_atom_indices : C pointer to integer array
+  !! @param[out]   num_selected_atoms    : number of selected atoms
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine extract_selected_atom_indices(selatoms, selected_atom_indices, num_selected_atoms)
+    use, intrinsic :: iso_c_binding
+    use select_atoms_str_mod
+    use conv_f_c_util
+    use messages_mod
+    implicit none
+
+    ! formal arguments
+    type(s_selatoms), intent(in) :: selatoms
+    type(c_ptr), intent(out) :: selected_atom_indices
+    integer(c_int), intent(out) :: num_selected_atoms
+
+    ! local variables
+    integer :: i, nsel
+    integer(c_int), pointer :: c_array(:)
+
+    nsel = size(selatoms%idx)
+    num_selected_atoms = nsel
+    
+    write(MsgOut,'(A,I8)') 'Extract_Selected_Atom_Indices> Called with nsel = ', nsel
+
+    if (nsel > 0) then
+      write(MsgOut,'(A)') 'Extract_Selected_Atom_Indices> Allocating C array'
+      ! Allocate C array using conv_f_c_util
+      selected_atom_indices = allocate_c_int_array(int(nsel, c_int))
+      call c_f_pointer(selected_atom_indices, c_array, [nsel])
+      do i = 1, nsel
+        c_array(i) = int(selatoms%idx(i), c_int)
+      end do
+      write(MsgOut,'(A)') 'Extract_Selected_Atom_Indices> C array allocated and filled'
+    else
+      write(MsgOut,'(A)') 'Extract_Selected_Atom_Indices> No atoms selected, returning null'
+      selected_atom_indices = c_null_ptr
+    end if
+
+  end subroutine extract_selected_atom_indices
 
 end module crd_convert_c_mod
