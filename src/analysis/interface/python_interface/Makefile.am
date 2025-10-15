@@ -66,8 +66,7 @@ DEPENDS = Makefile.depends
 AM_FCFLAGS = -fPIC
 
 libpython_interface_la_LDFLAGS = -module -avoid-version -export-dynamic -shared -no-undefined
-libpython_interface_la_LDFLAGS += -Wl,-undefined,dynamic_lookup
-libpython_interface_la_LDFLAGS += $(shell mpif90 --showme:link)
+libpython_interface_la_LDFLAGS += -Wl,--no-as-needed -Wl,-rpath,$(libdir)
 libpython_interface_la_LIBADD = \
 		../../converter/crd_convert/libcrd_convert.a \
 		../../trj_analysis/trj_analysis/libtrj_analysis.a \
@@ -82,8 +81,10 @@ libpython_interface_la_LIBADD = \
 		../../free_energy/wham_analysis/libwham_analysis.a \
 		../mbar_analysis/libmbar_analysis.a \
 		../../libana/libana.a ../../../lib/lib.a ../../../ \
-		$(INT_LAPACK_LIB) $(LDFLAGS) \
-		-lgfortran 
+		$(INT_LAPACK_LIB) \
+		$(LAPACK_LIBS) \
+		-lgfortran \
+		$(MPI_FORTRAN_LIBS)
 
 libpython_interface_la_FCFLAGS = $(FCFLAGS) $(PYTHON_CPPFLAGS)
 
