@@ -1,3 +1,10 @@
+# --------------------------------------------
+if __name__ == "__main__" and __package__ is None:
+    import sys, pathlib
+    pkg_dir = pathlib.Path(__file__).resolve().parent
+    sys.path.insert(0, str(pkg_dir.parent))
+    __package__ = "python_interface"
+# --------------------------------------------
 import unittest
 import numpy as np
 from . import genesis_exe
