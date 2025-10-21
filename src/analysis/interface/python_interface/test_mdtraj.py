@@ -1,7 +1,7 @@
 import unittest
 import mdtraj
 from .s_trajectories import STrajectories
-from custom_test_case import CustomTestCase
+from .custom_test_case import CustomTestCase
 
 
 class TestMDTraj(CustomTestCase):

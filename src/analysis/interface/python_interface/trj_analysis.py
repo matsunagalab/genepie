@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 from . import genesis_exe
-from custom_test_case import CustomTestCase
+from .custom_test_case import CustomTestCase
 
 
 class TestTrjAnalysis(CustomTestCase):

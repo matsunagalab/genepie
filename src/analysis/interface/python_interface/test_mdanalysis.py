@@ -1,7 +1,7 @@
 import unittest
 from .s_trajectories import STrajectories
 import MDAnalysis as mda
-from custom_test_case import CustomTestCase
+from .custom_test_case import CustomTestCase
 
 
 class TestMdAnalysis(CustomTestCase):
