@@ -42,7 +42,7 @@ $ brew install uv
 
 $ uv venv --python=python3.11
 $ source .venv/bin/activate
-(genesis) $ uv pip install torch torchvision torchaudio nglview numpy mdtraj MDAnalysis plotly jupyterlab py3Dmol scikit-learn
+(genesis) $ uv pip install torch torchvision torchaudio nglview numpy mdtraj MDAnalysis plotly jupyterlab py3Dmol scikit-learn gdown
 
 # if you want to deactivate the virtual environment, use the following command
 # (genesis) $ deactivate
@@ -107,10 +107,9 @@ libpython_interface.la* libpython_interface.so*
 
 ```
 (genesis) $ cd /path/to/genesis/demo/
-(genesis) $ brew install wget
-(genesis) $ wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1WyFzvhuMjlwp2pNjga9B8RvTKoygBh-a' -O chignolin.pdb
-(genesis) $ wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1DZFUbCBVdCsfKzzrroIslre0eSctMaY-' -O chignolin.dcd
-(genesis) $ wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1L1Y7YdSz46sTI1lQ7PoQJIqqbzM4F9Vh' -O chignolin.psf
+(genesis) $ gdown --id 1WyFzvhuMjlwp2pNjga9B8RvTKoygBh-a -O chignolin.pdb
+(genesis) $ gdown --id 1L1Y7YdSz46sTI1lQ7PoQJIqqbzM4F9Vh -O chignolin.psf
+(genesis) $ gdown --id 1DZFUbCBVdCsfKzzrroIslre0eSctMaY- -O chignolin.dcd
 ```
 
 # Jupyter notebook
