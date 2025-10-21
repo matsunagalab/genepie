@@ -7,12 +7,12 @@ from typing import Iterable, NamedTuple, Optional
 import numpy as np
 import numpy.typing as npt
 from contextlib import contextmanager
-from libgenesis import LibGenesis
-from s_molecule import SMolecule
-from s_trajectories import STrajectories, STrajectoriesArray
-import ctrl_files
-import c2py_util
-import py2c_util
+from .libgenesis import LibGenesis
+from .s_molecule import SMolecule
+from .s_trajectories import STrajectories, STrajectoriesArray
+from . import ctrl_files
+from . import c2py_util
+from . import py2c_util
 from functools import lru_cache
 
 _DEFAULT_MSG_LEN = 2048

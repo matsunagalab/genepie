@@ -1,8 +1,8 @@
 import os
 import pathlib
-from ctrl_files import TrajectoryParameters
-from s_molecule import SMolecule
-import genesis_exe
+from .ctrl_files import TrajectoryParameters
+from .s_molecule import SMolecule
+from . import genesis_exe
 
 
 def test_kmeans_clustering():

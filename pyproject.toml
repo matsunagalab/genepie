@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "genepy"
+version = "0.1.0"
+description = "GENESIS Python interface (ctypes)"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [ {name = "Yasuhiro Matsunaga"},
+{name = "Chigusa Kobayashi"},]
+dependencies = []
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["src/analysis/interface","src"]
+include = ["python_interface*", "genepy*"]
+
+[tool.setuptools.package-data]
+genesis_interface = [".lib/*"] 
+genepy = [".lib/*"]  
+

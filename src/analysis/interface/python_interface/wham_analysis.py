@@ -1,5 +1,5 @@
 import os
-import genesis_exe
+from . import genesis_exe
 
 
 def test_wham_analysis():

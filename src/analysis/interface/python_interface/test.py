@@ -1,7 +1,7 @@
 import ctypes
 import pathlib
-from libgenesis import LibGenesis
-from s_molecule import SMolecule
+from .libgenesis import LibGenesis
+from .s_molecule import SMolecule
 
 
 def test():

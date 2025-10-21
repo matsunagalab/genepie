@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-import genesis_exe
+from . import genesis_exe
 from custom_test_case import CustomTestCase
 
 

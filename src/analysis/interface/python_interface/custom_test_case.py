@@ -3,10 +3,10 @@ import pathlib
 import unittest
 from typing import Optional, Union
 import numpy as np
-from ctrl_files import TrajectoryParameters
-import genesis_exe
-from s_molecule import SMolecule
-from s_trajectories import STrajectories, STrajectoriesArray
+from .ctrl_files import TrajectoryParameters
+from . import genesis_exe
+from .s_molecule import SMolecule
+from .s_trajectories import STrajectories, STrajectoriesArray
 
 
 class CustomTestCase(unittest.TestCase):
