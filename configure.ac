@@ -297,6 +297,37 @@ elif test x"${FC_ACT}" = x"pgf90"; then
 fi
 AC_MSG_RESULT([${mpitype} MPI])
 
+if test x"${enable_mpi}" = x"yes"; then
+
+  AC_ARG_VAR([MPIFORT],[MPI Fortran wrapper (mpifort/mpif90/mpiifort/mpifrt/ftn/...)])
+  AC_PATH_PROGS([MPIFORT], [$genesis_default_fc], [no])
+
+  AS_IF([test "x$MPIFORT" = xno], [
+    AC_MSG_ERROR([No MPI Fortran wrapper found. Set MPIFORT=... or genesis_default_fc="..."])
+  ])
+  
+  AC_MSG_CHECKING([MPI Fortran link flags from $MPIFORT])
+  MPI_FORTRAN_LINK=`$MPIFORT -showme:link 2>/dev/null || $MPIFORT -show 2>/dev/null || true`
+  AC_MSG_RESULT([$MPI_FORTRAN_LINK])
+  
+  MPI_FORTRAN_LIBS=""
+  MPI_FORTRAN_LDFLAGS=""
+  for tok in $MPI_FORTRAN_LINK; do
+    case $tok in
+      -l*|*.a|*.la) MPI_FORTRAN_LIBS="$MPI_FORTRAN_LIBS $tok" ;;
+      -L*|-Wl,*|-pthread) MPI_FORTRAN_LDFLAGS="$MPI_FORTRAN_LDFLAGS $tok" ;;
+    esac
+  done
+  for tok in $MPI_FORTRAN_LINK; do
+    case $tok in
+      -L*) dir=${tok#-L}; MPI_FORTRAN_LDFLAGS="$MPI_FORTRAN_LDFLAGS -Wl,-rpath,$dir" ;;
+    esac
+  done
+  AC_SUBST([MPI_FORTRAN_LIBS])
+  AC_SUBST([MPI_FORTRAN_LDFLAGS])
+
+fi
+
 
 ## C compiler
 #

@@ -5,11 +5,11 @@ from typing import Optional, Union
 from typing_extensions import Self
 import numpy as np
 import numpy.typing as npt
-import c2py_util
-import py2c_util
+from . import c2py_util
+from . import py2c_util
 import traceback
-from libgenesis import LibGenesis
-from s_molecule_c import SMoleculeC
+from .libgenesis import LibGenesis
+from .s_molecule_c import SMoleculeC
 
 
 class SMolecule:

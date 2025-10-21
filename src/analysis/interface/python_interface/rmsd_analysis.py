@@ -1,8 +1,15 @@
+# --------------------------------------------
+if __name__ == "__main__" and __package__ is None:
+    import sys, pathlib
+    pkg_dir = pathlib.Path(__file__).resolve().parent
+    sys.path.insert(0, str(pkg_dir.parent))
+    __package__ = "python_interface"
+# --------------------------------------------
 import os
 import pathlib
-from ctrl_files import TrajectoryParameters
-from s_molecule import SMolecule
-import genesis_exe
+from .ctrl_files import TrajectoryParameters
+from .s_molecule import SMolecule
+from . import genesis_exe
 
 
 def test_rmsd_analysis():

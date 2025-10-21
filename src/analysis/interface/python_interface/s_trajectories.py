@@ -2,9 +2,9 @@ import ctypes
 from typing import Self
 import numpy as np
 import numpy.typing as npt
-from s_trajectories_c import STrajectoriesC
-from libgenesis import LibGenesis
-from s_molecule import SMolecule
+from .s_trajectories_c import STrajectoriesC
+from .libgenesis import LibGenesis
+from .s_molecule import SMolecule
 
 
 class STrajectories:
