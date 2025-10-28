@@ -1686,6 +1686,14 @@ else
 fi
 AC_SUBST(FCFLAGS_FPP__PGI_NOOPT)
 
+AC_SUBST([PYTHON_INTERFACE_LDFLAG])
+AS_CASE([$host_os],
+  [darwin*], [
+    PYTHON_INTERFACE_LDFLAG=""
+  ], [
+    PYTHON_INTERFACE_LDFLAG="-Wl,--as-needed"
+  ]
+)
 
 ## check compile information
 #

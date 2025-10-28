@@ -93,14 +93,9 @@ distmat_analysis*      hbond_analysis*        pcrd_convert*          ring_analys
 libpython_interface.la* libpython_interface.so*
 
 # Set environment variables
-(genesis) $ cd /path/to/genesis/lib/
-(genesis) $ export LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH
-
-(genesis) $ cd /path/to/genesis/src/analysis/interface/python_interface/
-(genesis) $ export PYTHONPATH=$(pwd):$PYTHONPATH
-
 (genesis) $ cd /path/to/genesis/
-(genesis) $ export PATH=/path/to/genesis/.venv/bin:$PATH
+(genesis) $  pip install -e .
+
 ```
 
 # Download chignolin data
