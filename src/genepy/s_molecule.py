@@ -1,8 +1,14 @@
 import ctypes
 import os
+import sys
 import tempfile
 from typing import Optional, Union
-from typing_extensions import Self
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
+
 import numpy as np
 import numpy.typing as npt
 from . import c2py_util
