@@ -46,10 +46,10 @@ jobs:
       - name: Configure GENESIS (no MPI)
         run: |
           if [[ "${{ runner.os }}" == "Linux" ]]; then
-            ./configure --disable-mpi LAPACK_LIBS="-llapack -lblas"
+            ./configure --disable-mpi CC=gcc FC=gfortran LAPACK_LIBS="-llapack -lblas"
           else
-            # macOS
-            ./configure --disable-mpi CC=gcc-14 LAPACK_LIBS="-L$(brew --prefix lapack)/lib -llapack -lblas"
+            # macOS - need to explicitly set FC=gfortran
+            ./configure --disable-mpi CC=gcc-14 FC=gfortran LAPACK_LIBS="-L$(brew --prefix lapack)/lib -llapack -lblas"
           fi
 
       - name: Build GENESIS
