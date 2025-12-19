@@ -45,7 +45,7 @@ def write_pystring_ndarray(src: npt.NDArray[np.object_], dst: ctypes.c_void_p,
             k = k + 1
 
 
-def pathlike_to_byte(path: str | bytes | os.PathLike) -> bytes:
+def pathlike_to_byte(path: Union[str, bytes, os.PathLike]) -> bytes:
     if (type(path) is str):
         return path.encode()
     elif (type(path) is bytes):

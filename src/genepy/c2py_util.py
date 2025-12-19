@@ -1,9 +1,11 @@
 import ctypes
+from typing import List, Tuple, Union
+
 import numpy as np
 import numpy.typing as npt
 
 
-def conv_ndarray(src: ctypes.c_void_p, size: int | list[int],
+def conv_ndarray(src: ctypes.c_void_p, size: Union[int, List[int]],
                  type_clang: type, type_numpy: type) -> npt.NDArray:
     if src:
         if type(int) is int:
@@ -17,23 +19,23 @@ def conv_ndarray(src: ctypes.c_void_p, size: int | list[int],
         return np.empty(0, dtype=type_numpy)
 
 
-def conv_bool_ndarray(src: ctypes.c_void_p, size: int | list[int]) \
+def conv_bool_ndarray(src: ctypes.c_void_p, size: Union[int, List[int]]) \
         -> npt.NDArray[np.bool_]:
     return conv_ndarray(src, size, ctypes.c_bool, np.bool_)
 
 
-def conv_int_ndarray(src: ctypes.c_void_p, size: int | list[int]) \
+def conv_int_ndarray(src: ctypes.c_void_p, size: Union[int, List[int]]) \
         -> npt.NDArray[np.int64]:
     return conv_ndarray(src, size, ctypes.c_int, np.int64)
 
 
-def conv_double_ndarray(src: ctypes.c_void_p, size: int | list[int]) \
+def conv_double_ndarray(src: ctypes.c_void_p, size: Union[int, List[int]]) \
         -> npt.NDArray[np.float64]:
     return conv_ndarray(src, size, ctypes.c_double, np.float64)
 
 
 def conv_fixed_length_string_ndarray(
-        str_array: ctypes.c_void_p, size: int | list[int]) \
+        str_array: ctypes.c_void_p, size: Union[int, List[int]]) \
                 -> npt.NDArray[np.str_]:
     if str_array:
         if type(int) is int:
@@ -49,7 +51,7 @@ def conv_fixed_length_string_ndarray(
 
 
 def conv_pystring_ndarray(
-        str_array: ctypes.c_void_p, size: tuple[int, int]) \
+        str_array: ctypes.c_void_p, size: Tuple[int, int]) \
                 -> npt.NDArray[np.object_]:
     if str_array:
         ptr = ctypes.cast(str_array, ctypes.POINTER(ctypes.c_char))
