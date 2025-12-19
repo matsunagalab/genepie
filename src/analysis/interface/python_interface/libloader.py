@@ -60,7 +60,7 @@ def load_genesis_lib() -> ctypes.CDLL:
 
     tried: list[str] = []
 
-    env_dir = os.environ.get("GENEPY_LIB_DIR")
+    env_dir = os.environ.get("GENEPIE_LIB_DIR")
     if env_dir:
         d = Path(env_dir)
         tried.append(f"{d}/(env)")
@@ -95,7 +95,7 @@ def load_genesis_lib() -> ctypes.CDLL:
     raise OSError(
         "genesis shared library not found.\nSearched:\n  - "
         + "\n  - ".join(tried)
-        + "\nHint: set GENEPY_LIB_DIR=/absolute/path/to/dir containing one of: "
+        + "\nHint: set GENEPIE_LIB_DIR=/absolute/path/to/dir containing one of: "
         + ", ".join(CANDIDATES)
     )
 

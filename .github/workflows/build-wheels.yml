@@ -68,6 +68,7 @@ jobs:
       - name: Build GENESIS
         run: |
           make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+          make install
 
       - name: Prepare artifacts
         run: |
