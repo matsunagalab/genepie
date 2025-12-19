@@ -76,6 +76,58 @@ jobs:
           cp lib/libpython_interface.so artifacts/ || cp lib/libpython_interface.dylib artifacts/ || true
           # Copy atdyn binary
           cp src/atdyn/atdyn artifacts/ || true
+          # Copy all analysis tool binaries
+          # Clustering
+          cp src/analysis/clustering/kmeans_clustering/kmeans_clustering artifacts/ || true
+          # Converters
+          cp src/analysis/converter/cg_convert/cg_convert artifacts/ || true
+          cp src/analysis/converter/crd_convert/crd_convert artifacts/ || true
+          cp src/analysis/converter/pcrd_convert/pcrd_convert artifacts/ || true
+          cp src/analysis/converter/remd_convert/remd_convert artifacts/ || true
+          cp src/analysis/converter/rst_convert/rst_convert artifacts/ || true
+          cp src/analysis/converter/rst_upgrade/rst_upgrade artifacts/ || true
+          # Free energy
+          cp src/analysis/free_energy/mbar_analysis/mbar_analysis artifacts/ || true
+          cp src/analysis/free_energy/meanforce_analysis/meanforce_analysis artifacts/ || true
+          cp src/analysis/free_energy/pmf_analysis/pmf_analysis artifacts/ || true
+          cp src/analysis/free_energy/wham_analysis/wham_analysis artifacts/ || true
+          # Interface
+          cp src/analysis/interface/dssp_interface/dssp_interface artifacts/ || true
+          # Mode analysis
+          cp src/analysis/mode_analysis/avecrd_analysis/avecrd_analysis artifacts/ || true
+          cp src/analysis/mode_analysis/eigmat_analysis/eigmat_analysis artifacts/ || true
+          cp src/analysis/mode_analysis/flccrd_analysis/flccrd_analysis artifacts/ || true
+          cp src/analysis/mode_analysis/pcavec_drawer/pcavec_drawer artifacts/ || true
+          cp src/analysis/mode_analysis/prjcrd_analysis/prjcrd_analysis artifacts/ || true
+          # SP analysis
+          cp src/analysis/sp_analysis/contact_analysis/contact_analysis artifacts/ || true
+          cp src/analysis/sp_analysis/density_analysis/density_analysis artifacts/ || true
+          cp src/analysis/sp_analysis/hbond_analysis/hbond_analysis artifacts/ || true
+          cp src/analysis/sp_analysis/rdf_analysis/rdf_analysis artifacts/ || true
+          cp src/analysis/sp_analysis/sasa_analysis/sasa_analysis artifacts/ || true
+          # Trajectory analysis
+          cp src/analysis/trj_analysis/comcrd_analysis/comcrd_analysis artifacts/ || true
+          cp src/analysis/trj_analysis/diffusion_analysis/diffusion_analysis artifacts/ || true
+          cp src/analysis/trj_analysis/distmat_analysis/distmat_analysis artifacts/ || true
+          cp src/analysis/trj_analysis/drms_analysis/drms_analysis artifacts/ || true
+          cp src/analysis/trj_analysis/energy_analysis/energy_analysis artifacts/ || true
+          cp src/analysis/trj_analysis/fret_analysis/fret_analysis artifacts/ || true
+          cp src/analysis/trj_analysis/hb_analysis/hb_analysis artifacts/ || true
+          cp src/analysis/trj_analysis/lipidthick_analysis/lipidthick_analysis artifacts/ || true
+          cp src/analysis/trj_analysis/msd_analysis/msd_analysis artifacts/ || true
+          cp src/analysis/trj_analysis/qval_analysis/qval_analysis artifacts/ || true
+          cp src/analysis/trj_analysis/qval_residcg_analysis/qval_residcg_analysis artifacts/ || true
+          cp src/analysis/trj_analysis/rg_analysis/rg_analysis artifacts/ || true
+          cp src/analysis/trj_analysis/ring_analysis/ring_analysis artifacts/ || true
+          cp src/analysis/trj_analysis/rmsd_analysis/rmsd_analysis artifacts/ || true
+          cp src/analysis/trj_analysis/tilt_analysis/tilt_analysis artifacts/ || true
+          cp src/analysis/trj_analysis/trj_analysis/trj_analysis artifacts/ || true
+          # Utilities
+          cp src/analysis/utilities/emmap_generator/emmap_generator artifacts/ || true
+          cp src/analysis/utilities/morph_generator/morph_generator artifacts/ || true
+          cp src/analysis/utilities/pathcv_analysis/pathcv_analysis artifacts/ || true
+          cp src/analysis/utilities/qmmm_generator/qmmm_generator artifacts/ || true
+          cp src/analysis/utilities/rpath_generator/rpath_generator artifacts/ || true
           # List what we have
           ls -la artifacts/
 
@@ -117,13 +169,18 @@ jobs:
         run: |
           # Copy shared library to package
           cp genesis-artifacts/libpython_interface.* src/genepy/ || true
-          # Copy atdyn binary
+          # Copy all binaries (atdyn + analysis tools)
           mkdir -p src/genepy/bin
-          cp genesis-artifacts/atdyn src/genepy/bin/ || true
+          for binary in genesis-artifacts/*; do
+            if [ -f "$binary" ] && [ -x "$binary" ] && [[ ! "$binary" =~ \.(so|dylib)$ ]]; then
+              cp "$binary" src/genepy/bin/
+            fi
+          done
           chmod +x src/genepy/bin/* 2>/dev/null || true
           # List package contents
           ls -la src/genepy/
           ls -la src/genepy/bin/ || true
+          echo "Total binaries: $(ls src/genepy/bin/ | wc -l)"
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.21

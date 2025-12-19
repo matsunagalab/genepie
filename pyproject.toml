@@ -65,7 +65,59 @@ dev = [
 ]
 
 [project.scripts]
+# MD Engine
 atdyn = "genepy.cli:run_atdyn"
+# Clustering
+kmeans_clustering = "genepy.cli:run_kmeans_clustering"
+# Converters
+cg_convert = "genepy.cli:run_cg_convert"
+crd_convert = "genepy.cli:run_crd_convert"
+pcrd_convert = "genepy.cli:run_pcrd_convert"
+remd_convert = "genepy.cli:run_remd_convert"
+rst_convert = "genepy.cli:run_rst_convert"
+rst_upgrade = "genepy.cli:run_rst_upgrade"
+# Free Energy
+mbar_analysis = "genepy.cli:run_mbar_analysis"
+meanforce_analysis = "genepy.cli:run_meanforce_analysis"
+pmf_analysis = "genepy.cli:run_pmf_analysis"
+wham_analysis = "genepy.cli:run_wham_analysis"
+# Interface
+dssp_interface = "genepy.cli:run_dssp_interface"
+# Mode Analysis
+avecrd_analysis = "genepy.cli:run_avecrd_analysis"
+eigmat_analysis = "genepy.cli:run_eigmat_analysis"
+flccrd_analysis = "genepy.cli:run_flccrd_analysis"
+pcavec_drawer = "genepy.cli:run_pcavec_drawer"
+prjcrd_analysis = "genepy.cli:run_prjcrd_analysis"
+# SP Analysis
+contact_analysis = "genepy.cli:run_contact_analysis"
+density_analysis = "genepy.cli:run_density_analysis"
+hbond_analysis = "genepy.cli:run_hbond_analysis"
+rdf_analysis = "genepy.cli:run_rdf_analysis"
+sasa_analysis = "genepy.cli:run_sasa_analysis"
+# Trajectory Analysis
+comcrd_analysis = "genepy.cli:run_comcrd_analysis"
+diffusion_analysis = "genepy.cli:run_diffusion_analysis"
+distmat_analysis = "genepy.cli:run_distmat_analysis"
+drms_analysis = "genepy.cli:run_drms_analysis"
+energy_analysis = "genepy.cli:run_energy_analysis"
+fret_analysis = "genepy.cli:run_fret_analysis"
+hb_analysis = "genepy.cli:run_hb_analysis"
+lipidthick_analysis = "genepy.cli:run_lipidthick_analysis"
+msd_analysis = "genepy.cli:run_msd_analysis"
+qval_analysis = "genepy.cli:run_qval_analysis"
+qval_residcg_analysis = "genepy.cli:run_qval_residcg_analysis"
+rg_analysis = "genepy.cli:run_rg_analysis"
+ring_analysis = "genepy.cli:run_ring_analysis"
+rmsd_analysis = "genepy.cli:run_rmsd_analysis"
+tilt_analysis = "genepy.cli:run_tilt_analysis"
+trj_analysis = "genepy.cli:run_trj_analysis"
+# Utilities
+emmap_generator = "genepy.cli:run_emmap_generator"
+morph_generator = "genepy.cli:run_morph_generator"
+pathcv_analysis = "genepy.cli:run_pathcv_analysis"
+qmmm_generator = "genepy.cli:run_qmmm_generator"
+rpath_generator = "genepy.cli:run_rpath_generator"
 
 [project.urls]
 Homepage = "https://www.r-ccs.riken.jp/labs/cbrt/"
