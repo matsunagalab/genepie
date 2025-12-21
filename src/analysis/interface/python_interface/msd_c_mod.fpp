@@ -29,7 +29,8 @@ module msd_c_mod
   implicit none
 
 contains
-   subroutine ma_analysis_c(molecule, s_trajes_c, ana_period, ctrl_path, &
+   subroutine ma_analysis_c(molecule, s_trajes_c, ana_period, &
+                            ctrl_text, ctrl_len, &
                             result_msd, num_analysis_mols, num_delta) &
         bind(C, name="ma_analysis_c")
     use conv_f_c_util
@@ -37,31 +38,31 @@ contains
     type(s_molecule_c), intent(in) :: molecule
     type(s_trajectories_c), intent(in) :: s_trajes_c
     integer, intent(in) :: ana_period
-    character(kind=c_char), intent(in) :: ctrl_path(*)
+    character(kind=c_char), intent(in) :: ctrl_text(*)
+    integer(c_int), value :: ctrl_len
     type(c_ptr), intent(out) :: result_msd
     integer, intent(out) :: num_analysis_mols
     integer, intent(out) :: num_delta
 
     type(s_molecule) :: f_molecule
-    character(len=:), allocatable :: fort_ctrl_path
     real(wp), pointer :: msd(:,:)
 
-    call c2f_string_allocate(ctrl_path, fort_ctrl_path)
     call c2f_s_molecule(molecule, f_molecule)
     call ma_analysis_main( &
-        f_molecule, s_trajes_c, ana_period, fort_ctrl_path, &
+        f_molecule, s_trajes_c, ana_period, ctrl_text, ctrl_len, &
         msd, num_analysis_mols, num_delta)
     result_msd = c_loc(msd)
   end subroutine ma_analysis_c
 
   subroutine ma_analysis_main( &
-          molecule,s_trajes_c, ana_period, ctrl_filename, &
+          molecule, s_trajes_c, ana_period, ctrl_text, ctrl_len, &
           result_msd, num_analysis_mols, num_delta)
     implicit none
     type(s_molecule), intent(inout) :: molecule
     type(s_trajectories_c), intent(in) :: s_trajes_c
     integer,                intent(in) :: ana_period
-    character(*), intent(in) :: ctrl_filename
+    character(kind=c_char), intent(in) :: ctrl_text(*)
+    integer,                intent(in) :: ctrl_len
     real(wp), pointer, intent(out) :: result_msd(:,:)
     integer, intent(out) :: num_analysis_mols
     integer, intent(out) :: num_delta
@@ -78,7 +79,7 @@ contains
     write(MsgOut,'(A)') '[STEP1] Read Control Parameters for Analysis'
     write(MsgOut,'(A)') ' '
 
-    call control(ctrl_filename, ctrl_data)
+    call control_from_string(ctrl_text, ctrl_len, ctrl_data)
 
 
     ! [Step2] Set relevant variables and structures

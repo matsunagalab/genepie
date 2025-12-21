@@ -33,12 +33,13 @@ module crd_convert_c_mod
 
 contains
   subroutine crd_convert_c( &
-          molecule, ctrl_path, s_trajes_c_array, num_trajs, &
+          molecule, ctrl_text, ctrl_len, s_trajes_c_array, num_trajs, &
           selected_atom_indices, num_selected_atoms, status, msg, msglen) &
           bind(C, name="crd_convert_c")
     implicit none
     type(s_molecule_c), intent(inout) :: molecule
-    character(kind=c_char), intent(in) :: ctrl_path(*)
+    character(kind=c_char), intent(in) :: ctrl_text(*)
+    integer(c_int), value :: ctrl_len
     type(c_ptr), intent(out) :: s_trajes_c_array
     integer(c_int), intent(out) :: num_trajs
     type(c_ptr), intent(out) :: selected_atom_indices
@@ -47,16 +48,14 @@ contains
     character(kind=c_char),  intent(out) :: msg(*)
     integer(c_int),          value       :: msglen
 
-    character(len=:), allocatable :: fort_ctrl_path
     type(s_molecule) :: f_molecule
 
     type(s_error) :: err
 
     call error_init(err)
-    call c2f_string_allocate(ctrl_path, fort_ctrl_path)
     call c2f_s_molecule(molecule, f_molecule)
 
-    call crd_convert_main(f_molecule, fort_ctrl_path, s_trajes_c_array, num_trajs, &
+    call crd_convert_main(f_molecule, ctrl_text, ctrl_len, s_trajes_c_array, num_trajs, &
                          selected_atom_indices, num_selected_atoms, err)
     if (error_has(err)) then
       call error_to_c(err, status, msg, msglen)
@@ -66,11 +65,12 @@ contains
     if (msglen > 0) msg(1) = c_null_char
   end subroutine crd_convert_c
 
-  subroutine crd_convert_main(molecule, ctrl_filename, s_trajes_c_array, num_trajs, &
+  subroutine crd_convert_main(molecule, ctrl_text, ctrl_len, s_trajes_c_array, num_trajs, &
                               selected_atom_indices, num_selected_atoms, err)
     implicit none
     type(s_molecule), intent(inout) :: molecule
-    character(*), intent(in) :: ctrl_filename
+    character(kind=c_char), intent(in) :: ctrl_text(*)
+    integer, intent(in) :: ctrl_len
     type(c_ptr), intent(out) :: s_trajes_c_array
     integer(c_int), intent(out) :: num_trajs
     type(c_ptr), intent(out) :: selected_atom_indices
@@ -94,7 +94,7 @@ contains
     write(MsgOut,'(A)') '[STEP1] Read Control Parameters for Convert'
     write(MsgOut,'(A)') ' '
 
-    call control(ctrl_filename, ctrl_data)
+    call control_from_string(ctrl_text, ctrl_len, ctrl_data)
 
 
     ! [Step2] Set relevant variables and structures

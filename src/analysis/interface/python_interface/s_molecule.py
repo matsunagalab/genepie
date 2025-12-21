@@ -454,20 +454,15 @@ class SMolecule:
         >>> obj = SMolecule.from_file(pdb="example.pdb", top="example.top")
         """
         paths = [pdb, top, gpr, psf, ref, fit, prmtop, ambcrd, ambref, grotop, grocrd, groref]
-        labels = ['pdb', 'top', 'gpr', 'psf', 'ref', 'fit', 'prmtop', 'ambcrd', 'ambref', 'grotop', 'grocrd', 'groref']
         args = [py2c_util.pathlike_to_c_char_p(p) for p in paths]
-
-        for i, (label, val) in enumerate(zip(labels, args)):
-            print(f"arg[{i}] {label}: {val}, type = {type(val)}")
 
         mol_c = SMoleculeC()
 
         try:
             ret = LibGenesis().lib.define_molecule_from_file(
                  *args,
-                 ctypes.byref(mol_c)  # 13番目の引数
+                 ctypes.byref(mol_c)
             )
-            print(f"define_molecule_from_file retturned: {ret}")
             if ret != 0:
                 raise RuntimeError("define_molecule_from_file failed")
 

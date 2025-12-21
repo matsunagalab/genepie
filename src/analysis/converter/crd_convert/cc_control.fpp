@@ -53,6 +53,7 @@ module cc_control_mod
   ! subroutines
   public  :: usage
   public  :: control
+  public  :: control_from_string
 
 contains
 
@@ -188,5 +189,28 @@ contains
     return
 
   end subroutine control
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !  Subroutine    control_from_string
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine control_from_string(ctrl_text, ctrl_len, ctrl_data)
+    use, intrinsic :: iso_c_binding
+    character(kind=c_char),  intent(in)    :: ctrl_text(*)
+    integer,                 intent(in)    :: ctrl_len
+    type(s_ctrl_data),       intent(inout) :: ctrl_data
+    integer                  :: handle
+
+    call open_ctrlfile_from_string(ctrl_text, ctrl_len, handle)
+    if (handle == 0) call error_msg('Control_From_String> Memory Error')
+
+    call read_ctrl_input(handle, ctrl_data%inp_info)
+    call read_ctrl_output(handle, ctrl_data%out_info)
+    call read_ctrl_trajectory(handle, ctrl_data%trj_info)
+    call read_ctrl_selection(handle, ctrl_data%sel_info)
+    call read_ctrl_fitting(handle, ctrl_data%fit_info)
+    call read_ctrl_option(handle, ctrl_data%opt_info)
+    call close_ctrlfile(handle)
+  end subroutine control_from_string
 
 end module cc_control_mod

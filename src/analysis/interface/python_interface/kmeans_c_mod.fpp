@@ -34,7 +34,8 @@ module kmeans_c_mod
   implicit none
 
 contains
-  subroutine kc_analysis_c(molecule, s_trajes_c, ana_period, ctrl_path, &
+  subroutine kc_analysis_c(molecule, s_trajes_c, ana_period, &
+          ctrl_text, ctrl_len, &
           out_pdb_ptr, cluster_index, size_cluster_index, status, msg, msglen)  &
         bind(C, name="kc_analysis_c")
     use conv_f_c_util
@@ -42,7 +43,8 @@ contains
     type(s_molecule_c), intent(in) :: molecule
     type(s_trajectories_c), intent(in) :: s_trajes_c
     integer(c_int), intent(in) :: ana_period
-    character(kind=c_char), intent(in) :: ctrl_path(*)
+    character(kind=c_char), intent(in) :: ctrl_text(*)
+    integer(c_int), value :: ctrl_len
     type(c_ptr), intent(out) :: out_pdb_ptr
     type(c_ptr), intent(out) :: cluster_index
     integer(c_int), intent(out) :: size_cluster_index
@@ -51,7 +53,6 @@ contains
     integer(c_int),          value       :: msglen
 
     type(s_molecule) :: f_molecule
-    character(len=:), allocatable :: fort_ctrl_path
     character(len=:), allocatable :: out_pdb_f
     character(kind=c_char), pointer :: out_pdb_c(:)
     integer, allocatable :: cluster_index_f(:)
@@ -60,10 +61,9 @@ contains
 
     call error_init(err)
 
-    call c2f_string_allocate(ctrl_path, fort_ctrl_path)
     call c2f_s_molecule(molecule, f_molecule)
     call kc_analysis_main( &
-        f_molecule, s_trajes_c, ana_period, fort_ctrl_path, &
+        f_molecule, s_trajes_c, ana_period, ctrl_text, ctrl_len, &
         out_pdb_f, cluster_index_f, err)
 
     if (error_has(err)) then
@@ -90,13 +90,14 @@ contains
   end subroutine kc_analysis_c
 
   subroutine kc_analysis_main( &
-          molecule, s_trajes_c, ana_period, ctrl_filename, &
+          molecule, s_trajes_c, ana_period, ctrl_text, ctrl_len, &
           out_pdb, cluster_index, err)
     implicit none
     type(s_molecule), intent(inout) :: molecule
     type(s_trajectories_c), intent(in) :: s_trajes_c
     integer,                intent(in) :: ana_period
-    character(*), intent(in) :: ctrl_filename
+    character(kind=c_char), intent(in) :: ctrl_text(*)
+    integer,                intent(in) :: ctrl_len
     character(len=:), allocatable, intent(out) :: out_pdb
     integer, allocatable,     intent(out) :: cluster_index(:)
     type(s_error),                   intent(inout) :: err
@@ -120,7 +121,7 @@ contains
     write(MsgOut,'(A)') '[STEP1] Read Control Parameters for Analysis'
     write(MsgOut,'(A)') ' '
 
-    call control(ctrl_filename, ctrl_data)
+    call control_from_string(ctrl_text, ctrl_len, ctrl_data)
 
 
     ! [Step2] Set relevant variables and structures

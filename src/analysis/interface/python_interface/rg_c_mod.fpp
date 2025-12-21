@@ -31,35 +31,36 @@ module rg_c_mod
   implicit none
 
 contains
-  subroutine rg_analysis_c(molecule, s_trajes_c, ana_period, ctrl_path, &
-                           result_rg) &
+  subroutine rg_analysis_c(molecule, s_trajes_c, ana_period, &
+                           ctrl_text, ctrl_len, result_rg) &
         bind(C, name="rg_analysis_c")
     use conv_f_c_util
     implicit none
     type(s_molecule_c), intent(in) :: molecule
     type(s_trajectories_c), intent(in) :: s_trajes_c
     integer, intent(in) :: ana_period
-    character(kind=c_char), intent(in) :: ctrl_path(*)
+    character(kind=c_char), intent(in) :: ctrl_text(*)
+    integer(c_int), value :: ctrl_len
     type(c_ptr), intent(out) :: result_rg
 
     type(s_molecule) :: f_molecule
-    character(len=:), allocatable :: fort_ctrl_path
     real(wp), pointer :: rg(:)
 
-    call c2f_string_allocate(ctrl_path, fort_ctrl_path)
     call c2f_s_molecule(molecule, f_molecule)
     call rg_analysis_main( &
-        f_molecule, s_trajes_c, ana_period, fort_ctrl_path, rg)
+        f_molecule, s_trajes_c, ana_period, ctrl_text, ctrl_len, rg)
     result_rg = c_loc(rg)
   end subroutine rg_analysis_c
 
   subroutine rg_analysis_main( &
-          molecule, s_trajes_c, ana_period, ctrl_filename, rg)
+          molecule, s_trajes_c, ana_period, ctrl_text, ctrl_len, rg)
+    use, intrinsic :: iso_c_binding
     implicit none
     type(s_molecule), intent(inout) :: molecule
     type(s_trajectories_c), intent(in) :: s_trajes_c
     integer,                intent(in) :: ana_period
-    character(*), intent(in) :: ctrl_filename
+    character(kind=c_char), intent(in) :: ctrl_text(*)
+    integer,                intent(in) :: ctrl_len
     real(wp), pointer, intent(out) :: rg(:)
 
     ! local variables
@@ -73,12 +74,12 @@ contains
     nproc_city   = 1
     main_rank    = .true.
 
-    ! [STEP1] Read control file
+    ! [STEP1] Read control parameters from string
     !
     write(MsgOut,'(A)') '[STEP1] Read Control Parameters for Analysis'
     write(MsgOut,'(A)') ' '
 
-    call control(ctrl_filename, ctrl_data)
+    call control_from_string(ctrl_text, ctrl_len, ctrl_data)
 
     ! [STEP2] Set variables and structures
     !

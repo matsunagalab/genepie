@@ -32,16 +32,13 @@ module mbar_c_mod
   implicit none
 
  contains
-  ! subroutine mbar_analysis_c(molecule, s_trajes_c, ana_period, ctrl_path) &
-  subroutine mbar_analysis_c(ctrl_path, result_fene, &
+  subroutine mbar_analysis_c(ctrl_text, ctrl_len, result_fene, &
                              n_replica, n_blocks, status, msg, msglen  ) &
         bind(C, name="mbar_analysis_c")
     use conv_f_c_util
     implicit none
-    ! type(s_molecule_c), intent(in) :: molecule
-    ! type(s_trajectories_c), intent(in) :: s_trajes_c
-    ! integer, intent(in) :: ana_period
-    character(kind=c_char), intent(in) :: ctrl_path(*)
+    character(kind=c_char), intent(in) :: ctrl_text(*)
+    integer(c_int), value :: ctrl_len
     type(c_ptr), intent(out) :: result_fene
     integer(c_int), intent(out) :: n_replica
     integer(c_int), intent(out) :: n_blocks
@@ -50,19 +47,13 @@ module mbar_c_mod
     integer(c_int),          value       :: msglen
 
 
-    ! type(s_molecule) :: f_molecule
-    character(len=:), allocatable :: fort_ctrl_path
     real(wp), pointer :: fene_f(:,:) => null()
 
     type(s_error) :: err
 
     call error_init(err)
-    call c2f_string_allocate(ctrl_path, fort_ctrl_path)
-    ! call c2f_s_molecule(molecule, f_molecule)
-    ! call wa_analysis_main( &
-    !     f_molecule, s_trajes_c, ana_period, fort_ctrl_path)
     call mbar_analysis_main( &
-        fort_ctrl_path, fene_f, n_replica, n_blocks, err)
+        ctrl_text, ctrl_len, fene_f, n_replica, n_blocks, err)
 
     if (error_has(err)) then
       call error_to_c(err, status, msg, msglen)
@@ -75,15 +66,11 @@ module mbar_c_mod
     result_fene = c_loc(fene_f)
   end subroutine mbar_analysis_c
 
-  ! subroutine mbar_analysis_main( &
-  !         molecule, s_trajes_c, ana_period, ctrl_filename)
   subroutine mbar_analysis_main( &
-          ctrl_filename, result_fene, n_replica, n_blocks, err)
+          ctrl_text, ctrl_len, result_fene, n_replica, n_blocks, err)
     implicit none
-    ! type(s_molecule), intent(inout) :: molecule
-    ! type(s_trajectories_c), intent(in) :: s_trajes_c
-    ! integer,                intent(in) :: ana_period
-    character(*), intent(in) :: ctrl_filename
+    character(kind=c_char), intent(in) :: ctrl_text(*)
+    integer,                intent(in) :: ctrl_len
     real(wp), pointer, intent(out) :: result_fene(:,:)
     integer,           intent(out) :: n_replica
     integer,           intent(out) :: n_blocks
@@ -108,7 +95,7 @@ module mbar_c_mod
     write(MsgOut,'(A)') '[STEP1] Read Control Parameters for Analysis'
     write(MsgOut,'(A)') ' '
 
-    call control(ctrl_filename, ctrl_data)
+    call control_from_string(ctrl_text, ctrl_len, ctrl_data)
 
 
     ! [Step2] Set relevant variables and structures 

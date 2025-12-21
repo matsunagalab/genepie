@@ -30,7 +30,8 @@ module diffusion_c_mod
 
 contains
 
-  subroutine diffusion_analysis_c(c_msd, msd_dim1, msd_dim2, ctrl_path, &
+  subroutine diffusion_analysis_c(c_msd, msd_dim1, msd_dim2, &
+          ctrl_text, ctrl_len, &
           out_data, status, msg, msglen) &
         bind(C, name="diffusion_analysis_c")
     use conv_f_c_util
@@ -38,13 +39,13 @@ contains
     type(c_ptr), intent(in) :: c_msd
     integer(c_int), intent(in) :: msd_dim1
     integer(c_int), intent(in) :: msd_dim2
-    character(kind=c_char), intent(in) :: ctrl_path(*)
+    character(kind=c_char), intent(in) :: ctrl_text(*)
+    integer(c_int), value :: ctrl_len
     type(c_ptr), intent(out) :: out_data
     integer(c_int),          intent(out) :: status
     character(kind=c_char),  intent(out) :: msg(*)
     integer(c_int),          value       :: msglen
 
-    character(len=:), allocatable :: fort_ctrl_path
     real(wp), pointer :: f_msd(:,:)
     real(wp), pointer :: f_out_data(:,:)
 
@@ -52,11 +53,10 @@ contains
 
     call error_init(err)
     call C_F_POINTER(c_msd, f_msd, [msd_dim2, msd_dim1])
-    call c2f_string_allocate(ctrl_path, fort_ctrl_path)
     allocate(f_out_data( &
         (size(f_msd, dim=1) - 1) * 2 + 1, &
         size(f_msd, dim=2)))
-    call diffusion_analysis_main(f_msd, fort_ctrl_path, f_out_data, err)
+    call diffusion_analysis_main(f_msd, ctrl_text, ctrl_len, f_out_data, err)
     if (error_has(err)) then
       call error_to_c(err, status, msg, msglen)
       return
@@ -67,8 +67,10 @@ contains
     out_data = f2c_double_array(f_out_data)
   end subroutine diffusion_analysis_c
 
-  subroutine diffusion_analysis_main(msd_data, ctrl_filename, out_data, err)
-    character(*), intent(in) :: ctrl_filename
+  subroutine diffusion_analysis_main(msd_data, ctrl_text, ctrl_len, out_data, err)
+    use, intrinsic :: iso_c_binding
+    character(kind=c_char), intent(in) :: ctrl_text(*)
+    integer, intent(in) :: ctrl_len
     real(wp), intent(in) :: msd_data(:,:)
     real(wp), intent(out) :: out_data(:,:)
     type(s_error), intent(inout) :: err
@@ -84,7 +86,7 @@ contains
     write(MsgOut,'(A)') '[STEP1] Read Control Parameters for Analysis'
     write(MsgOut,'(A)') ' '
 
-    call control(ctrl_filename, ctrl_data)
+    call control_from_string(ctrl_text, ctrl_len, ctrl_data)
 
 
     ! [Step2] Set relevant variables and structures

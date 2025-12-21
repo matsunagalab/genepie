@@ -68,6 +68,7 @@ module fileio_control_mod
   ! subroutines
   !
   public  :: open_ctrlfile
+  public  :: open_ctrlfile_from_string
   public  :: close_ctrlfile
   public  :: read_ctrlfile_string
   public  :: read_ctrlfile_integer
@@ -130,6 +131,78 @@ contains
     return
 
   end subroutine open_ctrlfile
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    open_ctrlfile_from_string
+  !> @brief        open control data from string (no file I/O)
+  !! @authors      Claude Code
+  !! @param[in]    ctrl_text : control file content as C string
+  !! @param[in]    ctrl_len  : length of ctrl_text
+  !! @param[out]   handle    : unit number
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine open_ctrlfile_from_string(ctrl_text, ctrl_len, handle)
+
+    use, intrinsic :: iso_c_binding
+
+    ! formal arguments
+    character(kind=c_char),  intent(in)  :: ctrl_text(*)
+    integer,                 intent(in)  :: ctrl_len
+    integer,                 intent(out) :: handle
+
+    ! local variables
+    integer                  :: unit_no, i, line_start
+    character(len=MaxLineLong) :: line
+
+
+    do handle = 1, MaxControls
+      if (.not. associated(g_controls(handle)%section_head)) &
+        exit
+    end do
+
+    if (handle > MaxControls) then
+      handle = 0
+      return
+    end if
+
+    ! Open scratch file (memory-based, no disk I/O)
+    open(newunit=unit_no, status='scratch', action='readwrite')
+
+    ! Write C string to scratch file line by line
+    line = ''
+    line_start = 1
+    do i = 1, ctrl_len
+      if (ctrl_text(i) == c_null_char) then
+        ! End of string - write remaining line
+        if (i > line_start) then
+          write(unit_no, '(A)') line(1:i-line_start)
+        end if
+        exit
+      else if (ctrl_text(i) == c_new_line) then
+        ! End of line - write line
+        write(unit_no, '(A)') line(1:i-line_start)
+        line = ''
+        line_start = i + 1
+      else
+        ! Accumulate character
+        line(i-line_start+1:i-line_start+1) = ctrl_text(i)
+      end if
+    end do
+
+    ! Rewind to beginning for reading
+    rewind(unit_no)
+
+    ! Parse the scratch file
+    call parse_ctrlfile(unit_no, g_controls(handle))
+
+    ! Close scratch file
+    close(unit_no)
+
+    return
+
+  end subroutine open_ctrlfile_from_string
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

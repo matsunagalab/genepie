@@ -63,7 +63,8 @@ class LibGenesis:
 
         self.lib.crd_convert_c.argtypes = [
                 ctypes.POINTER(SMoleculeC),
-                ctypes.c_char_p,
+                ctypes.c_char_p,                  # ctrl_text
+                ctypes.c_int,                     # ctrl_len
                 ctypes.POINTER(ctypes.c_void_p),
                 ctypes.POINTER(ctypes.c_int),
                 ctypes.POINTER(ctypes.c_void_p),
@@ -78,7 +79,8 @@ class LibGenesis:
                 ctypes.POINTER(SMoleculeC),
                 ctypes.POINTER(STrajectoriesC),
                 ctypes.POINTER(ctypes.c_int),
-                ctypes.c_char_p,
+                ctypes.c_char_p,                  # ctrl_text
+                ctypes.c_int,                     # ctrl_len
                 ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(ctypes.c_int),
                 ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(ctypes.c_int),
                 ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(ctypes.c_int),
@@ -92,7 +94,8 @@ class LibGenesis:
                 ctypes.POINTER(SMoleculeC),
                 ctypes.POINTER(STrajectoriesC),
                 ctypes.POINTER(ctypes.c_int),
-                ctypes.c_char_p,
+                ctypes.c_char_p,                  # ctrl_text
+                ctypes.c_int,                     # ctrl_len
                 ctypes.POINTER(ctypes.c_void_p),
                 ]
         self.lib.rg_analysis_c.restype = None
@@ -101,7 +104,8 @@ class LibGenesis:
                 ctypes.POINTER(SMoleculeC),
                 ctypes.POINTER(STrajectoriesC),
                 ctypes.POINTER(ctypes.c_int),
-                ctypes.c_char_p,
+                ctypes.c_char_p,                  # ctrl_text
+                ctypes.c_int,                     # ctrl_len
                 ctypes.POINTER(ctypes.c_void_p),
                 ctypes.POINTER(ctypes.c_int),
                 ctypes.c_char_p,
@@ -113,7 +117,8 @@ class LibGenesis:
                 ctypes.POINTER(SMoleculeC),
                 ctypes.POINTER(STrajectoriesC),
                 ctypes.POINTER(ctypes.c_int),
-                ctypes.c_char_p,
+                ctypes.c_char_p,                  # ctrl_text
+                ctypes.c_int,                     # ctrl_len
                 ctypes.POINTER(ctypes.c_void_p),
                 ctypes.POINTER(ctypes.c_int),
                 ctypes.c_char_p,
@@ -125,7 +130,8 @@ class LibGenesis:
                 ctypes.POINTER(SMoleculeC),
                 ctypes.POINTER(STrajectoriesC),
                 ctypes.POINTER(ctypes.c_int),
-                ctypes.c_char_p,
+                ctypes.c_char_p,                  # ctrl_text
+                ctypes.c_int,                     # ctrl_len
                 ctypes.POINTER(ctypes.c_void_p),
                 ctypes.POINTER(ctypes.c_int),
                 ctypes.POINTER(ctypes.c_int),
@@ -136,8 +142,12 @@ class LibGenesis:
                 ctypes.POINTER(ctypes.c_void_p),
                 ctypes.POINTER(ctypes.c_int),
                 ctypes.POINTER(ctypes.c_int),
-                ctypes.c_char_p,
+                ctypes.c_char_p,                  # ctrl_text
+                ctypes.c_int,                     # ctrl_len
                 ctypes.POINTER(ctypes.c_void_p),
+                ctypes.POINTER(ctypes.c_int),
+                ctypes.c_char_p,
+                ctypes.c_int,
                 ]
         self.lib.diffusion_analysis_c.restype = None
 
@@ -145,7 +155,8 @@ class LibGenesis:
                 ctypes.POINTER(SMoleculeC),
                 ctypes.POINTER(STrajectoriesC),
                 ctypes.POINTER(ctypes.c_int),
-                ctypes.c_char_p,
+                ctypes.c_char_p,                  # ctrl_text
+                ctypes.c_int,                     # ctrl_len
                 ctypes.POINTER(ctypes.c_void_p),
                 ctypes.POINTER(ctypes.c_int),
                 ctypes.c_char_p,
@@ -157,7 +168,8 @@ class LibGenesis:
                 ctypes.POINTER(SMoleculeC),
                 ctypes.POINTER(STrajectoriesC),
                 ctypes.POINTER(ctypes.c_int),
-                ctypes.c_char_p,
+                ctypes.c_char_p,                  # ctrl_text
+                ctypes.c_int,                     # ctrl_len
                 ctypes.POINTER(ctypes.c_void_p),
                 ctypes.POINTER(ctypes.c_int),
                 ctypes.c_char_p,
@@ -166,7 +178,8 @@ class LibGenesis:
         self.lib.aa_analysis_c.restype = None
 
         self.lib.wa_analysis_c.argtypes = [
-                ctypes.c_char_p,
+                ctypes.c_char_p,                  # ctrl_text
+                ctypes.c_int,                     # ctrl_len
                 ctypes.POINTER(ctypes.c_void_p),
                 ctypes.POINTER(ctypes.c_int),
                 ctypes.POINTER(ctypes.c_int),
@@ -177,7 +190,8 @@ class LibGenesis:
         self.lib.wa_analysis_c.restype = None
 
         self.lib.mbar_analysis_c.argtypes = [
-                ctypes.c_char_p,
+                ctypes.c_char_p,                  # ctrl_text
+                ctypes.c_int,                     # ctrl_len
                 ctypes.POINTER(ctypes.c_void_p),
                 ctypes.POINTER(ctypes.c_int),
                 ctypes.POINTER(ctypes.c_int),
@@ -191,7 +205,8 @@ class LibGenesis:
                 ctypes.POINTER(SMoleculeC),
                 ctypes.POINTER(STrajectoriesC),
                 ctypes.POINTER(ctypes.c_int),
-                ctypes.c_char_p,
+                ctypes.c_char_p,                  # ctrl_text
+                ctypes.c_int,                     # ctrl_len
                 ctypes.POINTER(ctypes.c_void_p),
                 ctypes.POINTER(ctypes.c_void_p),
                 ctypes.POINTER(ctypes.c_int),
