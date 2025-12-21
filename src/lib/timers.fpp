@@ -98,6 +98,7 @@ module timers_mod
   public  :: output_time
   public  :: output_time_prst
   public  :: get_unix_time
+  public  :: reset_timers
 
 contains
 
@@ -134,6 +135,29 @@ contains
     return
 
   end subroutine timer
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    reset_timers
+  !> @brief        reset all timer values to zero
+  !! @authors      Claude Code
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine reset_timers
+
+    implicit none
+
+    integer :: i
+
+    do i = 1, NumTimers
+      total_time(i) = 0.0_dp
+      proc_time_st(i) = 0.0_dp
+    end do
+
+    return
+
+  end subroutine reset_timers
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

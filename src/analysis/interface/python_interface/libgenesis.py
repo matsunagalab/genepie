@@ -311,3 +311,7 @@ class LibGenesis:
 
         self.lib.deallocate_atdyn_results_c.argtypes = []
         self.lib.deallocate_atdyn_results_c.restype = None
+
+        # Reset atdyn global state for multiple sequential runs
+        self.lib.reset_atdyn_state_c.argtypes = []
+        self.lib.reset_atdyn_state_c.restype = None

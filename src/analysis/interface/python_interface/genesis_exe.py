@@ -1408,6 +1408,10 @@ def run_atdyn_md(
         pdbfile: Optional[str] = None,
         rstfile: Optional[str] = None,
         topfile: Optional[str] = None,
+        parfile: Optional[str] = None,
+        strfile: Optional[str] = None,
+        grotopfile: Optional[str] = None,
+        grocrdfile: Optional[str] = None,
         # Energy parameters
         forcefield: Optional[str] = None,
         electrostatic: Optional[str] = None,
@@ -1417,6 +1421,12 @@ def run_atdyn_md(
         vdw_force_switch: Optional[bool] = None,
         implicit_solvent: Optional[str] = None,
         output_style: Optional[str] = None,
+        pme_alpha: Optional[float] = None,
+        pme_ngrid_x: Optional[int] = None,
+        pme_ngrid_y: Optional[int] = None,
+        pme_ngrid_z: Optional[int] = None,
+        pme_nspline: Optional[int] = None,
+        dispersion_corr: Optional[str] = None,
         # Dynamics parameters
         integrator: Optional[str] = None,
         nsteps: Optional[int] = None,
@@ -1440,6 +1450,8 @@ def run_atdyn_md(
         gamma_t: Optional[float] = None,
         # Constraints parameters
         rigid_bond: Optional[bool] = None,
+        shake_iteration: Optional[int] = None,
+        shake_tolerance: Optional[float] = None,
         water_model: Optional[str] = None,
         # Output files (optional)
         dcdfile: Optional[str] = None,
@@ -1453,7 +1465,11 @@ def run_atdyn_md(
         ambcrdfile: AMBER coordinate file
         pdbfile: PDB coordinate file
         rstfile: GENESIS restart file
-        topfile: GROMACS topology file
+        topfile: CHARMM topology RTF file
+        parfile: CHARMM parameter file
+        strfile: CHARMM stream file
+        grotopfile: GROMACS topology file
+        grocrdfile: GROMACS coordinate file (.gro)
         forcefield: Force field type (CHARMM, AMBER, GROAMBER, etc.)
         electrostatic: Electrostatic method (PME, CUTOFF, etc.)
         switchdist: Switch distance for vdW (angstrom)
@@ -1462,9 +1478,15 @@ def run_atdyn_md(
         vdw_force_switch: Use force switching for vdW
         implicit_solvent: Implicit solvent model (NONE, GBSA, EEF1, etc.)
         output_style: Output style (GENESIS, CHARMM, etc.)
+        pme_alpha: PME alpha parameter
+        pme_ngrid_x: PME grid points in X
+        pme_ngrid_y: PME grid points in Y
+        pme_ngrid_z: PME grid points in Z
+        pme_nspline: PME spline order
+        dispersion_corr: Dispersion correction (NO, epress, etc.)
         integrator: Integrator (VVER, LEAP, etc.)
         nsteps: Number of MD steps
-        timestep: Time step (fs)
+        timestep: Time step (ps)
         eneout_period: Energy output period
         crdout_period: Coordinate output period
         rstout_period: Restart output period
@@ -1476,12 +1498,14 @@ def run_atdyn_md(
         box_size_y: Box size Y (angstrom)
         box_size_z: Box size Z (angstrom)
         ensemble: Ensemble type (NVE, NVT, NPT, etc.)
-        tpcontrol: Thermostat/barostat (LANGEVIN, BERENDSEN, etc.)
+        tpcontrol: Thermostat/barostat (LANGEVIN, BUSSI, etc.)
         temperature: Temperature (K)
         pressure: Pressure (atm)
         gamma_t: Langevin friction coefficient
         rigid_bond: Use rigid bonds (SHAKE/SETTLE)
-        water_model: Water model for SETTLE (TIP3, etc.)
+        shake_iteration: Maximum SHAKE iterations
+        shake_tolerance: SHAKE convergence tolerance
+        water_model: Water model for SETTLE (TIP3, WAT, SOL, etc.)
         dcdfile: Output DCD trajectory file
 
     Returns:
@@ -1509,6 +1533,10 @@ def run_atdyn_md(
             pdbfile=pdbfile,
             rstfile=rstfile,
             topfile=topfile,
+            parfile=parfile,
+            strfile=strfile,
+            grotopfile=grotopfile,
+            grocrdfile=grocrdfile,
         )
         ctrl_files.write_ctrl_output(
             ctrl,
@@ -1524,6 +1552,12 @@ def run_atdyn_md(
             vdw_force_switch=vdw_force_switch,
             implicit_solvent=implicit_solvent,
             output_style=output_style,
+            pme_alpha=pme_alpha,
+            pme_ngrid_x=pme_ngrid_x,
+            pme_ngrid_y=pme_ngrid_y,
+            pme_ngrid_z=pme_ngrid_z,
+            pme_nspline=pme_nspline,
+            dispersion_corr=dispersion_corr,
         )
         ctrl_files.write_ctrl_dynamics(
             ctrl,
@@ -1555,6 +1589,8 @@ def run_atdyn_md(
         ctrl_files.write_ctrl_constraints(
             ctrl,
             rigid_bond=rigid_bond,
+            shake_iteration=shake_iteration,
+            shake_tolerance=shake_tolerance,
             water_model=water_model,
         )
 
@@ -1612,6 +1648,10 @@ def run_atdyn_min(
         pdbfile: Optional[str] = None,
         rstfile: Optional[str] = None,
         topfile: Optional[str] = None,
+        parfile: Optional[str] = None,
+        strfile: Optional[str] = None,
+        grotopfile: Optional[str] = None,
+        grocrdfile: Optional[str] = None,
         # Energy parameters
         forcefield: Optional[str] = None,
         electrostatic: Optional[str] = None,
@@ -1658,7 +1698,11 @@ def run_atdyn_min(
         ambcrdfile: AMBER coordinate file
         pdbfile: PDB coordinate file
         rstfile: GENESIS restart file
-        topfile: GROMACS topology file
+        topfile: CHARMM topology RTF file
+        parfile: CHARMM parameter file
+        strfile: CHARMM stream file
+        grotopfile: GROMACS topology file
+        grocrdfile: GROMACS coordinate file (.gro)
         forcefield: Force field type (CHARMM, AMBER, GROAMBER, etc.)
         electrostatic: Electrostatic method (PME, CUTOFF, etc.)
         switchdist: Switch distance for vdW (angstrom)
@@ -1667,6 +1711,12 @@ def run_atdyn_min(
         vdw_force_switch: Use force switching for vdW
         implicit_solvent: Implicit solvent model (NONE, GBSA, EEF1, etc.)
         output_style: Output style (GENESIS, CHARMM, etc.)
+        pme_alpha: PME alpha parameter
+        pme_ngrid_x: PME grid points in X
+        pme_ngrid_y: PME grid points in Y
+        pme_ngrid_z: PME grid points in Z
+        pme_nspline: PME spline order
+        dispersion_corr: Dispersion correction (NO, epress, etc.)
         method: Minimization method (SD, LBFGS)
         nsteps: Maximum number of minimization steps
         eneout_period: Energy output period
@@ -1713,6 +1763,10 @@ def run_atdyn_min(
             pdbfile=pdbfile,
             rstfile=rstfile,
             topfile=topfile,
+            parfile=parfile,
+            strfile=strfile,
+            grotopfile=grotopfile,
+            grocrdfile=grocrdfile,
         )
         ctrl_files.write_ctrl_output(
             ctrl,

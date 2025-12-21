@@ -50,6 +50,7 @@ module atdyn_c_mod
   public :: atdyn_md_c
   public :: atdyn_min_c
   public :: deallocate_atdyn_results_c
+  public :: reset_atdyn_state_c
 
   ! Module-level pointers for results (to be deallocated later)
   real(wp), pointer, save :: energies_ptr(:,:) => null()
@@ -116,6 +117,9 @@ contains
     result_nframes = 0
     result_nterms = 0
     result_natom = 0
+
+    ! Reset timers for clean state in library mode
+    call reset_timers()
 
     ! Initialize MPI variables for non-MPI build
     my_city_rank = 0
@@ -298,6 +302,9 @@ contains
     result_converged = 0
     result_final_gradient = 0.0_c_double
 
+    ! Reset timers for clean state in library mode
+    call reset_timers()
+
     ! Initialize MPI variables
     my_city_rank = 0
     nproc_city   = 1
@@ -437,5 +444,31 @@ contains
     end if
 
   end subroutine deallocate_atdyn_results_c
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    reset_atdyn_state_c
+  !> @brief        Reset atdyn global state for multiple sequential runs
+  !! @authors      Claude Code
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine reset_atdyn_state_c() bind(C, name="reset_atdyn_state_c")
+    implicit none
+
+    ! Reset timer state
+    call reset_timers()
+
+    ! Deallocate any previous results
+    if (associated(energies_ptr)) then
+      deallocate(energies_ptr)
+      nullify(energies_ptr)
+    end if
+    if (associated(final_coords_ptr)) then
+      deallocate(final_coords_ptr)
+      nullify(final_coords_ptr)
+    end if
+
+  end subroutine reset_atdyn_state_c
 
 end module atdyn_c_mod
