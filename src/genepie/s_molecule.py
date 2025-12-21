@@ -2,7 +2,10 @@ import ctypes
 import os
 import tempfile
 from typing import Optional, Union
-from typing_extensions import Self
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
 import numpy as np
 import numpy.typing as npt
 from . import c2py_util
