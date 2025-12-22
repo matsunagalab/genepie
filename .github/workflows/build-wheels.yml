@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             arch: x86_64
           - os: macos-latest
             arch: arm64
@@ -159,7 +159,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             arch: x86_64
             cibw_archs: x86_64
           - os: macos-latest
@@ -207,7 +207,7 @@ jobs:
           CIBW_SKIP: "*-win32 *-manylinux_i686 *-musllinux*"
           CIBW_ARCHS: ${{ matrix.cibw_archs }}
           # Tag wheels with proper platform tags for PyPI compatibility
-          # - Linux: use manylinux_2_31 (ubuntu-20.04 glibc version) for broader compatibility
+          # - Linux: use manylinux_2_35 (ubuntu-22.04 glibc version)
           # - macOS: use macosx tags
           # Note: We use wheel tags instead of auditwheel repair because our shared
           # library depends on system libraries (libgfortran, LAPACK) that cannot be bundled
@@ -215,7 +215,7 @@ jobs:
             pip install wheel &&
             WHEEL_DIR=$(mktemp -d) &&
             unzip -q {wheel} -d $WHEEL_DIR &&
-            sed -i 's/linux_x86_64/manylinux_2_31_x86_64/g' $WHEEL_DIR/*.dist-info/WHEEL &&
+            sed -i 's/linux_x86_64/manylinux_2_35_x86_64/g' $WHEEL_DIR/*.dist-info/WHEEL &&
             python -m wheel pack $WHEEL_DIR -d {dest_dir} &&
             rm -rf $WHEEL_DIR
           # macOS: fix platform tags for broader compatibility
