@@ -33,8 +33,10 @@ jobs:
 
       - name: Configure GENESIS (no MPI)
         run: |
+          # Disable tree vectorization to avoid libmvec symbols (_ZGVdN4v_cos etc.)
+          # that may not be available on all systems
           ./configure --disable-mpi CC=gcc FC=gfortran \
-            FCFLAGS="-O3 -ffast-math -ffree-line-length-none -fallow-argument-mismatch -fopenmp -fPIC" \
+            FCFLAGS="-O3 -ffast-math -fno-tree-vectorize -ffree-line-length-none -fallow-argument-mismatch -fopenmp -fPIC" \
             LDFLAGS="-fopenmp" \
             LAPACK_LIBS="-llapack -lblas"
 
