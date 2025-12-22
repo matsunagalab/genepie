@@ -20,8 +20,10 @@ import os
 import subprocess
 import tempfile
 
-# Add path for development (add src/ to path so 'import genepie' works)
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# Always add local source path so genepie.tests can be imported.
+# The libloader.py will find .so from installed package if available.
+_GENEPIE_SRC_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, _GENEPIE_SRC_PATH)
 
 
 def get_base_dir():
@@ -43,10 +45,11 @@ def get_param_dir():
 
 def run_test_in_subprocess(test_func_name):
     """Run a test function in a separate subprocess to isolate Fortran state."""
+    # Always add local source path so genepie.tests can be imported.
+    # The libloader.py will find .so from installed package if available.
     script = f'''
 import sys
-import os
-sys.path.insert(0, "{os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))}")
+sys.path.insert(0, "{_GENEPIE_SRC_PATH}")
 from genepie.tests import test_atdyn
 result = test_atdyn.{test_func_name}()
 sys.exit(0 if result else 1)

@@ -62,6 +62,30 @@ def _find_in_same_dir(mod_file: str) -> Optional[Path]:
     return _first_existing(_candidate_paths_in_dir(here))
 
 
+def _find_in_installed_genepie() -> Optional[Path]:
+    """Search in the installed genepie package location.
+
+    Searches sys.path for genepie packages that contain .so files,
+    skipping the local source directory.
+    """
+    import sys
+    local_dir = Path(__file__).resolve().parent
+    for path_entry in sys.path:
+        try:
+            candidate_dir = Path(path_entry) / "genepie"
+            if not candidate_dir.is_dir():
+                continue
+            # Skip local source directory
+            if candidate_dir.resolve() == local_dir:
+                continue
+            hit = _first_existing(_candidate_paths_in_dir(candidate_dir))
+            if hit:
+                return hit
+        except Exception:
+            continue
+    return None
+
+
 def load_genesis_lib() -> ctypes.CDLL:
 
     tried: list[str] = []
@@ -77,6 +101,12 @@ def load_genesis_lib() -> ctypes.CDLL:
     # in same directory as this module (meson-python builds)
     p = _find_in_same_dir(__file__)
     tried.append("<package_dir>/")
+    if p:
+        return _load(p)
+
+    # in installed genepie package (for running local tests with installed package)
+    p = _find_in_installed_genepie()
+    tried.append("<installed_genepie>/")
     if p:
         return _load(p)
 
