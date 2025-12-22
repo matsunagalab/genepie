@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-GENESIS (GENeralized-Ensemble SImulation System) is a molecular dynamics simulation software for biomolecular systems. This repository is focused on developing the **Python interface** for GENESIS analysis tools, located in `src/analysis/interface/python_interface/`.
+GENESIS (GENeralized-Ensemble SImulation System) is a molecular dynamics simulation software for biomolecular systems. This repository is focused on developing the **Python interface** for GENESIS analysis tools, located in `src/genepie/`.
 
 ## Build Commands
 
@@ -118,9 +118,11 @@ Use "Run workflow" button on GitHub Actions page to trigger `publish-testpypi`.
 
 ## Python Interface Architecture
 
-### Directory: `src/analysis/interface/python_interface/`
+### Directory: `src/genepie/`
 
 The Python interface uses ctypes to call Fortran functions compiled into `libpython_interface.so`.
+
+**Note**: `src/analysis/interface/python_interface/` is deprecated and exists only for backward compatibility. It re-exports from `genepie` with a deprecation warning.
 
 ### Core Components
 
@@ -296,23 +298,46 @@ except GenesisError as e:
 
 ## Testing
 
-### Unit Tests (all_run.sh)
+### Running Tests
 
-Runs 16 unit tests for individual analysis functions:
+Tests are located in `src/genepie/tests/`. To run tests during development:
 
 ```bash
-cd src/analysis/interface/python_interface
+# First, build the Fortran shared library
+make
+
+# Install genepie in editable mode (if not already done)
+pip install -e .
+
+# Run all analysis tests (16 tests)
+cd src/genepie/tests
 ./all_run.sh
-```
 
-Individual tests can be run with:
-```bash
-cd src/analysis/interface/python_interface
-python -m python_interface.test_rmsd
-python -m python_interface.test_trj_analysis
-python -m python_interface.test_mbar_analysis_umbrella_1d
+# Run individual tests
+python -m genepie.tests.test_rmsd
+python -m genepie.tests.test_trj
+python -m genepie.tests.test_mbar_1d
 # etc.
 ```
+
+### ATDYN MD Engine Tests
+
+Tests for the atdyn Python interface covering AMBER, GROMACS, and CHARMM file formats:
+
+```bash
+cd src/genepie/tests
+python test_atdyn.py
+```
+
+Currently includes 6 tests:
+- `test_atdyn_min_glycam` - AMBER format minimization
+- `test_atdyn_md_glycam` - AMBER format MD with PME
+- `test_atdyn_md_bpti` - GROMACS format MD with PME
+- `test_atdyn_md_jac_param27` - CHARMM format MD with PME
+- `test_atdyn_md_dppc_nvt` - CHARMM format NVT with Langevin
+- `test_atdyn_min_dppc` - CHARMM format minimization
+
+**Note**: These tests use subprocess isolation to avoid Fortran global state issues. Each test runs in a separate Python subprocess to ensure clean library state.
 
 ### Integration Tests (test_demo.py)
 
@@ -335,58 +360,19 @@ Tests include:
 ### Error Handling Tests
 
 ```bash
-cd src/analysis/interface/python_interface
-python -m python_interface.test_error_handling
-```
-
-### ATDYN MD Engine Tests (test_atdyn.py)
-
-Tests for the atdyn Python interface covering AMBER, GROMACS, and CHARMM file formats:
-
-```bash
-cd src/analysis/interface/python_interface
-python -m python_interface.test_atdyn
-```
-
-Currently includes 6 tests:
-- `test_glycam_CUTOFF` - AMBER format with CUTOFF electrostatics
-- `test_bpti_CUTOFF` - AMBER format with CUTOFF electrostatics
-- `test_bpti_PME` - AMBER format with PME electrostatics
-- `test_jac_param27_CUTOFF` - CHARMM format with CUTOFF
-- `test_jac_param27_PME` - CHARMM format with PME
-- `test_dppc_PME` - CHARMM format with PME (lipid bilayer)
-
-**Note**: These tests use subprocess isolation to avoid Fortran global state issues. Each test runs in a separate Python subprocess to ensure clean library state.
-
-#### Subprocess Isolation Pattern
-
-```python
-def run_test_in_subprocess(test_func_name):
-    """Run a test in a subprocess for clean Fortran state."""
-    result = subprocess.run(
-        [sys.executable, "-c", f"""
-import sys
-sys.path.insert(0, '{base_path}')
-from python_interface.test_atdyn import {test_func_name}
-{test_func_name}()
-print("PASSED")
-"""],
-        capture_output=True,
-        text=True,
-        cwd=base_path,
-    )
-    return result.returncode == 0 and "PASSED" in result.stdout
+cd src/genepie/tests
+python -m genepie.tests.test_error_handling
 ```
 
 ## Adding a New Analysis Function
 
-1. Create Fortran wrapper in `*_c_mod.fpp` with `bind(C)` interface
+1. Create Fortran wrapper in `src/analysis/interface/python_interface/*_c_mod.fpp` with `bind(C)` interface
 2. Create analysis implementation in `*_analysis.fpp` (or reuse existing GENESIS code)
-3. Add function signature to `libgenesis.py`
-4. Create Python wrapper function in `genesis_exe.py`
-5. Write regression test as `<analysis_name>.py`
-6. Add test to `all_run.sh`
-7. Update `Makefile.am` to include new `.fpp` files
+3. Add function signature to `src/genepie/libgenesis.py`
+4. Create Python wrapper function in `src/genepie/genesis_exe.py`
+5. Write regression test as `src/genepie/tests/test_<analysis_name>.py`
+6. Add test to `src/genepie/tests/all_run.sh`
+7. Update `src/analysis/interface/python_interface/Makefile.am` to include new `.fpp` files
 
 ## Key Patterns
 
@@ -425,9 +411,10 @@ with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
 - `src/lib/` - Shared Fortran library
 - `src/analysis/` - Analysis tools
   - `libana/` - Analysis library
-  - `interface/python_interface/` - **Main development focus**
+  - `interface/python_interface/` - Fortran interface files (.fpp) and deprecated Python wrapper
   - `trj_analysis/`, `free_energy/`, `mode_analysis/`, etc.
-- `src/genepie/` - Python package for PyPI distribution
+- `src/genepie/` - **Main Python package** (PyPI distribution)
+  - `tests/` - Test files for genepie
 
 ## Known Issues
 
