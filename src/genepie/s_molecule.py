@@ -1,11 +1,15 @@
 import ctypes
 import os
 import tempfile
+from pathlib import Path
 from typing import Optional, Union
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
+
+# Type alias for file paths
+PathLike = Union[str, Path]
 import numpy as np
 import numpy.typing as npt
 from . import c2py_util
@@ -426,19 +430,18 @@ class SMolecule:
         return dst
 
     @staticmethod
-
-    def from_file(pdb= None,
-                  top= None,
-                  gpr= None,
-                  psf= None,
-                  ref= None,
-                  fit= None,
-                  prmtop= None,
-                  ambcrd= None,
-                  ambref= None,
-                  grotop= None,
-                  grocrd= None,
-                  groref= None,
+    def from_file(pdb: Optional[PathLike] = None,
+                  top: Optional[PathLike] = None,
+                  gpr: Optional[PathLike] = None,
+                  psf: Optional[PathLike] = None,
+                  ref: Optional[PathLike] = None,
+                  fit: Optional[PathLike] = None,
+                  prmtop: Optional[PathLike] = None,
+                  ambcrd: Optional[PathLike] = None,
+                  ambref: Optional[PathLike] = None,
+                  grotop: Optional[PathLike] = None,
+                  grocrd: Optional[PathLike] = None,
+                  groref: Optional[PathLike] = None,
                   ) -> Self:
         """
         Load molecular structure from the specified files.

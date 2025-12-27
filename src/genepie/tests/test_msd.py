@@ -38,8 +38,7 @@ def test_msd_analysis():
     ) 
     _ = subset_mol
 
-    try: 
-
+    try:
         for t in trajs:
             d = genesis_exe.msd_analysis(
                     mol, t,
@@ -49,7 +48,13 @@ def test_msd_analysis():
                     oversample = True,
                     delta = 9,
                     )
-            print(d.msd, flush=True)
+            # Validate MSD results
+            assert d.msd is not None, "MSD result should not be None"
+            assert d.msd.shape[0] > 0, "MSD result should have at least one time point"
+            assert d.msd.shape[1] > 0, "MSD result should have at least one molecule"
+            # MSD should be non-negative
+            assert (d.msd >= 0).all(), "MSD values should be non-negative"
+            print(f"MSD shape: {d.msd.shape}, min={d.msd.min():.3f}, max={d.msd.max():.3f}", flush=True)
     finally:
         if hasattr(trajs, "close"):
             trajs.close()

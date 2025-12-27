@@ -2,12 +2,10 @@ import ctypes
 from collections import namedtuple
 import io
 import os
-import sys
 import tempfile
 from typing import Iterable, NamedTuple, Optional
 import numpy as np
 import numpy.typing as npt
-from contextlib import contextmanager
 from .libgenesis import LibGenesis
 from .s_molecule import SMolecule
 from .s_trajectories import STrajectories, STrajectoriesArray
@@ -20,68 +18,6 @@ from .output_capture import suppress_stdout_capture_stderr
 from .validation import validate_positive, validate_non_negative, validate_trajectory_dimensions
 
 _DEFAULT_MSG_LEN = 2048
-
-@contextmanager
-def suppress_stdout():
-    """Context manager to temporarily suppress stdout"""
-    with open(os.devnull, "w") as devnull:
-        old_stdout = os.dup(sys.stdout.fileno())
-        os.dup2(devnull.fileno(), sys.stdout.fileno())
-        try:
-            yield
-        finally:
-            os.dup2(old_stdout, sys.stdout.fileno())
-            os.close(old_stdout)
-
-
-@contextmanager
-def capture_stdout():
-    """Context manager to capture stdout - notebook compatible"""
-    import io
-    from contextlib import redirect_stdout
-    
-    # Capture both Python stdout and file descriptor output
-    captured_python = io.StringIO()
-    
-    # For C library output, we need to capture file descriptor level
-    old_stdout = os.dup(1)
-    read_fd, write_fd = os.pipe()
-    
-    try:
-        os.dup2(write_fd, 1)  # Redirect stdout file descriptor
-        
-        with redirect_stdout(captured_python):
-            yield captured_python
-            
-    finally:
-        os.dup2(old_stdout, 1)
-        os.close(old_stdout)
-        os.close(write_fd)
-        os.close(read_fd)
-
-
-@contextmanager
-def suppress_stdout_simple():
-    """Simple context manager to suppress stdout - most reliable for notebooks"""
-    # This approach redirects file descriptors at the OS level
-    saved_stdout = os.dup(1)
-    saved_stderr = os.dup(2)
-    
-    try:
-        # Redirect stdout and stderr to /dev/null
-        devnull = os.open(os.devnull, os.O_WRONLY)
-        os.dup2(devnull, 1)
-        os.dup2(devnull, 2)
-        os.close(devnull)
-        
-        yield
-        
-    finally:
-        # Restore stdout and stderr
-        os.dup2(saved_stdout, 1)
-        os.dup2(saved_stderr, 2)
-        os.close(saved_stdout)
-        os.close(saved_stderr)
 
 
 def crd_convert(
@@ -249,13 +185,13 @@ def trj_analysis(molecule: SMolecule, trajs: STrajectories,
                  selection_group: Optional[Iterable[str]] = None,
                  selection_mole_name: Optional[Iterable[str]] = None,
                  check_only: Optional[bool] = None,
-                 distance: Optional[Iterable[str]] = [],
-                 dist_weight: Optional[Iterable[str]] = [],
-                 angle: Optional[Iterable[str]] = [],
-                 torsion: Optional[Iterable[str]] = [],
-                 com_distance: Optional[Iterable[str]] = [],
-                 com_angle: Optional[Iterable[str]] = [],
-                 com_torsion: Optional[Iterable[str]] = [],
+                 distance: Optional[Iterable[str]] = None,
+                 dist_weight: Optional[Iterable[str]] = None,
+                 angle: Optional[Iterable[str]] = None,
+                 torsion: Optional[Iterable[str]] = None,
+                 com_distance: Optional[Iterable[str]] = None,
+                 com_angle: Optional[Iterable[str]] = None,
+                 com_torsion: Optional[Iterable[str]] = None,
                  ) -> TrjAnalysisResult:
     """
     Executes trj_analysis.
@@ -741,7 +677,7 @@ def hb_analysis(molecule: SMolecule, trajs: STrajectories,
         molecule:
         trajs:
         ana_period:
-    Returnsu:
+    Returns:
         result
     """
     if ana_period is None:
@@ -826,7 +762,7 @@ def diffusion_analysis(msd_data: npt.NDArray[np.float64],
     c_msd = None
     c_out = ctypes.c_void_p(0)
     if msd_data.ndim != 2:
-        raise Exception
+        raise GenesisValidationError(f"msd_data must be 2D, got {msd_data.ndim}D")
     d0 = ctypes.c_int(msd_data.shape[0])
     d1 = ctypes.c_int(msd_data.shape[1])
 
@@ -1185,9 +1121,9 @@ def mbar_analysis(
                 stderr_output=captured.stderr
             )
 
-            result_fene = c2py_util.conv_double_ndarray(
-                    result_fene_c, [n_replica.value, n_blocks.value])
-            return result_fene
+        result_fene = c2py_util.conv_double_ndarray(
+                result_fene_c, [n_replica.value, n_blocks.value])
+        return result_fene
     finally:
         if result_fene_c:
             LibGenesis().lib.deallocate_double2(

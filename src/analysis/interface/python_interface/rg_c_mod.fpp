@@ -30,6 +30,12 @@ module rg_c_mod
   use constants_mod
   implicit none
 
+  public :: rg_analysis_c
+  public :: deallocate_rg_results_c
+
+  ! Module-level pointer for results (to be deallocated later)
+  real(wp), pointer, save :: rg_ptr(:) => null()
+
 contains
   subroutine rg_analysis_c(molecule, s_trajes_c, ana_period, &
                            ctrl_text, ctrl_len, result_rg) &
@@ -44,13 +50,36 @@ contains
     type(c_ptr), intent(out) :: result_rg
 
     type(s_molecule) :: f_molecule
-    real(wp), pointer :: rg(:)
+
+    ! Deallocate previous results if any
+    if (associated(rg_ptr)) then
+      deallocate(rg_ptr)
+      nullify(rg_ptr)
+    end if
 
     call c2f_s_molecule(molecule, f_molecule)
     call rg_analysis_main( &
-        f_molecule, s_trajes_c, ana_period, ctrl_text, ctrl_len, rg)
-    result_rg = c_loc(rg)
+        f_molecule, s_trajes_c, ana_period, ctrl_text, ctrl_len, rg_ptr)
+    result_rg = c_loc(rg_ptr)
   end subroutine rg_analysis_c
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    deallocate_rg_results_c
+  !> @brief        Deallocate RG analysis results
+  !! @authors      Claude Code
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine deallocate_rg_results_c() bind(C, name="deallocate_rg_results_c")
+    implicit none
+
+    if (associated(rg_ptr)) then
+      deallocate(rg_ptr)
+      nullify(rg_ptr)
+    end if
+
+  end subroutine deallocate_rg_results_c
 
   subroutine rg_analysis_main( &
           molecule, s_trajes_c, ana_period, ctrl_text, ctrl_len, rg)

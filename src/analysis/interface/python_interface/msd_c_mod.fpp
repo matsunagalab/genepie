@@ -28,6 +28,12 @@ module msd_c_mod
   use constants_mod
   implicit none
 
+  public :: ma_analysis_c
+  public :: deallocate_msd_results_c
+
+  ! Module-level pointer for results (to be deallocated later)
+  real(wp), pointer, save :: msd_ptr(:,:) => null()
+
 contains
    subroutine ma_analysis_c(molecule, s_trajes_c, ana_period, &
                             ctrl_text, ctrl_len, &
@@ -45,14 +51,37 @@ contains
     integer, intent(out) :: num_delta
 
     type(s_molecule) :: f_molecule
-    real(wp), pointer :: msd(:,:)
+
+    ! Deallocate previous results if any
+    if (associated(msd_ptr)) then
+      deallocate(msd_ptr)
+      nullify(msd_ptr)
+    end if
 
     call c2f_s_molecule(molecule, f_molecule)
     call ma_analysis_main( &
         f_molecule, s_trajes_c, ana_period, ctrl_text, ctrl_len, &
-        msd, num_analysis_mols, num_delta)
-    result_msd = c_loc(msd)
+        msd_ptr, num_analysis_mols, num_delta)
+    result_msd = c_loc(msd_ptr)
   end subroutine ma_analysis_c
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    deallocate_msd_results_c
+  !> @brief        Deallocate MSD analysis results
+  !! @authors      Claude Code
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine deallocate_msd_results_c() bind(C, name="deallocate_msd_results_c")
+    implicit none
+
+    if (associated(msd_ptr)) then
+      deallocate(msd_ptr)
+      nullify(msd_ptr)
+    end if
+
+  end subroutine deallocate_msd_results_c
 
   subroutine ma_analysis_main( &
           molecule, s_trajes_c, ana_period, ctrl_text, ctrl_len, &

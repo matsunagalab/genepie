@@ -40,7 +40,7 @@ def test_rmsd_analysis():
 
     _ = subset_mol
 
-    try: 
+    try:
         for t in trajs:
             d = genesis_exe.rmsd_analysis(
                     mol, t,
@@ -50,7 +50,13 @@ def test_rmsd_analysis():
                     check_only = False,
                     analysis_atom  = 1,
                     )
-            print(d.rmsd, flush=True)
+            # Validate RMSD results
+            assert d.rmsd is not None, "RMSD result should not be None"
+            assert len(d.rmsd) > 0, "RMSD result should have at least one frame"
+            assert all(r >= 0 for r in d.rmsd), "RMSD values should be non-negative"
+            # RMSD should be in reasonable range (0-50 Angstroms for proteins)
+            assert all(r < 50.0 for r in d.rmsd), "RMSD values should be reasonable (< 50 Å)"
+            print(f"RMSD values (n={len(d.rmsd)}): min={min(d.rmsd):.3f}, max={max(d.rmsd):.3f}", flush=True)
 
     finally:
         if hasattr(trajs, "close"):

@@ -60,10 +60,23 @@ contains
     implicit none
     type(s_trajectories_c), intent(inout) :: trajs
     real(c_double), pointer :: coords(:,:,:), boxes(:,:,:)
-    call C_F_POINTER(trajs%coords, coords, [3, trajs%natom, trajs%nframe])
-    deallocate(coords)
-    call C_F_POINTER(trajs%pbc_boxes, boxes, [3, 3, trajs%nframe])
-    deallocate(boxes)
+
+    ! Check if coords pointer is valid before deallocating
+    if (c_associated(trajs%coords) .and. trajs%natom > 0 .and. trajs%nframe > 0) then
+      call C_F_POINTER(trajs%coords, coords, [3, trajs%natom, trajs%nframe])
+      deallocate(coords)
+      trajs%coords = c_null_ptr
+    end if
+
+    ! Check if pbc_boxes pointer is valid before deallocating
+    if (c_associated(trajs%pbc_boxes) .and. trajs%nframe > 0) then
+      call C_F_POINTER(trajs%pbc_boxes, boxes, [3, 3, trajs%nframe])
+      deallocate(boxes)
+      trajs%pbc_boxes = c_null_ptr
+    end if
+
+    trajs%natom = 0
+    trajs%nframe = 0
   end subroutine deallocate_s_trajectories_c
 
   subroutine deep_copy_s_trajectories_c(src, dst) &
@@ -77,7 +90,7 @@ contains
     real(c_double), pointer :: dst_boxes(:,:,:)
 
     dst%natom = src%natom
-    dst%nframe = dst%nframe
+    dst%nframe = src%nframe
 
     allocate(dst_coords(3, dst%natom, dst%nframe))
     call C_F_POINTER(src%coords, src_coords, [3, src%natom, src%nframe])

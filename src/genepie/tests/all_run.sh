@@ -23,3 +23,6 @@ python -m genepie.tests.test_msd "$@"
 python -m genepie.tests.test_diffusion "$@"
 python -m genepie.tests.test_mdanalysis "$@"
 python -m genepie.tests.test_mdtraj "$@"
+python -m genepie.tests.test_error_handling "$@"
+# Note: test_atdyn uses subprocess isolation to avoid Fortran global state issues
+python -m genepie.tests.test_atdyn "$@"

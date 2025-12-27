@@ -31,6 +31,12 @@ module drms_c_mod
   use constants_mod
   implicit none
 
+  public :: dr_analysis_c
+  public :: deallocate_drms_results_c
+
+  ! Module-level pointer for results (to be deallocated later)
+  real(wp), pointer, save :: dr_ptr(:) => null()
+
 contains
   subroutine dr_analysis_c(molecule, s_trajes_c, ana_period, &
                            ctrl_text, ctrl_len, &
@@ -49,14 +55,19 @@ contains
     integer(c_int),          value       :: msglen
 
     type(s_molecule) :: f_molecule
-    real(wp), pointer :: dr(:)
 
     type(s_error) :: err
+
+    ! Deallocate previous results if any
+    if (associated(dr_ptr)) then
+      deallocate(dr_ptr)
+      nullify(dr_ptr)
+    end if
 
     call error_init(err)
     call c2f_s_molecule(molecule, f_molecule)
     call dr_analysis_main( &
-        f_molecule, s_trajes_c, ana_period, ctrl_text, ctrl_len, dr, err)
+        f_molecule, s_trajes_c, ana_period, ctrl_text, ctrl_len, dr_ptr, err)
     if (error_has(err)) then
       call error_to_c(err, status, msg, msglen)
       return
@@ -64,8 +75,26 @@ contains
     status = 0
     if (msglen > 0) msg(1) = c_null_char
 
-    result_dr = c_loc(dr)
+    result_dr = c_loc(dr_ptr)
   end subroutine dr_analysis_c
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    deallocate_drms_results_c
+  !> @brief        Deallocate DRMS analysis results
+  !! @authors      Claude Code
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine deallocate_drms_results_c() bind(C, name="deallocate_drms_results_c")
+    implicit none
+
+    if (associated(dr_ptr)) then
+      deallocate(dr_ptr)
+      nullify(dr_ptr)
+    end if
+
+  end subroutine deallocate_drms_results_c
 
   subroutine dr_analysis_main( &
           molecule, s_trajes_c, ana_period, ctrl_text, ctrl_len, dr, err)

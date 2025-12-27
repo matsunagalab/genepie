@@ -39,8 +39,7 @@ def test_rg_analysis():
     )
     _ = subset_mol
 
-    try: 
-
+    try:
         for t in trajs:
             d = genesis_exe.rg_analysis(
                     mol, t,
@@ -48,7 +47,13 @@ def test_rg_analysis():
                     analysis_atom  = 1,
                     mass_weighted  = True,
                     )
-            print(d.rg)
+            # Validate Rg results
+            assert d.rg is not None, "Rg result should not be None"
+            assert len(d.rg) > 0, "Rg result should have at least one frame"
+            assert all(r > 0 for r in d.rg), "Rg values should be positive"
+            # Rg should be in reasonable range for proteins (5-100 Angstroms)
+            assert all(r < 100.0 for r in d.rg), "Rg values should be reasonable (< 100 Å)"
+            print(f"Rg values (n={len(d.rg)}): min={min(d.rg):.3f}, max={max(d.rg):.3f}")
     finally:
         if hasattr(trajs, "close"):
             trajs.close()

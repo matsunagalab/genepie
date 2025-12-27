@@ -29,6 +29,17 @@ module trj_c_mod
   use constants_mod
   implicit none
 
+  public :: trj_analysis_c
+  public :: deallocate_trj_results_c
+
+  ! Module-level pointers for results (to be deallocated later)
+  real(wp), pointer, save :: distance_ptr(:,:) => null()
+  real(wp), pointer, save :: angle_ptr(:,:) => null()
+  real(wp), pointer, save :: torsion_ptr(:,:) => null()
+  real(wp), pointer, save :: cdis_ptr(:,:) => null()
+  real(wp), pointer, save :: cang_ptr(:,:) => null()
+  real(wp), pointer, save :: ctor_ptr(:,:) => null()
+
 contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -83,68 +94,112 @@ contains
     integer(c_int), intent(out) :: num_ctor
 
     type(s_molecule) :: f_molecule
-    real(wp), pointer :: distance_f(:,:) => null()
-    integer :: num_distance_f
-    real(wp), pointer :: angle_f(:,:) => null()
-    integer :: num_angle_f
-    real(wp), pointer :: torsion_f(:,:) => null()
-    integer :: num_torsion_f
-    real(wp), pointer :: cdis_f(:,:) => null()
-    integer :: num_cdis_f
-    real(wp), pointer :: cang_f(:,:) => null()
-    integer :: num_cang_f
-    real(wp), pointer :: ctor_f(:,:) => null()
-    integer :: num_ctor_f
+
+    ! Deallocate previous results if any
+    call deallocate_trj_results_internal()
 
     call c2f_s_molecule(molecule, f_molecule)
     call trj_analysis_main( &
         f_molecule, s_trajes_c, ana_period, ctrl_text, ctrl_len, &
-        distance_f, angle_f, torsion_f, cdis_f, cang_f, ctor_f)
+        distance_ptr, angle_ptr, torsion_ptr, cdis_ptr, cang_ptr, ctor_ptr)
     call dealloc_molecules_all(f_molecule)
 
-    if (associated(distance_f)) then
-      result_distance = c_loc(distance_f)
-      num_distance = size(distance_f, dim=1)
+    if (associated(distance_ptr)) then
+      result_distance = c_loc(distance_ptr)
+      num_distance = size(distance_ptr, dim=1)
     else
       result_distance = c_null_ptr
       num_distance = 0
     end if
-    if (associated(angle_f)) then
-      result_angle = c_loc(angle_f)
-      num_angle = size(angle_f, dim=1)
+    if (associated(angle_ptr)) then
+      result_angle = c_loc(angle_ptr)
+      num_angle = size(angle_ptr, dim=1)
     else
       result_angle = c_null_ptr
       num_angle = 0
     end if
-    if (associated(torsion_f)) then
-      result_torsion = c_loc(torsion_f)
-      num_torsion = size(torsion_f, dim=1)
+    if (associated(torsion_ptr)) then
+      result_torsion = c_loc(torsion_ptr)
+      num_torsion = size(torsion_ptr, dim=1)
     else
       result_torsion = c_null_ptr
       num_torsion = 0
     end if
-    if (associated(cdis_f)) then
-      result_cdis = c_loc(cdis_f)
-      num_cdis = size(cdis_f, dim=1)
+    if (associated(cdis_ptr)) then
+      result_cdis = c_loc(cdis_ptr)
+      num_cdis = size(cdis_ptr, dim=1)
     else
       result_cdis = c_null_ptr
       num_cdis = 0
     end if
-    if (associated(cang_f)) then
-      result_cang = c_loc(cang_f)
-      num_cang = size(cang_f, dim=1)
+    if (associated(cang_ptr)) then
+      result_cang = c_loc(cang_ptr)
+      num_cang = size(cang_ptr, dim=1)
     else
       result_cang = c_null_ptr
       num_cang = 0
     end if
-    if (associated(ctor_f)) then
-      result_ctor = c_loc(ctor_f)
-      num_ctor = size(ctor_f, dim=1)
+    if (associated(ctor_ptr)) then
+      result_ctor = c_loc(ctor_ptr)
+      num_ctor = size(ctor_ptr, dim=1)
     else
       result_ctor = c_null_ptr
       num_ctor = 0
     end if
   end subroutine trj_analysis_c
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    deallocate_trj_results_internal
+  !> @brief        Internal helper to deallocate TRJ analysis results
+  !! @authors      Claude Code
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine deallocate_trj_results_internal()
+    implicit none
+
+    if (associated(distance_ptr)) then
+      deallocate(distance_ptr)
+      nullify(distance_ptr)
+    end if
+    if (associated(angle_ptr)) then
+      deallocate(angle_ptr)
+      nullify(angle_ptr)
+    end if
+    if (associated(torsion_ptr)) then
+      deallocate(torsion_ptr)
+      nullify(torsion_ptr)
+    end if
+    if (associated(cdis_ptr)) then
+      deallocate(cdis_ptr)
+      nullify(cdis_ptr)
+    end if
+    if (associated(cang_ptr)) then
+      deallocate(cang_ptr)
+      nullify(cang_ptr)
+    end if
+    if (associated(ctor_ptr)) then
+      deallocate(ctor_ptr)
+      nullify(ctor_ptr)
+    end if
+
+  end subroutine deallocate_trj_results_internal
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    deallocate_trj_results_c
+  !> @brief        Deallocate TRJ analysis results (C interface)
+  !! @authors      Claude Code
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine deallocate_trj_results_c() bind(C, name="deallocate_trj_results_c")
+    implicit none
+
+    call deallocate_trj_results_internal()
+
+  end subroutine deallocate_trj_results_c
 
   subroutine trj_analysis_main( &
           molecule, s_trajes_c, ana_period, ctrl_text, ctrl_len, &
