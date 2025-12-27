@@ -6,6 +6,8 @@ Usage:
 
 This script downloads the chignolin test data (PDB, PSF, DCD) from Google Drive.
 These files are required for running the integration tests (test_integration.py).
+
+Note: Requires gdown package (pip install gdown) for reliable large file downloads.
 """
 # --------------------------------------------
 if __name__ == "__main__" and __package__ is None:
@@ -15,13 +17,11 @@ if __name__ == "__main__" and __package__ is None:
     __package__ = "genepie.tests"
 # --------------------------------------------
 
-import subprocess
 import pathlib
 
 from .conftest import DATA_DIR
 
 # Google Drive file IDs and filenames
-# Download URL format: https://drive.google.com/uc?export=download&id=FILE_ID
 FILES = [
     ("1WyFzvhuMjlwp2pNjga9B8RvTKoygBh-a", "chignolin.pdb"),
     ("1L1Y7YdSz46sTI1lQ7PoQJIqqbzM4F9Vh", "chignolin.psf"),
@@ -31,6 +31,13 @@ FILES = [
 
 def download():
     """Download chignolin test data from Google Drive."""
+    try:
+        import gdown
+    except ImportError:
+        print("Error: gdown package is required.")
+        print("Install with: pip install gdown")
+        return 1
+
     data_dir = DATA_DIR / "chignolin"
     data_dir.mkdir(parents=True, exist_ok=True)
 
@@ -40,30 +47,27 @@ def download():
     for file_id, filename in FILES:
         dest = data_dir / filename
         if dest.exists():
-            print(f"[SKIP] {filename} (already exists)")
-            continue
+            # Check if it's a valid file (not an HTML error page)
+            if dest.stat().st_size > 10000 or not filename.endswith('.dcd'):
+                print(f"[SKIP] {filename} (already exists)")
+                continue
+            else:
+                # Remove corrupted file
+                dest.unlink()
 
-        url = f"https://drive.google.com/uc?export=download&id={file_id}"
+        url = f"https://drive.google.com/uc?id={file_id}"
         print(f"[DOWNLOAD] {filename}...")
 
         try:
-            result = subprocess.run(
-                ["curl", "-L", url, "-o", str(dest)],
-                check=True,
-                capture_output=True,
-                text=True
-            )
+            gdown.download(url, str(dest), quiet=False)
             print(f"  -> {dest}")
-        except subprocess.CalledProcessError as e:
+        except Exception as e:
             print(f"  [ERROR] Failed to download {filename}")
-            print(f"          {e.stderr}")
+            print(f"          {e}")
             # Remove partial file if exists
             if dest.exists():
                 dest.unlink()
             continue
-        except FileNotFoundError:
-            print("  [ERROR] curl command not found. Please install curl.")
-            return 1
 
     print()
     print("Download complete!")
