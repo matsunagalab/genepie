@@ -143,7 +143,10 @@ jobs:
             /bin/bash -c '
               set -e
               # Install build dependencies
-              yum install -y gcc-gfortran lapack-devel blas-devel autoconf automake libtool
+              # Use gcc-toolset-14 for consistent compiler versions
+              yum install -y gcc-toolset-14-gcc-gfortran lapack-devel blas-devel autoconf automake libtool
+              # Enable gcc-toolset-14
+              source /opt/rh/gcc-toolset-14/enable
               gfortran --version
               gcc --version
 
