@@ -123,6 +123,116 @@ jobs:
           path: artifacts/
           retention-days: 7
 
+  # Step 1a-2: Build GENESIS for Linux ARM64 using QEMU
+  build-genesis-linux-arm64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Build in ARM64 container
+        run: |
+          docker run --rm --platform linux/arm64 \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            quay.io/pypa/manylinux_2_28_aarch64 \
+            /bin/bash -c '
+              set -e
+              # Install build dependencies
+              yum install -y gcc-gfortran lapack-devel blas-devel autoconf automake libtool
+              gfortran --version
+              gcc --version
+
+              # Generate configure script
+              autoreconf -fi
+
+              # Configure GENESIS for ARM64
+              # Disable vectorization to avoid libmvec issues
+              ./configure --disable-mpi CC=gcc FC=gfortran \
+                FCFLAGS="-O2 -march=armv8-a -fno-tree-vectorize -fno-tree-loop-vectorize -fno-tree-slp-vectorize -ffree-line-length-none -fallow-argument-mismatch -fopenmp -fPIC" \
+                LDFLAGS="-fopenmp -lmvec -lm" \
+                LAPACK_LIBS="-llapack -lblas"
+
+              # Build GENESIS
+              make -j$(nproc)
+              make install
+
+              # Verify library dependencies
+              echo "=== Checking shared library dependencies ==="
+              ldd lib/libpython_interface.so || true
+              echo "=== Checking glibc version requirement ==="
+              objdump -T lib/libpython_interface.so | grep GLIBC | sed "s/.*GLIBC_//" | sort -V | tail -5
+
+              # Prepare artifacts
+              mkdir -p artifacts
+              cp lib/libpython_interface.so artifacts/ || true
+              cp src/atdyn/atdyn artifacts/ || true
+              # Clustering
+              cp src/analysis/clustering/kmeans_clustering/kmeans_clustering artifacts/ || true
+              # Converters
+              cp src/analysis/converter/cg_convert/cg_convert artifacts/ || true
+              cp src/analysis/converter/crd_convert/crd_convert artifacts/ || true
+              cp src/analysis/converter/pcrd_convert/pcrd_convert artifacts/ || true
+              cp src/analysis/converter/remd_convert/remd_convert artifacts/ || true
+              cp src/analysis/converter/rst_convert/rst_convert artifacts/ || true
+              cp src/analysis/converter/rst_upgrade/rst_upgrade artifacts/ || true
+              # Free energy
+              cp src/analysis/free_energy/mbar_analysis/mbar_analysis artifacts/ || true
+              cp src/analysis/free_energy/meanforce_analysis/meanforce_analysis artifacts/ || true
+              cp src/analysis/free_energy/pmf_analysis/pmf_analysis artifacts/ || true
+              cp src/analysis/free_energy/wham_analysis/wham_analysis artifacts/ || true
+              # Interface
+              cp src/analysis/interface/dssp_interface/dssp_interface artifacts/ || true
+              # Mode analysis
+              cp src/analysis/mode_analysis/avecrd_analysis/avecrd_analysis artifacts/ || true
+              cp src/analysis/mode_analysis/eigmat_analysis/eigmat_analysis artifacts/ || true
+              cp src/analysis/mode_analysis/flccrd_analysis/flccrd_analysis artifacts/ || true
+              cp src/analysis/mode_analysis/pcavec_drawer/pcavec_drawer artifacts/ || true
+              cp src/analysis/mode_analysis/prjcrd_analysis/prjcrd_analysis artifacts/ || true
+              # SP analysis
+              cp src/analysis/sp_analysis/contact_analysis/contact_analysis artifacts/ || true
+              cp src/analysis/sp_analysis/density_analysis/density_analysis artifacts/ || true
+              cp src/analysis/sp_analysis/hbond_analysis/hbond_analysis artifacts/ || true
+              cp src/analysis/sp_analysis/rdf_analysis/rdf_analysis artifacts/ || true
+              cp src/analysis/sp_analysis/sasa_analysis/sasa_analysis artifacts/ || true
+              # Trajectory analysis
+              cp src/analysis/trj_analysis/comcrd_analysis/comcrd_analysis artifacts/ || true
+              cp src/analysis/trj_analysis/diffusion_analysis/diffusion_analysis artifacts/ || true
+              cp src/analysis/trj_analysis/distmat_analysis/distmat_analysis artifacts/ || true
+              cp src/analysis/trj_analysis/drms_analysis/drms_analysis artifacts/ || true
+              cp src/analysis/trj_analysis/energy_analysis/energy_analysis artifacts/ || true
+              cp src/analysis/trj_analysis/fret_analysis/fret_analysis artifacts/ || true
+              cp src/analysis/trj_analysis/hb_analysis/hb_analysis artifacts/ || true
+              cp src/analysis/trj_analysis/lipidthick_analysis/lipidthick_analysis artifacts/ || true
+              cp src/analysis/trj_analysis/msd_analysis/msd_analysis artifacts/ || true
+              cp src/analysis/trj_analysis/qval_analysis/qval_analysis artifacts/ || true
+              cp src/analysis/trj_analysis/qval_residcg_analysis/qval_residcg_analysis artifacts/ || true
+              cp src/analysis/trj_analysis/rg_analysis/rg_analysis artifacts/ || true
+              cp src/analysis/trj_analysis/ring_analysis/ring_analysis artifacts/ || true
+              cp src/analysis/trj_analysis/rmsd_analysis/rmsd_analysis artifacts/ || true
+              cp src/analysis/trj_analysis/tilt_analysis/tilt_analysis artifacts/ || true
+              cp src/analysis/trj_analysis/trj_analysis/trj_analysis artifacts/ || true
+              # Utilities
+              cp src/analysis/utilities/emmap_generator/emmap_generator artifacts/ || true
+              cp src/analysis/utilities/morph_generator/morph_generator artifacts/ || true
+              cp src/analysis/utilities/pathcv_analysis/pathcv_analysis artifacts/ || true
+              cp src/analysis/utilities/qmmm_generator/qmmm_generator artifacts/ || true
+              cp src/analysis/utilities/rpath_generator/rpath_generator artifacts/ || true
+              # List what we have
+              ls -la artifacts/
+            '
+
+      - name: Upload GENESIS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: genesis-linux-aarch64
+          path: artifacts/
+          retention-days: 7
+
   # Step 1b: Build GENESIS for macOS (native builds)
   build-genesis-macos:
     strategy:
@@ -240,7 +350,7 @@ jobs:
 
   # Step 2: Build Python wheels
   build-wheels:
-    needs: [build-genesis-linux, build-genesis-macos]
+    needs: [build-genesis-linux, build-genesis-linux-arm64, build-genesis-macos]
     strategy:
       fail-fast: false
       matrix:
@@ -248,6 +358,9 @@ jobs:
           - os: ubuntu-latest
             artifact: genesis-linux-x86_64
             cibw_archs: x86_64
+          - os: ubuntu-latest
+            artifact: genesis-linux-aarch64
+            cibw_archs: aarch64
           - os: macos-latest
             artifact: genesis-macos-latest-arm64
             cibw_archs: arm64
@@ -302,6 +415,7 @@ jobs:
             WHEEL_DIR=$(mktemp -d) &&
             unzip -q {wheel} -d $WHEEL_DIR &&
             sed -i 's/linux_x86_64/manylinux_2_28_x86_64/g' $WHEEL_DIR/*.dist-info/WHEEL &&
+            sed -i 's/linux_aarch64/manylinux_2_28_aarch64/g' $WHEEL_DIR/*.dist-info/WHEEL &&
             python -m wheel pack $WHEEL_DIR -d {dest_dir} &&
             rm -rf $WHEEL_DIR
           # macOS: fix platform tags for broader compatibility
