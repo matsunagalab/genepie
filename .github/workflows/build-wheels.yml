@@ -355,6 +355,8 @@ jobs:
           retention-days: 7
 
   # Step 2: Build Python wheels
+  # Note: ARM64 Linux wheel is disabled due to QEMU being too slow
+  # The ARM64 genesis build job remains for future reference
   build-wheels:
     needs: [build-genesis-linux, build-genesis-linux-arm64, build-genesis-macos]
     strategy:
@@ -364,9 +366,10 @@ jobs:
           - os: ubuntu-latest
             artifact: genesis-linux-x86_64
             cibw_archs: x86_64
-          - os: ubuntu-latest
-            artifact: genesis-linux-aarch64
-            cibw_archs: aarch64
+          # ARM64 Linux wheel disabled - QEMU is too slow for cibuildwheel
+          # - os: ubuntu-latest
+          #   artifact: genesis-linux-aarch64
+          #   cibw_archs: aarch64
           - os: macos-latest
             artifact: genesis-macos-latest-arm64
             cibw_archs: arm64
