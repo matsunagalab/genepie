@@ -124,7 +124,9 @@ jobs:
           retention-days: 7
 
   # Step 1a-2: Build GENESIS for Linux ARM64 using QEMU
+  # Only run on tag push or workflow_dispatch (publishing) to save CI time
   build-genesis-linux-arm64:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -355,10 +357,14 @@ jobs:
           retention-days: 7
 
   # Step 2: Build Python wheels
-  # Note: ARM64 Linux wheel is disabled due to QEMU being too slow
-  # The ARM64 genesis build job remains for future reference
   build-wheels:
     needs: [build-genesis-linux, build-genesis-linux-arm64, build-genesis-macos]
+    # Run if required jobs succeeded; ARM64 job may be skipped on PRs
+    if: |
+      always() &&
+      needs.build-genesis-linux.result == 'success' &&
+      needs.build-genesis-macos.result == 'success' &&
+      (needs.build-genesis-linux-arm64.result == 'success' || needs.build-genesis-linux-arm64.result == 'skipped')
     strategy:
       fail-fast: false
       matrix:
@@ -366,10 +372,11 @@ jobs:
           - os: ubuntu-latest
             artifact: genesis-linux-x86_64
             cibw_archs: x86_64
-          # ARM64 Linux wheel disabled - QEMU is too slow for cibuildwheel
-          # - os: ubuntu-latest
-          #   artifact: genesis-linux-aarch64
-          #   cibw_archs: aarch64
+          # ARM64 Linux wheel - only built when publishing (tag push or workflow_dispatch)
+          - os: ubuntu-latest
+            artifact: genesis-linux-aarch64
+            cibw_archs: aarch64
+            publish_only: true
           - os: macos-latest
             artifact: genesis-macos-latest-arm64
             cibw_archs: arm64
@@ -379,15 +386,29 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+      # Skip ARM64 Linux wheel build on PRs (only build when publishing)
+      - name: Check if should build
+        id: should_build
+        run: |
+          if [[ "${{ matrix.publish_only }}" == "true" && "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "Skipping ARM64 Linux wheel build (only built when publishing)"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - uses: actions/checkout@v4
+        if: steps.should_build.outputs.skip != 'true'
 
       - name: Download GENESIS artifacts
+        if: steps.should_build.outputs.skip != 'true'
         uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.artifact }}
           path: genesis-artifacts/
 
       - name: Prepare package with binaries
+        if: steps.should_build.outputs.skip != 'true'
         run: |
           # Restore execute permissions (lost during artifact download)
           chmod +x genesis-artifacts/* 2>/dev/null || true
@@ -408,6 +429,7 @@ jobs:
           echo "Total binaries: $(ls src/genepie/bin/ | wc -l)"
 
       - name: Build wheels
+        if: steps.should_build.outputs.skip != 'true'
         uses: pypa/cibuildwheel@v2.21
         env:
           # Only build for one Python version since our wheel is py3-none (universal Python 3)
@@ -449,6 +471,7 @@ jobs:
             python -c "import genepie; print('genepie imported successfully')"
 
       - name: Upload wheels
+        if: steps.should_build.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.os }}-${{ matrix.cibw_archs }}
