@@ -705,9 +705,18 @@ if test x"${with_cuda}" != x"no"; then
   fi
 
   if test -z "${cuda_lib_path}"; then
-    # for debian & ubuntsu (non nvidia-package)
-    AC_CHECK_FILE([/usr/lib/x86_64-linux-gnu/libcudart.so],
-		  [cuda_lib_path=/usr/lib/x86_64-linux-gnu], [])
+    # for debian & ubuntu (multi-arch aware)
+    # Detect the correct multiarch directory using GCC
+    MULTIARCH_TUPLE=$($CC -print-multiarch 2>/dev/null || echo "")
+    if test -n "$MULTIARCH_TUPLE"; then
+      AC_CHECK_FILE([/usr/lib/${MULTIARCH_TUPLE}/libcudart.so],
+                    [cuda_lib_path=/usr/lib/${MULTIARCH_TUPLE}], [])
+    fi
+    # Fallback to x86_64 path if multiarch detection failed
+    if test -z "${cuda_lib_path}"; then
+      AC_CHECK_FILE([/usr/lib/x86_64-linux-gnu/libcudart.so],
+                    [cuda_lib_path=/usr/lib/x86_64-linux-gnu], [])
+    fi
   fi
 
   if test -z "${cuda_lib_path}"; then
@@ -860,7 +869,11 @@ DEFINED_VARIABLES+=" -DDSFMT_MEXP=19937"
 
 # architecture check
 #
-cpuinfo=`grep "^flags.*" /proc/cpuinfo | head -1 `
+# Support both x86 ("flags") and ARM64 ("Features") cpuinfo formats
+cpuinfo=""
+if test -f /proc/cpuinfo; then
+  cpuinfo=`grep -E "^(flags|Features)" /proc/cpuinfo | head -1`
+fi
 have_avx512f=no
 have_avx512er=no
 have_avx512cd=no
@@ -1002,10 +1015,13 @@ else
       fi
 
     elif test x"${FC_ACT}" = x"gfortran"; then
-      # Use -march=x86-64-v2 on x86_64 Linux for portability, -march=native elsewhere
+      # Use portable -march flags on Linux, -march=native elsewhere
       case "$host_cpu-$host_os" in
         x86_64-linux*)
           FCFLAGS="-O3 -ffast-math -march=x86-64-v2 -ffree-line-length-none"
+          ;;
+        aarch64-linux*)
+          FCFLAGS="-O3 -ffast-math -march=armv8-a -ffree-line-length-none"
           ;;
         *)
           FCFLAGS="-O3 -ffast-math -march=native -ffree-line-length-none"
@@ -1235,10 +1251,13 @@ else
       CFLAGS="-O3 -axCORE-AVX2   "
 
     elif test x"${CC_ACT}" = x"gcc"; then
-      # Use -march=x86-64-v2 on x86_64 Linux for portability, -march=native elsewhere
+      # Use portable -march flags on Linux, -march=native elsewhere
       case "$host_cpu-$host_os" in
         x86_64-linux*)
           CFLAGS="-O3 -ffast-math -march=x86-64-v2"
+          ;;
+        aarch64-linux*)
+          CFLAGS="-O3 -ffast-math -march=armv8-a"
           ;;
         *)
           CFLAGS="-O3 -ffast-math -march=native"
@@ -1430,9 +1449,15 @@ if test -z "${LDFLAGS}"; then
 
   elif test x"${FC_ACT}" = x"gfortran"; then
     # Link libmvec on Linux for vectorized math functions (glibc-specific)
+    # Check if libmvec exists (not available on musl/Alpine Linux)
     case "$host_os" in
       linux*)
-        LDFLAGS+="-lmvec -lm"
+        AC_CHECK_LIB([mvec], [sincos],
+          [LDFLAGS+="-lmvec -lm"
+           AC_MSG_NOTICE([libmvec found, linking with -lmvec -lm])],
+          [LDFLAGS+="-lm"
+           AC_MSG_NOTICE([libmvec not found (musl?), linking with -lm only])],
+          [-lm])
         ;;
     esac
     #LDFLAGS="-march=native -fuse-linker-plugin"

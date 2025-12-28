@@ -499,20 +499,36 @@ with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
 OSError: .../libpython_interface.so: undefined symbol: _ZGVdN4v_cos
 ```
 
-**Cause**: The `_ZGVdN4v_cos` symbol is from glibc's libmvec (vectorized math library). This happens when the shared library was compiled with GCC auto-vectorization on a machine with AVX support, but libmvec is not in the library search path on the target system.
+**Cause**: The `_ZGVdN4v_cos` symbol is from glibc's libmvec (vectorized math library). This happens when the shared library was compiled with GCC auto-vectorization on a machine with SIMD support, but libmvec is not in the library search path on the target system.
 
-**Workaround**: Set `LD_PRELOAD` before running Python:
+**Workaround (architecture-specific)**:
+
+For x86_64:
 ```bash
 export LD_PRELOAD=/lib/x86_64-linux-gnu/libmvec.so.1:/lib/x86_64-linux-gnu/libm.so.6${LD_PRELOAD:+:$LD_PRELOAD}
 python your_script.py
 ```
 
-**Permanent fix (in ~/.bashrc)**:
+For ARM64 (aarch64):
 ```bash
-export LD_PRELOAD=/lib/x86_64-linux-gnu/libmvec.so.1:/lib/x86_64-linux-gnu/libm.so.6${LD_PRELOAD:+:$LD_PRELOAD}
+export LD_PRELOAD=/lib/aarch64-linux-gnu/libmvec.so.1:/lib/aarch64-linux-gnu/libm.so.6${LD_PRELOAD:+:$LD_PRELOAD}
+python your_script.py
 ```
 
-**CI Build fix**: The GitHub Actions workflow now uses `-march=x86-64-v2` instead of `-march=native` and explicitly links `-lmvec -lm` to avoid this issue in future releases.
+**Auto-detect script (all architectures)**:
+```bash
+ARCH_DIR=$(gcc -print-multiarch 2>/dev/null || echo "x86_64-linux-gnu")
+export LD_PRELOAD=/lib/${ARCH_DIR}/libmvec.so.1:/lib/${ARCH_DIR}/libm.so.6${LD_PRELOAD:+:$LD_PRELOAD}
+python your_script.py
+```
+
+**Permanent fix (in ~/.bashrc)**:
+```bash
+ARCH_DIR=$(gcc -print-multiarch 2>/dev/null || echo "x86_64-linux-gnu")
+export LD_PRELOAD=/lib/${ARCH_DIR}/libmvec.so.1:/lib/${ARCH_DIR}/libm.so.6${LD_PRELOAD:+:$LD_PRELOAD}
+```
+
+**CI Build fix**: The GitHub Actions workflow uses portable `-march` flags (x86-64-v2 for x86_64, armv8-a for ARM64) and explicitly links `-lmvec -lm` (when available) to avoid this issue in future releases.
 
 ### Sequential atdyn runs cause segfaults
 
