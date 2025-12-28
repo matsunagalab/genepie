@@ -143,10 +143,11 @@ jobs:
             /bin/bash -c '
               set -e
               # Install build dependencies
-              # Use gcc-toolset-14 for consistent compiler versions
-              yum install -y gcc-toolset-14-gcc-gfortran lapack-devel blas-devel autoconf automake libtool
+              # Use gcc-toolset-14 for consistent compiler versions (gcc + gfortran)
+              yum install -y gcc-toolset-14-gcc gcc-toolset-14-gcc-gfortran lapack-devel blas-devel autoconf automake libtool
               # Enable gcc-toolset-14
               source /opt/rh/gcc-toolset-14/enable
+              echo "Using GCC from: $(which gcc)"
               gfortran --version
               gcc --version
 
@@ -155,9 +156,10 @@ jobs:
 
               # Configure GENESIS for ARM64
               # Disable vectorization to avoid libmvec issues
+              # Note: Don't specify -lmvec in LDFLAGS - let configure.ac detect it via AC_CHECK_LIB
               ./configure --disable-mpi CC=gcc FC=gfortran \
                 FCFLAGS="-O2 -march=armv8-a -fno-tree-vectorize -fno-tree-loop-vectorize -fno-tree-slp-vectorize -ffree-line-length-none -fallow-argument-mismatch -fopenmp -fPIC" \
-                LDFLAGS="-fopenmp -lmvec -lm" \
+                LDFLAGS="-fopenmp" \
                 LAPACK_LIBS="-llapack -lblas"
 
               # Build GENESIS
