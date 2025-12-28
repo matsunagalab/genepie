@@ -155,15 +155,16 @@ jobs:
               autoreconf -fi
 
               # Configure GENESIS for ARM64
-              # Disable vectorization to avoid libmvec issues
-              # Note: Don't specify -lmvec in LDFLAGS - let configure.ac detect it via AC_CHECK_LIB
+              # Note: configure.ac may override FCFLAGS, so we pass them to make as well
+              FCFLAGS_ARM64="-O2 -march=armv8-a -fno-tree-vectorize -fno-tree-loop-vectorize -fno-tree-slp-vectorize -ffree-line-length-none -fallow-argument-mismatch -fopenmp -fPIC"
               ./configure --disable-mpi CC=gcc FC=gfortran \
-                FCFLAGS="-O2 -march=armv8-a -fno-tree-vectorize -fno-tree-loop-vectorize -fno-tree-slp-vectorize -ffree-line-length-none -fallow-argument-mismatch -fopenmp -fPIC" \
-                LDFLAGS="-fopenmp" \
-                LAPACK_LIBS="-llapack -lblas"
+                FCFLAGS="${FCFLAGS_ARM64}" \
+                CFLAGS="-O2 -march=armv8-a -fno-tree-vectorize -fPIC" \
+                LDFLAGS="-fopenmp -L/usr/lib64" \
+                LAPACK_LIBS="-L/usr/lib64 -llapack -lblas"
 
-              # Build GENESIS
-              make -j$(nproc)
+              # Build GENESIS - override FCFLAGS to ensure ARM64 flags are used
+              make -j$(nproc) FCFLAGS="${FCFLAGS_ARM64}"
               make install
 
               # Verify library dependencies
