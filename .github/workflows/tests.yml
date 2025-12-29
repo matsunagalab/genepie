@@ -1,0 +1,117 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gfortran liblapack-dev libblas-dev
+
+      - name: Build GENESIS
+        run: |
+          autoreconf -fi
+          ./configure --disable-mpi
+          make -j$(nproc)
+          make install
+
+      - name: Install Python package
+        run: |
+          pip install -e .
+
+      - name: Run basic tests
+        run: |
+          python -m genepie.tests.test_rmsd
+          python -m genepie.tests.test_rg
+          python -m genepie.tests.test_drms
+          python -m genepie.tests.test_crd_convert
+          python -m genepie.tests.test_avecrd
+
+      - name: Run regression tests
+        run: |
+          python -m genepie.tests.test_trj
+          python -m genepie.tests.test_wham
+          python -m genepie.tests.test_mbar_1d
+          python -m genepie.tests.test_mbar_block
+          python -m genepie.tests.test_hb_atom
+          python -m genepie.tests.test_hb_snap
+          python -m genepie.tests.test_kmeans
+          python -m genepie.tests.test_msd
+          python -m genepie.tests.test_diffusion
+
+      - name: Run error handling tests
+        run: |
+          python -m genepie.tests.test_error_handling
+
+      - name: Run ATDYN tests
+        run: |
+          python -m genepie.tests.test_atdyn
+
+  build-and-test-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          brew install gcc lapack autoconf automake libtool
+
+      - name: Build GENESIS
+        run: |
+          autoreconf -fi
+          GCC=$(ls $(brew --prefix)/bin/gcc-* | grep -E 'gcc-[0-9]+$' | sort -V | tail -1)
+          ./configure --disable-mpi CC="$GCC" FC=gfortran \
+            LAPACK_LIBS="-L$(brew --prefix lapack)/lib -llapack -lblas"
+          make -j$(sysctl -n hw.ncpu)
+          make install
+
+      - name: Install Python package
+        run: |
+          pip install -e .
+
+      - name: Run basic tests
+        run: |
+          python -m genepie.tests.test_rmsd
+          python -m genepie.tests.test_rg
+          python -m genepie.tests.test_drms
+          python -m genepie.tests.test_crd_convert
+          python -m genepie.tests.test_avecrd
+
+      - name: Run regression tests
+        run: |
+          python -m genepie.tests.test_trj
+          python -m genepie.tests.test_wham
+          python -m genepie.tests.test_mbar_1d
+          python -m genepie.tests.test_mbar_block
+          python -m genepie.tests.test_hb_atom
+          python -m genepie.tests.test_hb_snap
+          python -m genepie.tests.test_kmeans
+          python -m genepie.tests.test_msd
+          python -m genepie.tests.test_diffusion
+
+      - name: Run error handling tests
+        run: |
+          python -m genepie.tests.test_error_handling
+
+      - name: Run ATDYN tests
+        run: |
+          python -m genepie.tests.test_atdyn
