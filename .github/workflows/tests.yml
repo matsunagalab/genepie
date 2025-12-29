@@ -24,7 +24,10 @@ jobs:
       - name: Build GENESIS
         run: |
           autoreconf -fi
-          ./configure --disable-mpi CC=gcc FC=gfortran LAPACK_LIBS="-llapack -lblas"
+          # Link libmvec explicitly to resolve vectorized math symbols (_ZGVbN2v_exp, etc.)
+          ./configure --disable-mpi CC=gcc FC=gfortran \
+            LAPACK_LIBS="-llapack -lblas" \
+            LDFLAGS="-lmvec -lm"
           make -j$(nproc)
           make install
 
