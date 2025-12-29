@@ -25,7 +25,7 @@ jobs:
       - name: Build GENESIS
         run: |
           autoreconf -fi
-          ./configure --disable-mpi
+          ./configure --disable-mpi LAPACK_LIBS="-llapack -lblas"
           make -j$(nproc)
           make install
 
@@ -74,6 +74,13 @@ jobs:
       - name: Install dependencies
         run: |
           brew install gcc lapack autoconf automake libtool
+          # Create symlink for gfortran (Homebrew installs versioned, e.g., gfortran-14 or gfortran-15)
+          GFORTRAN=$(ls $(brew --prefix)/bin/gfortran-* 2>/dev/null | sort -V | tail -1)
+          if [ -n "$GFORTRAN" ]; then
+            sudo ln -sf "$GFORTRAN" /usr/local/bin/gfortran
+            echo "Linked gfortran: $GFORTRAN"
+          fi
+          gfortran --version
 
       - name: Build GENESIS
         run: |
