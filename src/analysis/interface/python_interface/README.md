@@ -26,8 +26,8 @@ wget
 Download GENESIS code from GitHub and switch to the working branch `python_interface`.
 
 ```
-$ git clone https://github.com/matsunagalab/genesis.git
-$ cd genesis/
+$ git clone https://github.com/matsunagalab/genepie.git
+$ cd genepie/
 $ git checkout python_interface
 ```
 

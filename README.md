@@ -114,8 +114,8 @@ energies, coords = genesis_exe.run_atdyn_md(
 
 ```bash
 # Clone repository
-git clone https://github.com/matsunagalab/genesis.git
-cd genesis
+git clone https://github.com/matsunagalab/genepie.git
+cd genepie
 
 # Set up Python environment with uv
 uv venv --python=python3.11
@@ -175,7 +175,7 @@ python -m genepie.tests.test_atdyn
 ### Project Structure
 
 ```
-genesis/
+genepie/
 ├── src/
 │   ├── genepie/           # Python interface (main package)
 │   │   ├── genesis_exe.py # Analysis function wrappers

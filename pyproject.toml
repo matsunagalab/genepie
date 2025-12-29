@@ -122,9 +122,9 @@ rpath_generator = "genepie.cli:run_rpath_generator"
 
 [project.urls]
 Homepage = "https://www.r-ccs.riken.jp/labs/cbrt/"
-Repository = "https://github.com/genesis-release-r-ccs/genesis"
+Repository = "https://github.com/matsunagalab/genepie"
 Documentation = "https://www.r-ccs.riken.jp/labs/cbrt/genesis/"
-"Bug Tracker" = "https://github.com/genesis-release-r-ccs/genesis/issues"
+"Bug Tracker" = "https://github.com/matsunagalab/genepie/issues"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
