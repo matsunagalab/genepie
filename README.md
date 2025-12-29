@@ -172,6 +172,90 @@ python -m genepie.tests.test_mbar_block
 python -m genepie.tests.test_atdyn
 ```
 
+### Developer Workflow
+
+#### 1. Local Development Cycle
+
+| Step | Action | Notes |
+|------|--------|-------|
+| 1 | Edit code | Python: instant; Fortran: requires `make` |
+| 2 | Run tests | See testing strategy below |
+| 3 | Commit changes | Use descriptive commit messages |
+| 4 | Push to branch | Create feature branch from main |
+| 5 | Create PR | Target: main branch |
+
+#### 2. Rebuilding After Changes
+
+| Change Type | Required Action |
+|-------------|-----------------|
+| Python files (.py) | No rebuild needed |
+| Fortran files (.fpp) | `make` |
+| New Fortran files | `make clean && make` |
+| configure.ac changes | `autoreconf -fi && ./configure ... && make` |
+
+#### 3. Testing Strategy
+
+| Change Type | Tests to Run |
+|-------------|--------------|
+| Python API changes | Basic tests + `test_integration` |
+| Fortran interface | All tests including regression tests |
+| Bug fixes | Relevant test + add new regression test |
+| New analysis function | Create `test_<name>.py` + add to `all_run.sh` |
+
+#### 4. Pull Request Process
+
+1. Push changes to a feature branch
+2. Create PR targeting `main` branch
+3. GitHub Actions automatically builds wheels for all platforms
+4. Review CI build results (Linux x86_64, macOS arm64, macOS x86_64)
+5. Merge after approval and CI passes
+
+#### 5. Release Workflow
+
+```
+Feature Branch → PR → main → TestPyPI (optional) → Tag → PyPI
+```
+
+**Step 1: Test on TestPyPI (optional but recommended)**
+
+```bash
+# Trigger manually via GitHub Actions UI:
+# Actions → "Build and publish wheels" → Run workflow (workflow_dispatch)
+
+# Then test the package:
+pip install --index-url https://test.pypi.org/simple/ \
+    --extra-index-url https://pypi.org/simple/ genepie
+python -c "import genepie; print(genepie.__version__)"
+```
+
+**Step 2: Release to PyPI**
+
+```bash
+# 1. Update version in pyproject.toml
+# 2. Commit the version bump
+git add pyproject.toml
+git commit -m "Bump version to 0.1.x"
+git push origin main
+
+# 3. Create and push version tag
+git tag v0.1.x
+git push origin v0.1.x
+# GitHub Actions automatically builds and publishes to PyPI
+```
+
+#### 6. CI/CD Pipeline Overview
+
+| Trigger | Action | Result |
+|---------|--------|--------|
+| PR to main | Build all platforms | Verify builds succeed |
+| `workflow_dispatch` | Build + publish | TestPyPI release |
+| Push tag `v*` | Build + publish | PyPI release |
+
+**Build Platforms:**
+- Linux x86_64 (manylinux_2_28)
+- macOS arm64 (Apple Silicon)
+- macOS x86_64 (Intel)
+
 ### Project Structure
 
 ```
