@@ -13,11 +13,15 @@ The `genepie` package provides a Python interface to GENESIS analysis tools and 
 ### Installation
 
 ```bash
+# Create virtual environment with uv
+uv venv --python=python3.11
+source .venv/bin/activate
+
 # From PyPI (coming soon)
-pip install genepie
+uv pip install genepie
 
 # Currently available from TestPyPI:
-pip install -i https://test.pypi.org/simple/ genepie
+uv pip install -i https://test.pypi.org/simple/ genepie
 ```
 
 **Requirements:**
@@ -38,7 +42,7 @@ cd $(python -c "import genepie; from pathlib import Path; print(Path(genepie.__f
 ./all_run.sh
 
 # Integration tests (requires ~500 MB download)
-pip install gdown mdtraj MDAnalysis
+uv pip install gdown mdtraj MDAnalysis
 python -m genepie.tests.download_test_data
 python -m genepie.tests.test_integration
 ```
