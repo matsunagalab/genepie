@@ -381,6 +381,15 @@ tests/regression_test/             # Reference data for regression tests (source
 - **Regression tests** (test_trj, test_wham, test_mbar_*, test_atdyn): Compare against reference values, require source repo
 - **Integration tests** (test_integration): Comprehensive tests, require chignolin download
 
+### Testing Strategy
+
+| Change Type | Tests to Run |
+|-------------|--------------|
+| Python API changes | Basic tests + `test_integration` |
+| Fortran interface | All tests including regression tests |
+| Bug fixes | Relevant test + add new regression test |
+| New analysis function | Create `test_<name>.py` + add to `all_run.sh` |
+
 ### Running Tests
 
 ```bash
