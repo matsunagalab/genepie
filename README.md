@@ -25,6 +25,24 @@ pip install -i https://test.pypi.org/simple/ genepie
 - Linux (x86_64) or macOS (arm64, x86_64)
 - glibc 2.28+ for Linux (Ubuntu 20.04+)
 
+### Testing Your Installation
+
+```bash
+# Run individual tests
+python -m genepie.tests.test_rmsd
+python -m genepie.tests.test_crd_convert
+python -m genepie.tests.test_trj
+
+# Run all basic tests (18 tests)
+cd $(python -c "import genepie; from pathlib import Path; print(Path(genepie.__file__).parent / 'tests')")
+./all_run.sh
+
+# Integration tests (requires ~500 MB download)
+pip install gdown mdtraj MDAnalysis
+python -m genepie.tests.download_test_data
+python -m genepie.tests.test_integration
+```
+
 ### Quick Start
 
 ```python
@@ -52,17 +70,6 @@ energies, coords = genesis_exe.run_atdyn_md(
     ensemble="NVT",
     temperature=300.0,
 )
-```
-
-### Testing Your Installation
-
-Run basic tests to verify the installation:
-
-```bash
-python -m genepie.tests.test_rmsd
-python -m genepie.tests.test_crd_convert
-python -m genepie.tests.test_trj
-python -m genepie.tests.test_rg
 ```
 
 ### Available Analysis Functions
@@ -106,62 +113,52 @@ python -m genepie.tests.test_rg
 git clone https://github.com/matsunagalab/genesis.git
 cd genesis
 
-# Set up Python environment
-python -m venv .venv
+# Set up Python environment with uv
+uv venv --python=python3.11
 source .venv/bin/activate
-pip install numpy
+uv pip install numpy
 
-# Build GENESIS (requires gfortran)
+# Install build dependencies
+# Linux (Ubuntu/Debian):
+#   sudo apt install gfortran liblapack-dev libblas-dev autoconf automake libtool
+# macOS:
+#   brew install gcc lapack autoconf automake libtool
+
+# Build GENESIS
 autoreconf -fi
-./configure --disable-mpi CC=gcc FC=gfortran
-make -j$(nproc)
 
-# Install in editable mode
-pip install -e .
-```
+# Linux:
+./configure --disable-mpi CC=gcc FC=gfortran LAPACK_LIBS="-llapack -lblas"
 
-**macOS additional steps:**
-
-```bash
-# Install dependencies via Homebrew
-brew install gcc lapack autoconf automake libtool
-
-# Configure with Homebrew paths
+# macOS:
 ./configure --disable-mpi CC=gcc-14 FC=gfortran \
     LAPACK_LIBS="-L$(brew --prefix lapack)/lib -llapack -lblas"
+
+make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+
+# Install in editable mode
+uv pip install -e .
 ```
 
 ### Running Tests
 
 ```bash
-# Run basic tests (18 tests)
-cd src/genepie/tests
-./all_run.sh
-
-# Or run individual tests
+# Run individual tests
 python -m genepie.tests.test_rmsd
 python -m genepie.tests.test_crd_convert
 python -m genepie.tests.test_wham
-```
 
-**Integration tests (requires additional data download):**
+# Run all basic tests (18 tests)
+cd src/genepie/tests
+./all_run.sh
 
-```bash
-# Download chignolin test data (~500 MB)
+# Integration tests (requires ~500 MB download)
+uv pip install gdown mdtraj MDAnalysis
 python -m genepie.tests.download_test_data
+python -m genepie.tests.test_integration    # 42 tests
 
-# Run integration tests (42 tests)
-python -m genepie.tests.test_integration
-
-# Run error handling tests (64 tests)
-python -m genepie.tests.test_error_handling
-```
-
-**Optional dependencies for full test coverage:**
-
-```bash
-pip install mdtraj MDAnalysis  # For integration tests
-pip install gdown              # For downloading test data
+# Error handling tests
+python -m genepie.tests.test_error_handling # 64 tests
 ```
 
 ### Project Structure
@@ -178,6 +175,20 @@ genesis/
 ├── CLAUDE.md              # Developer guide for Claude Code
 └── pyproject.toml         # Package configuration
 ```
+
+### Adding a New Analysis Tool
+
+**1. Fortran side** (`src/analysis/interface/python_interface/`):
+- Create `*_c_mod.fpp` with `bind(C)` interface wrapping GENESIS routines
+- Create `*_impl.fpp` for analysis implementation (or reuse existing code)
+- Update `Makefile.am` to include new `.fpp` files
+
+**2. Python side** (`src/genepie/`):
+- Add function signature to `libgenesis.py`
+- Create wrapper function in `genesis_exe.py`
+- Add test as `tests/test_<name>.py`
+
+See [CLAUDE.md](CLAUDE.md) for detailed instructions.
 
 ---
 
