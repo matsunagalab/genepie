@@ -109,6 +109,7 @@ module s_molecule_c_mod
 
   public :: f2c_s_molecule
   public :: c2f_s_molecule
+  public :: c2f_s_molecule_ptr
   public :: deallocate_s_molecule_c
 
 contains
@@ -338,6 +339,48 @@ contains
     call c2f_int_array_static(f_dst%fepgrp_cmap, c_src%fepgrp_cmap, [5*5*5*5*5*5*5*5])
   end subroutine c2f_s_molecule
 
+  ! コピーなし変換: C_F_POINTERでビューを作成
+  ! Python側がメモリを所有し、Fortranはビューとしてアクセス
+  subroutine c2f_s_molecule_ptr(c_src, f_dst)
+    use, intrinsic :: iso_c_binding
+    use constants_mod, only: wp
+    implicit none
+    type(s_molecule_c), intent(in) :: c_src
+    type(s_molecule_ptr), intent(out) :: f_dst
+
+    ! スカラー値をコピー
+    f_dst%num_atoms = c_src%num_atoms
+    f_dst%num_bonds = c_src%num_bonds
+
+    ! ポインタをnull初期化
+    nullify(f_dst%mass)
+    nullify(f_dst%atom_coord)
+    nullify(f_dst%atom_no)
+    nullify(f_dst%residue_no)
+    nullify(f_dst%bond_list)
+
+    ! C_F_POINTERでビューを作成（コピーなし）
+    if (c_associated(c_src%mass) .and. c_src%num_atoms > 0) then
+      call C_F_POINTER(c_src%mass, f_dst%mass, [c_src%num_atoms])
+    end if
+
+    if (c_associated(c_src%atom_coord) .and. c_src%num_atoms > 0) then
+      call C_F_POINTER(c_src%atom_coord, f_dst%atom_coord, [3, c_src%num_atoms])
+    end if
+
+    if (c_associated(c_src%atom_no) .and. c_src%num_atoms > 0) then
+      call C_F_POINTER(c_src%atom_no, f_dst%atom_no, [c_src%num_atoms])
+    end if
+
+    if (c_associated(c_src%residue_no) .and. c_src%num_atoms > 0) then
+      call C_F_POINTER(c_src%residue_no, f_dst%residue_no, [c_src%num_atoms])
+    end if
+
+    if (c_associated(c_src%bond_list) .and. c_src%num_bonds > 0) then
+      call C_F_POINTER(c_src%bond_list, f_dst%bond_list, [2, c_src%num_bonds])
+    end if
+  end subroutine c2f_s_molecule_ptr
+
   subroutine deallocate_s_molecule_c(self) &
       bind(C, name="deallocate_s_molecule_c")
     use, intrinsic :: iso_c_binding
@@ -355,214 +398,267 @@ contains
     if (c_associated(self%atom_no)) then
       call C_F_pointer(self%atom_no, work_int, [self%num_atoms])
       deallocate(work_int)
+      self%atom_no = c_null_ptr
     end if
     if (c_associated(self%segment_name)) then
       call C_F_pointer(self%segment_name, work_int2, [4, self%num_atoms])
       deallocate(work_int2)
+      self%segment_name = c_null_ptr
     end if
     if (c_associated(self%segment_no)) then
       call C_F_pointer(self%segment_no, work_int, [self%num_atoms])
       deallocate(work_int)
+      self%segment_no = c_null_ptr
     end if
     if (c_associated(self%residue_no)) then
       call C_F_pointer(self%residue_no, work_int, [self%num_atoms])
       deallocate(work_int)
+      self%residue_no = c_null_ptr
     end if
     if (c_associated(self%residue_c_no)) then
       call C_F_pointer(self%residue_c_no, work_int, [self%num_atoms])
       deallocate(work_int)
+      self%residue_c_no = c_null_ptr
     end if
     if (c_associated(self%residue_name)) then
       call C_F_pointer(self%residue_name, work_string, [6, self%num_atoms])
       deallocate(work_string)
+      self%residue_name = c_null_ptr
     end if
     if (c_associated(self%atom_name)) then
       call C_F_pointer(self%atom_name, work_string, [4, self%num_atoms])
       deallocate(work_string)
+      self%atom_name = c_null_ptr
     end if
     if (c_associated(self%atom_cls_name)) then
       call C_F_pointer(self%atom_cls_name, work_string, [6, self%num_atoms])
       deallocate(work_string)
+      self%atom_cls_name = c_null_ptr
     end if
     if (c_associated(self%atom_cls_no)) then
       call C_F_pointer(self%atom_cls_no, work_int, [self%num_atoms])
       deallocate(work_int)
+      self%atom_cls_no = c_null_ptr
     end if
     if (c_associated(self%charge)) then
       call C_F_pointer(self%charge, work_double, [self%num_atoms])
       deallocate(work_double)
+      self%charge = c_null_ptr
     end if
     if (c_associated(self%mass)) then
       call C_F_pointer(self%mass, work_double, [self%num_atoms])
       deallocate(work_double)
+      self%mass = c_null_ptr
     end if
     if (c_associated(self%inv_mass)) then
       call C_F_pointer(self%inv_mass, work_double, [self%num_atoms])
       deallocate(work_double)
+      self%inv_mass = c_null_ptr
     end if
     if (c_associated(self%imove)) then
       call C_F_pointer(self%imove, work_int, [self%num_atoms])
       deallocate(work_int)
+      self%imove = c_null_ptr
     end if
     if (c_associated(self%stokes_radius)) then
       call C_F_pointer(self%stokes_radius, work_double, [self%num_atoms])
       deallocate(work_double)
+      self%stokes_radius = c_null_ptr
     end if
     if (c_associated(self%inv_stokes_radius)) then
       call C_F_pointer(self%inv_stokes_radius, work_double, [self%num_atoms])
       deallocate(work_double)
+      self%inv_stokes_radius = c_null_ptr
     end if
     if (c_associated(self%chain_id)) then
       call C_F_pointer(self%chain_id, work_string, [1, self%num_atoms])
       deallocate(work_string)
+      self%chain_id = c_null_ptr
     end if
     if (c_associated(self%atom_coord)) then
       call C_F_pointer(self%atom_coord, work_double2, [3, self%num_atoms])
       deallocate(work_double2)
+      self%atom_coord = c_null_ptr
     end if
     if (c_associated(self%atom_occupancy)) then
       call C_F_pointer(self%atom_occupancy, work_double, [self%num_atoms])
       deallocate(work_double)
+      self%atom_occupancy = c_null_ptr
     end if
     if (c_associated(self%atom_temp_factor)) then
       call C_F_pointer(self%atom_temp_factor, work_double, [self%num_atoms])
       deallocate(work_double)
+      self%atom_temp_factor = c_null_ptr
     end if
     if (c_associated(self%atom_velocity)) then
       call C_F_pointer(self%atom_velocity, work_double2, [3, self%num_atoms])
       deallocate(work_double2)
+      self%atom_velocity = c_null_ptr
     end if
     if (c_associated(self%light_atom_name)) then
       call C_F_pointer(self%light_atom_name, work_bool, [self%num_atoms])
       deallocate(work_bool)
+      self%light_atom_name = c_null_ptr
     end if
     if (c_associated(self%light_atom_mass)) then
       call C_F_pointer(self%light_atom_mass, work_bool, [self%num_atoms])
       deallocate(work_bool)
+      self%light_atom_mass = c_null_ptr
     end if
     if (c_associated(self%molecule_no)) then
       call C_F_pointer(self%molecule_no, work_int, [self%num_atoms])
       deallocate(work_int)
+      self%molecule_no = c_null_ptr
     end if
     if (c_associated(self%bond_list)) then
       call C_F_pointer(self%bond_list, work_int2, [2, self%num_bonds])
       deallocate(work_int2)
+      self%bond_list = c_null_ptr
     end if
     if (c_associated(self%enm_list)) then
       call C_F_pointer(self%enm_list, work_int2, [2, self%num_enm_bonds])
       deallocate(work_int2)
+      self%enm_list = c_null_ptr
     end if
     if (c_associated(self%angl_list)) then
       call C_F_pointer(self%angl_list, work_int2, [3, self%num_angles])
       deallocate(work_int2)
+      self%angl_list = c_null_ptr
     end if
     if (c_associated(self%dihe_list)) then
       call C_F_pointer(self%dihe_list, work_int2, [4, self%num_dihedrals])
       deallocate(work_int2)
+      self%dihe_list = c_null_ptr
     end if
     if (c_associated(self%impr_list)) then
       call C_F_pointer(self%impr_list, work_int2, [4, self%num_impropers])
       deallocate(work_int2)
+      self%impr_list = c_null_ptr
     end if
     if (c_associated(self%cmap_list)) then
       call C_F_pointer(self%cmap_list, work_int2, [8, self%num_cmaps])
       deallocate(work_int2)
+      self%cmap_list = c_null_ptr
     end if
     if (c_associated(self%molecule_atom_no)) then
       call C_F_pointer(self%molecule_atom_no, work_int, [self%num_molecules])
       deallocate(work_int)
+      self%molecule_atom_no = c_null_ptr
     end if
     if (c_associated(self%molecule_mass)) then
       call C_F_pointer(self%molecule_mass, work_double, [self%num_molecules])
       deallocate(work_double)
+      self%molecule_mass = c_null_ptr
     end if
     if (c_associated(self%molecule_name)) then
       call C_F_pointer(self%molecule_name, work_string, [10, self%num_molecules])
       deallocate(work_string)
+      self%molecule_name = c_null_ptr
     end if
     if (c_associated(self%atom_refcoord)) then
       call C_F_pointer(self%atom_refcoord, work_double2, [3, self%num_atoms])
       deallocate(work_double2)
+      self%atom_refcoord = c_null_ptr
     end if
     if (c_associated(self%atom_fitcoord)) then
       call C_F_pointer(self%atom_fitcoord, work_double2, [3, self%num_atoms])
       deallocate(work_double2)
+      self%atom_fitcoord = c_null_ptr
     end if
     if (c_associated(self%pc_mode)) then
       call C_F_pointer(self%pc_mode, work_double, [self%num_pc_modes])
       deallocate(work_double)
+      self%pc_mode = c_null_ptr
     end if
     if (c_associated(self%num_atoms_fep)) then
       call C_F_pointer(self%num_atoms_fep, work_int, [5])
       deallocate(work_int)
+      self%num_atoms_fep = c_null_ptr
     end if
     if (c_associated(self%num_bonds_fep)) then
       call C_F_pointer(self%num_bonds_fep, work_int, [5])
       deallocate(work_int)
+      self%num_bonds_fep = c_null_ptr
     end if
     if (c_associated(self%num_angles_fep)) then
       call C_F_pointer(self%num_angles_fep, work_int, [5])
       deallocate(work_int)
+      self%num_angles_fep = c_null_ptr
     end if
     if (c_associated(self%num_dihedrals_fep)) then
       call C_F_pointer(self%num_dihedrals_fep, work_int, [5])
       deallocate(work_int)
+      self%num_dihedrals_fep = c_null_ptr
     end if
     if (c_associated(self%num_impropers_fep)) then
       call C_F_pointer(self%num_impropers_fep, work_int, [5])
       deallocate(work_int)
+      self%num_impropers_fep = c_null_ptr
     end if
     if (c_associated(self%num_cmaps_fep)) then
       call C_F_pointer(self%num_cmaps_fep, work_int, [5])
       deallocate(work_int)
+      self%num_cmaps_fep = c_null_ptr
     end if
     if (c_associated(self%bond_list_fep)) then
       call C_F_pointer(self%bond_list_fep, work_int3, [2, self%nbnd_fep_max, 5])
       deallocate(work_int3)
+      self%bond_list_fep = c_null_ptr
     end if
     if (c_associated(self%angl_list_fep)) then
       call C_F_pointer(self%angl_list_fep, work_int3, [3, self%nangl_fep_max, 5])
       deallocate(work_int3)
+      self%angl_list_fep = c_null_ptr
     end if
     if (c_associated(self%dihe_list_fep)) then
       call C_F_pointer(self%dihe_list_fep, work_int3, [4, self%ndihe_fep_max, 5])
       deallocate(work_int3)
+      self%dihe_list_fep = c_null_ptr
     end if
     if (c_associated(self%impr_list_fep)) then
       call C_F_pointer(self%impr_list_fep, work_int3, [4, self%nimpr_fep_max, 5])
       deallocate(work_int3)
+      self%impr_list_fep = c_null_ptr
     end if
     if (c_associated(self%cmap_list_fep)) then
       call C_F_pointer(self%cmap_list_fep, work_int3, [8, self%ncmap_fep_max, 5])
       deallocate(work_int3)
+      self%cmap_list_fep = c_null_ptr
     end if
     if (c_associated(self%id_singleA)) then
       call C_F_pointer(self%id_singleA, work_int, [self%size_id_singleA])
       deallocate(work_int)
+      self%id_singleA = c_null_ptr
     end if
     if (c_associated(self%id_singleB)) then
       call C_F_pointer(self%id_singleB, work_int, [self%size_id_singleB])
       deallocate(work_int)
+      self%id_singleB = c_null_ptr
     end if
     if (c_associated(self%fepgrp)) then
       call C_F_pointer(self%fepgrp, work_int, [self%size_fepgrp])
       deallocate(work_int)
+      self%fepgrp = c_null_ptr
     end if
     if (c_associated(self%fepgrp_bond)) then
       call C_F_pointer(self%fepgrp_bond, work_int2, [5, 5])
       deallocate(work_int2)
+      self%fepgrp_bond = c_null_ptr
     end if
     if (c_associated(self%fepgrp_angl)) then
       call C_F_pointer(self%fepgrp_angl, work_int3, [5, 5, 5])
       deallocate(work_int3)
+      self%fepgrp_angl = c_null_ptr
     end if
     if (c_associated(self%fepgrp_dihe)) then
       call C_F_pointer(self%fepgrp_dihe, work_int4, [5, 5, 5, 5])
       deallocate(work_int4)
+      self%fepgrp_dihe = c_null_ptr
     end if
     if (c_associated(self%fepgrp_cmap)) then
       call C_F_pointer(self%fepgrp_cmap, work_int, [5*5*5*5*5*5*5*5])
       deallocate(work_int)
+      self%fepgrp_cmap = c_null_ptr
     end if
   end subroutine deallocate_s_molecule_c
 
