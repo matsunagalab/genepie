@@ -211,6 +211,61 @@ class LibGenesis:
                 ]
         self.lib.trj_analysis_zerocopy_com_c.restype = None
 
+        # trj_analysis_zerocopy_full_com_c - trajectory analysis with COM (full zerocopy)
+        self.lib.trj_analysis_zerocopy_full_com_c.argtypes = [
+                ctypes.c_void_p,                  # mass_ptr
+                ctypes.c_int,                     # n_atoms
+                ctypes.POINTER(STrajectoriesC),   # s_trajes_c
+                ctypes.c_int,                     # ana_period
+                # Atom-based measurements
+                ctypes.c_void_p,                  # dist_list_ptr
+                ctypes.c_int,                     # n_dist
+                ctypes.c_void_p,                  # angl_list_ptr
+                ctypes.c_int,                     # n_angl
+                ctypes.c_void_p,                  # tors_list_ptr
+                ctypes.c_int,                     # n_tors
+                # COM distance
+                ctypes.c_void_p,                  # cdis_atoms_ptr
+                ctypes.c_int,                     # n_cdis_atoms
+                ctypes.c_void_p,                  # cdis_offsets_ptr
+                ctypes.c_int,                     # n_cdis_offsets
+                ctypes.c_void_p,                  # cdis_pairs_ptr
+                ctypes.c_int,                     # n_cdis
+                # COM angle
+                ctypes.c_void_p,                  # cang_atoms_ptr
+                ctypes.c_int,                     # n_cang_atoms
+                ctypes.c_void_p,                  # cang_offsets_ptr
+                ctypes.c_int,                     # n_cang_offsets
+                ctypes.c_void_p,                  # cang_triplets_ptr
+                ctypes.c_int,                     # n_cang
+                # COM torsion
+                ctypes.c_void_p,                  # ctor_atoms_ptr
+                ctypes.c_int,                     # n_ctor_atoms
+                ctypes.c_void_p,                  # ctor_offsets_ptr
+                ctypes.c_int,                     # n_ctor_offsets
+                ctypes.c_void_p,                  # ctor_quads_ptr
+                ctypes.c_int,                     # n_ctor
+                # Pre-allocated output arrays
+                ctypes.c_void_p,                  # dist_ptr
+                ctypes.c_int,                     # dist_size
+                ctypes.c_void_p,                  # angl_ptr
+                ctypes.c_int,                     # angl_size
+                ctypes.c_void_p,                  # tors_ptr
+                ctypes.c_int,                     # tors_size
+                ctypes.c_void_p,                  # cdis_result_ptr
+                ctypes.c_int,                     # cdis_size
+                ctypes.c_void_p,                  # cang_result_ptr
+                ctypes.c_int,                     # cang_size
+                ctypes.c_void_p,                  # ctor_result_ptr
+                ctypes.c_int,                     # ctor_size
+                # Output
+                ctypes.POINTER(ctypes.c_int),     # nstru_out
+                ctypes.POINTER(ctypes.c_int),     # status
+                ctypes.c_char_p,                  # msg
+                ctypes.c_int,                     # msglen
+                ]
+        self.lib.trj_analysis_zerocopy_full_com_c.restype = None
+
         self.lib.rg_analysis_c.argtypes = [
                 ctypes.POINTER(SMoleculeC),
                 ctypes.POINTER(STrajectoriesC),

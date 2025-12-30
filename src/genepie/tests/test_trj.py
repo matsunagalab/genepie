@@ -133,6 +133,50 @@ class TestTrjAnalysis(CustomTestCase):
             self.assertTrue(np.all(np.isfinite(result.cdis)))
             self.assertTrue(np.all(np.isfinite(result.cang)))
 
+    def test_a_trj_analysis_zerocopy_full_com(self):
+        """Test trj_analysis_zerocopy_full_com (pre-allocated result arrays with COM)."""
+        trajs, mol = self.create_traj_by_genesis(
+                self.TRJ_PATH, pdb=self.PDB_PATH, psf=self.PSF_PATH)
+        for t in trajs:
+            # Get atom indices for residues
+            res1_idx = genesis_exe.selection(mol, "rno:1")
+            res2_idx = genesis_exe.selection(mol, "rno:2")
+            res3_idx = genesis_exe.selection(mol, "rno:3")
+
+            # COM distance between residue 1 and residue 2
+            cdis_groups = [
+                (list(res1_idx), list(res2_idx)),
+            ]
+
+            # COM angle between residue 1, 2, and 3
+            cang_groups = [
+                (list(res1_idx), list(res2_idx), list(res3_idx)),
+            ]
+
+            # Run zerocopy version for comparison
+            result_zerocopy = genesis_exe.trj_analysis_zerocopy_com(
+                mol, t,
+                cdis_groups=cdis_groups,
+                cang_groups=cang_groups,
+            )
+
+            # Run zerocopy_full version
+            result_full = genesis_exe.trj_analysis_zerocopy_full_com(
+                mol, t,
+                cdis_groups=cdis_groups,
+                cang_groups=cang_groups,
+            )
+
+            # Verify shapes match
+            self.assertEqual(result_full.cdis.shape, result_zerocopy.cdis.shape)
+            self.assertEqual(result_full.cang.shape, result_zerocopy.cang.shape)
+
+            # Verify values match exactly
+            np.testing.assert_allclose(result_full.cdis, result_zerocopy.cdis,
+                                       rtol=1e-10, atol=1e-10)
+            np.testing.assert_allclose(result_full.cang, result_zerocopy.cang,
+                                       rtol=1e-10, atol=1e-10)
+
 
 if __name__ == "__main__":
     unittest.main()

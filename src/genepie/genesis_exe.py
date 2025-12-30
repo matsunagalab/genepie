@@ -917,6 +917,197 @@ def trj_analysis_zerocopy_com(
         lib.deallocate_trj_results_c()
 
 
+def trj_analysis_zerocopy_full_com(
+        molecule: SMolecule,
+        trajs: STrajectories,
+        distance_pairs: Optional[npt.NDArray[np.int32]] = None,
+        angle_triplets: Optional[npt.NDArray[np.int32]] = None,
+        torsion_quadruplets: Optional[npt.NDArray[np.int32]] = None,
+        cdis_groups: Optional[List[Tuple[List[int], List[int]]]] = None,
+        cang_groups: Optional[List[Tuple[List[int], List[int], List[int]]]] = None,
+        ctor_groups: Optional[List[Tuple[List[int], List[int], List[int], List[int]]]] = None,
+        ana_period: int = 1,
+        ) -> TrjAnalysisZerocopyCOMResult:
+    """
+    Executes trj_analysis with full zerocopy interface including COM calculations.
+
+    This version pre-allocates all result arrays in Python, eliminating all
+    memory copies for both input and output.
+
+    Args:
+        molecule: SMolecule object containing mass information
+        trajs: STrajectories object containing trajectory data
+        distance_pairs: 2D array of shape (n_pairs, 2) with atom index pairs
+                        (1-indexed as in Fortran convention)
+        angle_triplets: 2D array of shape (n_triplets, 3) with atom indices
+        torsion_quadruplets: 2D array of shape (n_quadruplets, 4) with atom indices
+        cdis_groups: List of tuples for COM distance
+        cang_groups: List of tuples for COM angles
+        ctor_groups: List of tuples for COM torsions
+        ana_period: Analysis period (default: 1)
+
+    Returns:
+        TrjAnalysisZerocopyCOMResult with pre-allocated result arrays
+    """
+    lib = LibGenesis().lib
+
+    # Get mass array (zerocopy)
+    mass = molecule.mass.astype(np.float64, copy=False)
+    mass = np.ascontiguousarray(mass)
+    mass_ptr = mass.ctypes.data_as(ctypes.c_void_p)
+    n_atoms = len(mass)
+
+    # Calculate output frame count
+    n_frame = int(trajs.nframe / ana_period)
+
+    # Prepare distance list
+    n_dist = 0
+    dist_ptr = ctypes.c_void_p()
+    if distance_pairs is not None and len(distance_pairs) > 0:
+        n_dist = distance_pairs.shape[0]
+        dist_f = np.asfortranarray(distance_pairs.T, dtype=np.int32)
+        dist_ptr = dist_f.ctypes.data_as(ctypes.c_void_p)
+
+    # Prepare angle list
+    n_angl = 0
+    angl_ptr = ctypes.c_void_p()
+    if angle_triplets is not None and len(angle_triplets) > 0:
+        n_angl = angle_triplets.shape[0]
+        angl_f = np.asfortranarray(angle_triplets.T, dtype=np.int32)
+        angl_ptr = angl_f.ctypes.data_as(ctypes.c_void_p)
+
+    # Prepare torsion list
+    n_tors = 0
+    tors_ptr = ctypes.c_void_p()
+    if torsion_quadruplets is not None and len(torsion_quadruplets) > 0:
+        n_tors = torsion_quadruplets.shape[0]
+        tors_f = np.asfortranarray(torsion_quadruplets.T, dtype=np.int32)
+        tors_ptr = tors_f.ctypes.data_as(ctypes.c_void_p)
+
+    # Prepare COM distance groups
+    n_cdis = 0
+    cdis_atoms = np.array([], dtype=np.int32)
+    cdis_offsets = np.array([0], dtype=np.int32)
+    cdis_pairs = np.array([], dtype=np.int32)
+    if cdis_groups is not None and len(cdis_groups) > 0:
+        n_cdis = len(cdis_groups)
+        cdis_atoms, cdis_offsets, cdis_pairs = _flatten_com_groups(cdis_groups, 2)
+
+    # Prepare COM angle groups
+    n_cang = 0
+    cang_atoms = np.array([], dtype=np.int32)
+    cang_offsets = np.array([0], dtype=np.int32)
+    cang_triplets_arr = np.array([], dtype=np.int32)
+    if cang_groups is not None and len(cang_groups) > 0:
+        n_cang = len(cang_groups)
+        cang_atoms, cang_offsets, cang_triplets_arr = _flatten_com_groups(cang_groups, 3)
+
+    # Prepare COM torsion groups
+    n_ctor = 0
+    ctor_atoms = np.array([], dtype=np.int32)
+    ctor_offsets = np.array([0], dtype=np.int32)
+    ctor_quads = np.array([], dtype=np.int32)
+    if ctor_groups is not None and len(ctor_groups) > 0:
+        n_ctor = len(ctor_groups)
+        ctor_atoms, ctor_offsets, ctor_quads = _flatten_com_groups(ctor_groups, 4)
+
+    # Pre-allocate result arrays (Fortran order: n_measurements x n_frames)
+    result_distance = np.zeros((n_dist, n_frame), dtype=np.float64, order='F') if n_dist > 0 else None
+    result_angle = np.zeros((n_angl, n_frame), dtype=np.float64, order='F') if n_angl > 0 else None
+    result_torsion = np.zeros((n_tors, n_frame), dtype=np.float64, order='F') if n_tors > 0 else None
+    result_cdis = np.zeros((n_cdis, n_frame), dtype=np.float64, order='F') if n_cdis > 0 else None
+    result_cang = np.zeros((n_cang, n_frame), dtype=np.float64, order='F') if n_cang > 0 else None
+    result_ctor = np.zeros((n_ctor, n_frame), dtype=np.float64, order='F') if n_ctor > 0 else None
+
+    # Get pointers for pre-allocated arrays
+    dist_result_ptr = result_distance.ctypes.data_as(ctypes.c_void_p) if result_distance is not None else ctypes.c_void_p()
+    angl_result_ptr = result_angle.ctypes.data_as(ctypes.c_void_p) if result_angle is not None else ctypes.c_void_p()
+    tors_result_ptr = result_torsion.ctypes.data_as(ctypes.c_void_p) if result_torsion is not None else ctypes.c_void_p()
+    cdis_result_ptr = result_cdis.ctypes.data_as(ctypes.c_void_p) if result_cdis is not None else ctypes.c_void_p()
+    cang_result_ptr = result_cang.ctypes.data_as(ctypes.c_void_p) if result_cang is not None else ctypes.c_void_p()
+    ctor_result_ptr = result_ctor.ctypes.data_as(ctypes.c_void_p) if result_ctor is not None else ctypes.c_void_p()
+
+    nstru_out = ctypes.c_int()
+    status = ctypes.c_int()
+    msglen = _DEFAULT_MSG_LEN
+    msg = ctypes.create_string_buffer(msglen)
+
+    with suppress_stdout_capture_stderr() as captured:
+        lib.trj_analysis_zerocopy_full_com_c(
+            mass_ptr,
+            ctypes.c_int(n_atoms),
+            ctypes.byref(trajs.get_c_obj()),
+            ctypes.c_int(ana_period),
+            # Atom-based measurements
+            dist_ptr,
+            ctypes.c_int(n_dist),
+            angl_ptr,
+            ctypes.c_int(n_angl),
+            tors_ptr,
+            ctypes.c_int(n_tors),
+            # COM distance
+            cdis_atoms.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(len(cdis_atoms)),
+            cdis_offsets.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(len(cdis_offsets)),
+            cdis_pairs.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(n_cdis),
+            # COM angle
+            cang_atoms.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(len(cang_atoms)),
+            cang_offsets.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(len(cang_offsets)),
+            cang_triplets_arr.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(n_cang),
+            # COM torsion
+            ctor_atoms.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(len(ctor_atoms)),
+            ctor_offsets.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(len(ctor_offsets)),
+            ctor_quads.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(n_ctor),
+            # Pre-allocated output arrays
+            dist_result_ptr,
+            ctypes.c_int(n_dist * n_frame),
+            angl_result_ptr,
+            ctypes.c_int(n_angl * n_frame),
+            tors_result_ptr,
+            ctypes.c_int(n_tors * n_frame),
+            cdis_result_ptr,
+            ctypes.c_int(n_cdis * n_frame),
+            cang_result_ptr,
+            ctypes.c_int(n_cang * n_frame),
+            ctor_result_ptr,
+            ctypes.c_int(n_ctor * n_frame),
+            # Output
+            ctypes.byref(nstru_out),
+            ctypes.byref(status),
+            msg,
+            ctypes.c_int(msglen),
+        )
+
+    # Check for errors
+    if status.value != 0:
+        error_msg = msg.value.decode('utf-8', errors='replace').strip()
+        stderr_output = captured.stderr if captured else ""
+        raise_fortran_error(status.value, error_msg, stderr_output)
+
+    actual_frames = nstru_out.value
+
+    # Transpose to Python convention (n_frames, n_measurements) and slice
+    final_distance = result_distance.T[:actual_frames] if result_distance is not None else None
+    final_angle = result_angle.T[:actual_frames] if result_angle is not None else None
+    final_torsion = result_torsion.T[:actual_frames] if result_torsion is not None else None
+    final_cdis = result_cdis.T[:actual_frames] if result_cdis is not None else None
+    final_cang = result_cang.T[:actual_frames] if result_cang is not None else None
+    final_ctor = result_ctor.T[:actual_frames] if result_ctor is not None else None
+
+    return TrjAnalysisZerocopyCOMResult(
+        final_distance, final_angle, final_torsion,
+        final_cdis, final_cang, final_ctor
+    )
+
+
 RgAnalysisResult = namedtuple(
         'RgAnalysisResult',
         ['rg'])
