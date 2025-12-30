@@ -250,409 +250,6 @@ TrjAnalysisResult = namedtuple(
          'com_torsion'])
 
 
-def trj_analysis(molecule: SMolecule, trajs: STrajectories,
-                 ana_period: Optional[int] = 1,
-                 selection_group: Optional[Iterable[str]] = None,
-                 selection_mole_name: Optional[Iterable[str]] = None,
-                 check_only: Optional[bool] = None,
-                 distance: Optional[Iterable[str]] = None,
-                 dist_weight: Optional[Iterable[str]] = None,
-                 angle: Optional[Iterable[str]] = None,
-                 torsion: Optional[Iterable[str]] = None,
-                 com_distance: Optional[Iterable[str]] = None,
-                 com_angle: Optional[Iterable[str]] = None,
-                 com_torsion: Optional[Iterable[str]] = None,
-                 ) -> TrjAnalysisResult:
-    """
-    Executes trj_analysis.
-
-    Args:
-        molecule:
-        trajs:
-        ana_period:
-        selection_group:
-        selection_mole_name:
-    Returns:
-        (distance, angle, torsion, cdis, cang, ctor)
-    """
-    num_distance = ctypes.c_int(0)
-    result_distance_c = ctypes.c_void_p(None)
-    num_angle = ctypes.c_int(0)
-    result_angle_c = ctypes.c_void_p(None)
-    num_torsion = ctypes.c_int(0)
-    result_torsion_c = ctypes.c_void_p(None)
-    num_cdis = ctypes.c_int(0)
-    result_cdis_c = ctypes.c_void_p(None)
-    num_cang = ctypes.c_int(0)
-    result_cang_c = ctypes.c_void_p(None)
-    num_ctor = ctypes.c_int(0)
-    result_ctor_c = ctypes.c_void_p(None)
-    ana_period_c = ctypes.c_int(ana_period)
-    mol_c = ctypes.c_void_p(None)
-    try:
-        mol_c = molecule.to_SMoleculeC()
-        ctrl = io.BytesIO()
-        ctrl_files.write_ctrl_output(
-                ctrl,
-                disfile="dummy.dis",
-                angfile="dummy.ang",
-                torfile="dummy.tor",
-                comdisfile="dummy.comdis",
-                comangfile="dummy.comangr",
-                comtorfile="dummy.comtor",
-                qntfile="dummy.qnt",
-                )
-        ctrl_files.write_ctrl_selection(
-                ctrl, selection_group, selection_mole_name)
-        ctrl.write(b"[OPTION]\n")
-        ctrl_files.write_kwargs(
-                ctrl,
-                check_only=check_only,
-                distance=ctrl_files.NumberingData(distance),
-                dist_weight=ctrl_files.NumberingData(dist_weight),
-                angle=ctrl_files.NumberingData(angle),
-                torsion=ctrl_files.NumberingData(torsion),
-                com_distance=ctrl_files.NumberingData(com_distance),
-                com_angle=ctrl_files.NumberingData(com_angle),
-                com_torsion=ctrl_files.NumberingData(com_torsion),
-                )
-
-        ctrl_bytes = ctrl.getvalue()
-        ctrl_len = len(ctrl_bytes)
-        with suppress_stdout_capture_stderr() as captured:
-            LibGenesis().lib.trj_analysis_c(
-                    ctypes.byref(mol_c),
-                    ctypes.byref(trajs.get_c_obj()),
-                    ctypes.byref(ana_period_c),
-                    ctrl_bytes,
-                    ctypes.c_int(ctrl_len),
-                    ctypes.byref(result_distance_c),
-                    ctypes.byref(num_distance),
-                    ctypes.byref(result_angle_c),
-                    ctypes.byref(num_angle),
-                    ctypes.byref(result_torsion_c),
-                    ctypes.byref(num_torsion),
-                    ctypes.byref(result_cdis_c),
-                    ctypes.byref(num_cdis),
-                    ctypes.byref(result_cang_c),
-                    ctypes.byref(num_cang),
-                    ctypes.byref(result_ctor_c),
-                    ctypes.byref(num_ctor),
-                    )
-        n_frame_c = ctypes.c_int(int(trajs.nframe / ana_period))
-        result_distance = (c2py_util.conv_double_ndarray(
-            result_distance_c, [n_frame_c.value, num_distance.value])
-                           if result_distance_c else None)
-        result_angle = (c2py_util.conv_double_ndarray(
-                result_angle_c, [n_frame_c.value, num_angle.value])
-                        if result_angle_c else None)
-        result_torsion = (c2py_util.conv_double_ndarray(
-                result_torsion_c, [n_frame_c.value, num_torsion.value])
-                        if result_torsion_c else None)
-        result_cdis = (c2py_util.conv_double_ndarray(
-            result_cdis_c, [n_frame_c.value, num_cdis.value])
-                           if result_cdis_c else None)
-        result_cang = (c2py_util.conv_double_ndarray(
-                result_cang_c, [n_frame_c.value, num_cang.value])
-                        if result_cang_c else None)
-        result_ctor = (c2py_util.conv_double_ndarray(
-                result_ctor_c, [n_frame_c.value, num_ctor.value])
-                        if result_ctor_c else None)
-        return TrjAnalysisResult(
-                result_distance, result_angle, result_torsion,
-                result_cdis, result_cang, result_ctor)
-    finally:
-        if result_ctor_c:
-            LibGenesis().lib.deallocate_double2(
-                    ctypes.byref(result_ctor_c),
-                    ctypes.byref(n_frame_c), ctypes.byref(num_ctor))
-        if result_cang_c:
-            LibGenesis().lib.deallocate_double2(
-                    ctypes.byref(result_cang_c),
-                    ctypes.byref(n_frame_c), ctypes.byref(num_cang))
-        if result_cdis_c:
-            LibGenesis().lib.deallocate_double2(
-                    ctypes.byref(result_cdis_c),
-                    ctypes.byref(n_frame_c), ctypes.byref(num_cdis))
-        if result_torsion_c:
-            LibGenesis().lib.deallocate_double2(
-                    ctypes.byref(result_torsion_c),
-                    ctypes.byref(n_frame_c), ctypes.byref(num_torsion))
-        if result_angle_c:
-            LibGenesis().lib.deallocate_double2(
-                    ctypes.byref(result_angle_c),
-                    ctypes.byref(n_frame_c), ctypes.byref(num_angle))
-        if result_distance_c:
-            LibGenesis().lib.deallocate_double2(
-                    ctypes.byref(result_distance_c),
-                    ctypes.byref(n_frame_c), ctypes.byref(num_distance))
-        if mol_c:
-            LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
-
-
-TrjAnalysisZerocopyResult = namedtuple(
-        'TrjAnalysisZerocopyResult',
-        ['distance', 'angle', 'torsion'])
-
-
-def trj_analysis_zerocopy(
-        trajs: STrajectories,
-        distance_pairs: Optional[npt.NDArray[np.int32]] = None,
-        angle_triplets: Optional[npt.NDArray[np.int32]] = None,
-        torsion_quadruplets: Optional[npt.NDArray[np.int32]] = None,
-        ana_period: int = 1,
-        ) -> TrjAnalysisZerocopyResult:
-    """
-    Executes trj_analysis with zerocopy interface.
-
-    This simplified version computes distances, angles, and torsions using
-    atom indices passed directly from Python. It does not support COM-based
-    measurements (use the legacy trj_analysis for those).
-
-    Args:
-        trajs: STrajectories object containing trajectory data
-        distance_pairs: 2D array of shape (n_pairs, 2) with atom index pairs
-                        (1-indexed as in Fortran convention)
-        angle_triplets: 2D array of shape (n_triplets, 3) with atom indices
-                        (1-indexed as in Fortran convention)
-        torsion_quadruplets: 2D array of shape (n_quadruplets, 4) with atom indices
-                             (1-indexed as in Fortran convention)
-        ana_period: Analysis period (default: 1)
-
-    Returns:
-        TrjAnalysisZerocopyResult containing:
-        - distance: 2D array of shape (n_frames, n_pairs)
-        - angle: 2D array of shape (n_frames, n_triplets)
-        - torsion: 2D array of shape (n_frames, n_quadruplets)
-
-    Example:
-        >>> # Compute distance between atoms 1-2 and 3-4
-        >>> dist_pairs = np.array([[1, 2], [3, 4]], dtype=np.int32)
-        >>> result = trj_analysis_zerocopy(trajs, distance_pairs=dist_pairs)
-        >>> print(result.distance)
-    """
-    lib = LibGenesis().lib
-
-    # Prepare distance list
-    n_dist = 0
-    dist_ptr = ctypes.c_void_p()
-    if distance_pairs is not None and len(distance_pairs) > 0:
-        n_dist = distance_pairs.shape[0]
-        # Transpose to (2, n_dist) in Fortran order
-        dist_f = np.asfortranarray(distance_pairs.T, dtype=np.int32)
-        dist_ptr = dist_f.ctypes.data_as(ctypes.c_void_p)
-
-    # Prepare angle list
-    n_angl = 0
-    angl_ptr = ctypes.c_void_p()
-    if angle_triplets is not None and len(angle_triplets) > 0:
-        n_angl = angle_triplets.shape[0]
-        # Transpose to (3, n_angl) in Fortran order
-        angl_f = np.asfortranarray(angle_triplets.T, dtype=np.int32)
-        angl_ptr = angl_f.ctypes.data_as(ctypes.c_void_p)
-
-    # Prepare torsion list
-    n_tors = 0
-    tors_ptr = ctypes.c_void_p()
-    if torsion_quadruplets is not None and len(torsion_quadruplets) > 0:
-        n_tors = torsion_quadruplets.shape[0]
-        # Transpose to (4, n_tors) in Fortran order
-        tors_f = np.asfortranarray(torsion_quadruplets.T, dtype=np.int32)
-        tors_ptr = tors_f.ctypes.data_as(ctypes.c_void_p)
-
-    # Output variables
-    result_distance_ptr = ctypes.c_void_p()
-    result_angle_ptr = ctypes.c_void_p()
-    result_torsion_ptr = ctypes.c_void_p()
-    n_frames = ctypes.c_int()
-    status = ctypes.c_int()
-    msglen = _DEFAULT_MSG_LEN
-    msg = ctypes.create_string_buffer(msglen)
-
-    try:
-        with suppress_stdout_capture_stderr() as captured:
-            lib.trj_analysis_zerocopy_c(
-                ctypes.byref(trajs.get_c_obj()),
-                ctypes.c_int(ana_period),
-                dist_ptr,
-                ctypes.c_int(n_dist),
-                angl_ptr,
-                ctypes.c_int(n_angl),
-                tors_ptr,
-                ctypes.c_int(n_tors),
-                ctypes.byref(result_distance_ptr),
-                ctypes.byref(result_angle_ptr),
-                ctypes.byref(result_torsion_ptr),
-                ctypes.byref(n_frames),
-                ctypes.byref(status),
-                msg,
-                ctypes.c_int(msglen),
-            )
-
-        # Check for errors
-        if status.value != 0:
-            error_msg = msg.value.decode('utf-8', errors='replace').strip()
-            stderr_output = captured.stderr if captured else ""
-            raise_fortran_error(status.value, error_msg, stderr_output)
-
-        n_frame = n_frames.value
-
-        # Convert results to numpy arrays (handle Fortran column-major order)
-        result_distance = None
-        if n_dist > 0 and result_distance_ptr:
-            dist_flat = c2py_util.conv_double_ndarray(result_distance_ptr, n_dist * n_frame)
-            result_distance = dist_flat.reshape((n_dist, n_frame), order='F').T
-
-        result_angle = None
-        if n_angl > 0 and result_angle_ptr:
-            angl_flat = c2py_util.conv_double_ndarray(result_angle_ptr, n_angl * n_frame)
-            result_angle = angl_flat.reshape((n_angl, n_frame), order='F').T
-
-        result_torsion = None
-        if n_tors > 0 and result_torsion_ptr:
-            tors_flat = c2py_util.conv_double_ndarray(result_torsion_ptr, n_tors * n_frame)
-            result_torsion = tors_flat.reshape((n_tors, n_frame), order='F').T
-
-        return TrjAnalysisZerocopyResult(result_distance, result_angle, result_torsion)
-
-    finally:
-        # Cleanup - deallocate Fortran allocated results
-        lib.deallocate_trj_results_c()
-
-
-def trj_analysis_zerocopy_full(
-        trajs: STrajectories,
-        distance_pairs: Optional[npt.NDArray[np.int32]] = None,
-        angle_triplets: Optional[npt.NDArray[np.int32]] = None,
-        torsion_quadruplets: Optional[npt.NDArray[np.int32]] = None,
-        ana_period: int = 1,
-        ) -> TrjAnalysisZerocopyResult:
-    """
-    Executes trj_analysis with full zerocopy interface (pre-allocated results).
-
-    This is the most efficient version: both input lists AND result arrays are
-    pre-allocated in Python and passed to Fortran. No memory allocation happens
-    on the Fortran side.
-
-    Args:
-        trajs: STrajectories object containing trajectory data
-        distance_pairs: 2D array of shape (n_pairs, 2) with atom index pairs
-                        (1-indexed as in Fortran convention)
-        angle_triplets: 2D array of shape (n_triplets, 3) with atom indices
-                        (1-indexed as in Fortran convention)
-        torsion_quadruplets: 2D array of shape (n_quadruplets, 4) with atom indices
-                             (1-indexed as in Fortran convention)
-        ana_period: Analysis period (default: 1)
-
-    Returns:
-        TrjAnalysisZerocopyResult containing:
-        - distance: 2D array of shape (n_frames, n_pairs)
-        - angle: 2D array of shape (n_frames, n_triplets)
-        - torsion: 2D array of shape (n_frames, n_quadruplets)
-
-    Example:
-        >>> dist_pairs = np.array([[1, 2], [3, 4]], dtype=np.int32)
-        >>> result = trj_analysis_zerocopy_full(trajs, distance_pairs=dist_pairs)
-        >>> print(result.distance)
-    """
-    lib = LibGenesis().lib
-
-    n_frame = int(trajs.nframe / ana_period)
-
-    # Prepare distance list and pre-allocate result
-    n_dist = 0
-    dist_list_ptr = ctypes.c_void_p()
-    dist_ptr = ctypes.c_void_p()
-    result_distance = None
-    if distance_pairs is not None and len(distance_pairs) > 0:
-        n_dist = distance_pairs.shape[0]
-        # Transpose to (2, n_dist) in Fortran order
-        dist_f = np.asfortranarray(distance_pairs.T, dtype=np.int32)
-        dist_list_ptr = dist_f.ctypes.data_as(ctypes.c_void_p)
-        # Pre-allocate result array in Fortran order (n_dist, n_frame)
-        result_distance = np.zeros((n_dist, n_frame), dtype=np.float64, order='F')
-        dist_ptr = result_distance.ctypes.data_as(ctypes.c_void_p)
-
-    # Prepare angle list and pre-allocate result
-    n_angl = 0
-    angl_list_ptr = ctypes.c_void_p()
-    angl_ptr = ctypes.c_void_p()
-    result_angle = None
-    if angle_triplets is not None and len(angle_triplets) > 0:
-        n_angl = angle_triplets.shape[0]
-        # Transpose to (3, n_angl) in Fortran order
-        angl_f = np.asfortranarray(angle_triplets.T, dtype=np.int32)
-        angl_list_ptr = angl_f.ctypes.data_as(ctypes.c_void_p)
-        # Pre-allocate result array in Fortran order (n_angl, n_frame)
-        result_angle = np.zeros((n_angl, n_frame), dtype=np.float64, order='F')
-        angl_ptr = result_angle.ctypes.data_as(ctypes.c_void_p)
-
-    # Prepare torsion list and pre-allocate result
-    n_tors = 0
-    tors_list_ptr = ctypes.c_void_p()
-    tors_ptr = ctypes.c_void_p()
-    result_torsion = None
-    if torsion_quadruplets is not None and len(torsion_quadruplets) > 0:
-        n_tors = torsion_quadruplets.shape[0]
-        # Transpose to (4, n_tors) in Fortran order
-        tors_f = np.asfortranarray(torsion_quadruplets.T, dtype=np.int32)
-        tors_list_ptr = tors_f.ctypes.data_as(ctypes.c_void_p)
-        # Pre-allocate result array in Fortran order (n_tors, n_frame)
-        result_torsion = np.zeros((n_tors, n_frame), dtype=np.float64, order='F')
-        tors_ptr = result_torsion.ctypes.data_as(ctypes.c_void_p)
-
-    # Output variables
-    nstru_out = ctypes.c_int()
-    status = ctypes.c_int()
-    msglen = _DEFAULT_MSG_LEN
-    msg = ctypes.create_string_buffer(msglen)
-
-    with suppress_stdout_capture_stderr() as captured:
-        lib.trj_analysis_zerocopy_full_c(
-            ctypes.byref(trajs.get_c_obj()),
-            ctypes.c_int(ana_period),
-            dist_list_ptr,
-            ctypes.c_int(n_dist),
-            angl_list_ptr,
-            ctypes.c_int(n_angl),
-            tors_list_ptr,
-            ctypes.c_int(n_tors),
-            dist_ptr,
-            ctypes.c_int(n_dist * n_frame),
-            angl_ptr,
-            ctypes.c_int(n_angl * n_frame),
-            tors_ptr,
-            ctypes.c_int(n_tors * n_frame),
-            ctypes.byref(nstru_out),
-            ctypes.byref(status),
-            msg,
-            ctypes.c_int(msglen),
-        )
-
-    # Check for errors
-    if status.value != 0:
-        error_msg = msg.value.decode('utf-8', errors='replace').strip()
-        stderr_output = captured.stderr if captured else ""
-        raise_fortran_error(status.value, error_msg, stderr_output)
-
-    n_actual = nstru_out.value
-
-    # Transpose results to (n_frames, n_measurements) and slice to actual size
-    if result_distance is not None:
-        result_distance = result_distance[:, :n_actual].T.copy()
-    if result_angle is not None:
-        result_angle = result_angle[:, :n_actual].T.copy()
-    if result_torsion is not None:
-        result_torsion = result_torsion[:, :n_actual].T.copy()
-
-    return TrjAnalysisZerocopyResult(result_distance, result_angle, result_torsion)
-
-
-TrjAnalysisZerocopyCOMResult = namedtuple(
-        'TrjAnalysisZerocopyCOMResult',
-        ['distance', 'angle', 'torsion', 'cdis', 'cang', 'ctor'])
-
-
 def _flatten_com_groups(
         groups: List[Tuple[List[int], ...]],
         n_per_measurement: int
@@ -696,8 +293,7 @@ def _flatten_com_groups(
     )
 
 
-def trj_analysis_zerocopy_com(
-        molecule: SMolecule,
+def trj_analysis(
         trajs: STrajectories,
         distance_pairs: Optional[npt.NDArray[np.int32]] = None,
         angle_triplets: Optional[npt.NDArray[np.int32]] = None,
@@ -705,24 +301,21 @@ def trj_analysis_zerocopy_com(
         cdis_groups: Optional[List[Tuple[List[int], List[int]]]] = None,
         cang_groups: Optional[List[Tuple[List[int], List[int], List[int]]]] = None,
         ctor_groups: Optional[List[Tuple[List[int], List[int], List[int], List[int]]]] = None,
+        molecule: Optional[SMolecule] = None,
         ana_period: int = 1,
-        ) -> TrjAnalysisZerocopyCOMResult:
+        ) -> TrjAnalysisResult:
     """
-    Executes trj_analysis with zerocopy interface including COM calculations.
+    Executes trajectory analysis for distances, angles, and torsions.
 
-    This version supports both atom-based and COM-based measurements.
-    COM calculations use the flat array + offset approach for efficient
-    variable-length group handling.
+    This function calculates distances, angles, and dihedral angles from
+    trajectory data. It supports both atom-based and COM-based measurements.
 
     Args:
-        molecule: SMolecule object containing mass information
         trajs: STrajectories object containing trajectory data
         distance_pairs: 2D array of shape (n_pairs, 2) with atom index pairs
                         (1-indexed as in Fortran convention)
         angle_triplets: 2D array of shape (n_triplets, 3) with atom indices
-                        (1-indexed as in Fortran convention)
         torsion_quadruplets: 2D array of shape (n_quadruplets, 4) with atom indices
-                             (1-indexed as in Fortran convention)
         cdis_groups: List of tuples for COM distance, each tuple contains two
                      lists of atom indices: [([atoms1], [atoms2]), ...]
                      (1-indexed as in Fortran convention)
@@ -730,122 +323,150 @@ def trj_analysis_zerocopy_com(
                      lists of atom indices
         ctor_groups: List of tuples for COM torsions, each tuple contains four
                      lists of atom indices
+        molecule: SMolecule object (required only for COM calculations)
         ana_period: Analysis period (default: 1)
 
     Returns:
-        TrjAnalysisZerocopyCOMResult containing:
-        - distance: 2D array of shape (n_frames, n_pairs)
-        - angle: 2D array of shape (n_frames, n_triplets)
-        - torsion: 2D array of shape (n_frames, n_quadruplets)
-        - cdis: 2D array of shape (n_frames, n_cdis)
-        - cang: 2D array of shape (n_frames, n_cang)
-        - ctor: 2D array of shape (n_frames, n_ctor)
+        TrjAnalysisResult containing:
+        - distance: 2D array of shape (n_frames, n_pairs) or None
+        - angle: 2D array of shape (n_frames, n_triplets) or None
+        - torsion: 2D array of shape (n_frames, n_quadruplets) or None
+        - cdis: 2D array of shape (n_frames, n_cdis) or None
+        - cang: 2D array of shape (n_frames, n_cang) or None
+        - ctor: 2D array of shape (n_frames, n_ctor) or None
 
     Example:
-        >>> # Compute COM distance between residue 1 and residue 2
-        >>> # Residue 1 atoms: indices 1-4, Residue 2 atoms: indices 5-8
-        >>> cdis_groups = [([1, 2, 3, 4], [5, 6, 7, 8])]
-        >>> result = trj_analysis_zerocopy_com(mol, trajs, cdis_groups=cdis_groups)
+        >>> # Atom-based distance
+        >>> dist_pairs = np.array([[1, 2], [3, 4]], dtype=np.int32)
+        >>> result = trj_analysis(trajs, distance_pairs=dist_pairs)
+        >>> print(result.distance)
+
+        >>> # COM-based distance (requires molecule)
+        >>> cdis_groups = [([1, 2, 3], [4, 5, 6])]
+        >>> result = trj_analysis(trajs, cdis_groups=cdis_groups, molecule=mol)
         >>> print(result.cdis)
     """
     lib = LibGenesis().lib
 
-    # Get mass array (zerocopy)
-    mass = molecule.mass.astype(np.float64, copy=False)
-    mass = np.ascontiguousarray(mass)
-    mass_ptr = mass.ctypes.data_as(ctypes.c_void_p)
-    n_atoms = len(mass)
+    # Check if COM groups are provided
+    has_com = (cdis_groups is not None and len(cdis_groups) > 0) or \
+              (cang_groups is not None and len(cang_groups) > 0) or \
+              (ctor_groups is not None and len(ctor_groups) > 0)
+
+    if has_com and molecule is None:
+        raise ValueError("molecule is required for COM-based measurements")
+
+    n_frame = int(trajs.nframe / ana_period)
 
     # Prepare distance list
     n_dist = 0
-    dist_ptr = ctypes.c_void_p()
+    dist_list_ptr = ctypes.c_void_p()
+    dist_f = None
     if distance_pairs is not None and len(distance_pairs) > 0:
         n_dist = distance_pairs.shape[0]
         dist_f = np.asfortranarray(distance_pairs.T, dtype=np.int32)
-        dist_ptr = dist_f.ctypes.data_as(ctypes.c_void_p)
+        dist_list_ptr = dist_f.ctypes.data_as(ctypes.c_void_p)
 
     # Prepare angle list
     n_angl = 0
-    angl_ptr = ctypes.c_void_p()
+    angl_list_ptr = ctypes.c_void_p()
+    angl_f = None
     if angle_triplets is not None and len(angle_triplets) > 0:
         n_angl = angle_triplets.shape[0]
         angl_f = np.asfortranarray(angle_triplets.T, dtype=np.int32)
-        angl_ptr = angl_f.ctypes.data_as(ctypes.c_void_p)
+        angl_list_ptr = angl_f.ctypes.data_as(ctypes.c_void_p)
 
     # Prepare torsion list
     n_tors = 0
-    tors_ptr = ctypes.c_void_p()
+    tors_list_ptr = ctypes.c_void_p()
+    tors_f = None
     if torsion_quadruplets is not None and len(torsion_quadruplets) > 0:
         n_tors = torsion_quadruplets.shape[0]
         tors_f = np.asfortranarray(torsion_quadruplets.T, dtype=np.int32)
-        tors_ptr = tors_f.ctypes.data_as(ctypes.c_void_p)
+        tors_list_ptr = tors_f.ctypes.data_as(ctypes.c_void_p)
 
-    # Prepare COM distance groups
-    n_cdis = 0
-    cdis_atoms = np.array([], dtype=np.int32)
-    cdis_offsets = np.array([0], dtype=np.int32)
-    cdis_pairs = np.array([], dtype=np.int32)
-    if cdis_groups is not None and len(cdis_groups) > 0:
-        n_cdis = len(cdis_groups)
-        cdis_atoms, cdis_offsets, cdis_pairs = _flatten_com_groups(cdis_groups, 2)
+    # Pre-allocate atom-based result arrays
+    result_distance = np.zeros((n_dist, n_frame), dtype=np.float64, order='F') if n_dist > 0 else None
+    result_angle = np.zeros((n_angl, n_frame), dtype=np.float64, order='F') if n_angl > 0 else None
+    result_torsion = np.zeros((n_tors, n_frame), dtype=np.float64, order='F') if n_tors > 0 else None
 
-    # Prepare COM angle groups
-    n_cang = 0
-    cang_atoms = np.array([], dtype=np.int32)
-    cang_offsets = np.array([0], dtype=np.int32)
-    cang_triplets = np.array([], dtype=np.int32)
-    if cang_groups is not None and len(cang_groups) > 0:
-        n_cang = len(cang_groups)
-        cang_atoms, cang_offsets, cang_triplets = _flatten_com_groups(cang_groups, 3)
+    dist_ptr = result_distance.ctypes.data_as(ctypes.c_void_p) if result_distance is not None else ctypes.c_void_p()
+    angl_ptr = result_angle.ctypes.data_as(ctypes.c_void_p) if result_angle is not None else ctypes.c_void_p()
+    tors_ptr = result_torsion.ctypes.data_as(ctypes.c_void_p) if result_torsion is not None else ctypes.c_void_p()
 
-    # Prepare COM torsion groups
-    n_ctor = 0
-    ctor_atoms = np.array([], dtype=np.int32)
-    ctor_offsets = np.array([0], dtype=np.int32)
-    ctor_quads = np.array([], dtype=np.int32)
-    if ctor_groups is not None and len(ctor_groups) > 0:
-        n_ctor = len(ctor_groups)
-        ctor_atoms, ctor_offsets, ctor_quads = _flatten_com_groups(ctor_groups, 4)
-
-    # Output variables
-    result_distance_ptr = ctypes.c_void_p()
-    result_angle_ptr = ctypes.c_void_p()
-    result_torsion_ptr = ctypes.c_void_p()
-    result_cdis_ptr = ctypes.c_void_p()
-    result_cang_ptr = ctypes.c_void_p()
-    result_ctor_ptr = ctypes.c_void_p()
-    n_frames = ctypes.c_int()
+    nstru_out = ctypes.c_int()
     status = ctypes.c_int()
     msglen = _DEFAULT_MSG_LEN
     msg = ctypes.create_string_buffer(msglen)
 
-    try:
+    if has_com:
+        # COM-based analysis
+        mass = np.ascontiguousarray(molecule.mass, dtype=np.float64)
+        mass_ptr = mass.ctypes.data_as(ctypes.c_void_p)
+        n_atoms = len(mass)
+
+        # Prepare COM distance groups
+        n_cdis = 0
+        cdis_atoms = np.array([], dtype=np.int32)
+        cdis_offsets = np.array([0], dtype=np.int32)
+        cdis_pairs_arr = np.array([], dtype=np.int32)
+        if cdis_groups is not None and len(cdis_groups) > 0:
+            n_cdis = len(cdis_groups)
+            cdis_atoms, cdis_offsets, cdis_pairs_arr = _flatten_com_groups(cdis_groups, 2)
+
+        # Prepare COM angle groups
+        n_cang = 0
+        cang_atoms = np.array([], dtype=np.int32)
+        cang_offsets = np.array([0], dtype=np.int32)
+        cang_triplets_arr = np.array([], dtype=np.int32)
+        if cang_groups is not None and len(cang_groups) > 0:
+            n_cang = len(cang_groups)
+            cang_atoms, cang_offsets, cang_triplets_arr = _flatten_com_groups(cang_groups, 3)
+
+        # Prepare COM torsion groups
+        n_ctor = 0
+        ctor_atoms = np.array([], dtype=np.int32)
+        ctor_offsets = np.array([0], dtype=np.int32)
+        ctor_quads = np.array([], dtype=np.int32)
+        if ctor_groups is not None and len(ctor_groups) > 0:
+            n_ctor = len(ctor_groups)
+            ctor_atoms, ctor_offsets, ctor_quads = _flatten_com_groups(ctor_groups, 4)
+
+        # Pre-allocate COM result arrays
+        result_cdis = np.zeros((n_cdis, n_frame), dtype=np.float64, order='F') if n_cdis > 0 else None
+        result_cang = np.zeros((n_cang, n_frame), dtype=np.float64, order='F') if n_cang > 0 else None
+        result_ctor = np.zeros((n_ctor, n_frame), dtype=np.float64, order='F') if n_ctor > 0 else None
+
+        cdis_result_ptr = result_cdis.ctypes.data_as(ctypes.c_void_p) if result_cdis is not None else ctypes.c_void_p()
+        cang_result_ptr = result_cang.ctypes.data_as(ctypes.c_void_p) if result_cang is not None else ctypes.c_void_p()
+        ctor_result_ptr = result_ctor.ctypes.data_as(ctypes.c_void_p) if result_ctor is not None else ctypes.c_void_p()
+
         with suppress_stdout_capture_stderr() as captured:
-            lib.trj_analysis_zerocopy_com_c(
+            lib.trj_analysis_com_c(
                 mass_ptr,
                 ctypes.c_int(n_atoms),
                 ctypes.byref(trajs.get_c_obj()),
                 ctypes.c_int(ana_period),
                 # Atom-based measurements
-                dist_ptr,
+                dist_list_ptr,
                 ctypes.c_int(n_dist),
-                angl_ptr,
+                angl_list_ptr,
                 ctypes.c_int(n_angl),
-                tors_ptr,
+                tors_list_ptr,
                 ctypes.c_int(n_tors),
                 # COM distance
                 cdis_atoms.ctypes.data_as(ctypes.c_void_p),
                 ctypes.c_int(len(cdis_atoms)),
                 cdis_offsets.ctypes.data_as(ctypes.c_void_p),
                 ctypes.c_int(len(cdis_offsets)),
-                cdis_pairs.ctypes.data_as(ctypes.c_void_p),
+                cdis_pairs_arr.ctypes.data_as(ctypes.c_void_p),
                 ctypes.c_int(n_cdis),
                 # COM angle
                 cang_atoms.ctypes.data_as(ctypes.c_void_p),
                 ctypes.c_int(len(cang_atoms)),
                 cang_offsets.ctypes.data_as(ctypes.c_void_p),
                 ctypes.c_int(len(cang_offsets)),
-                cang_triplets.ctypes.data_as(ctypes.c_void_p),
+                cang_triplets_arr.ctypes.data_as(ctypes.c_void_p),
                 ctypes.c_int(n_cang),
                 # COM torsion
                 ctor_atoms.ctypes.data_as(ctypes.c_void_p),
@@ -854,258 +475,86 @@ def trj_analysis_zerocopy_com(
                 ctypes.c_int(len(ctor_offsets)),
                 ctor_quads.ctypes.data_as(ctypes.c_void_p),
                 ctypes.c_int(n_ctor),
-                # Output pointers
-                ctypes.byref(result_distance_ptr),
-                ctypes.byref(result_angle_ptr),
-                ctypes.byref(result_torsion_ptr),
-                ctypes.byref(result_cdis_ptr),
-                ctypes.byref(result_cang_ptr),
-                ctypes.byref(result_ctor_ptr),
-                ctypes.byref(n_frames),
+                # Pre-allocated output arrays
+                dist_ptr,
+                ctypes.c_int(n_dist * n_frame),
+                angl_ptr,
+                ctypes.c_int(n_angl * n_frame),
+                tors_ptr,
+                ctypes.c_int(n_tors * n_frame),
+                cdis_result_ptr,
+                ctypes.c_int(n_cdis * n_frame),
+                cang_result_ptr,
+                ctypes.c_int(n_cang * n_frame),
+                ctor_result_ptr,
+                ctypes.c_int(n_ctor * n_frame),
+                # Output
+                ctypes.byref(nstru_out),
                 ctypes.byref(status),
                 msg,
                 ctypes.c_int(msglen),
             )
 
-        # Check for errors
         if status.value != 0:
             error_msg = msg.value.decode('utf-8', errors='replace').strip()
             stderr_output = captured.stderr if captured else ""
             raise_fortran_error(status.value, error_msg, stderr_output)
 
-        n_frame = n_frames.value
+        actual_frames = nstru_out.value
 
-        # Convert atom-based results
-        result_distance = None
-        if n_dist > 0 and result_distance_ptr:
-            dist_flat = c2py_util.conv_double_ndarray(result_distance_ptr, n_dist * n_frame)
-            result_distance = dist_flat.reshape((n_dist, n_frame), order='F').T
+        # Transpose to Python convention and slice
+        final_distance = result_distance.T[:actual_frames].copy() if result_distance is not None else None
+        final_angle = result_angle.T[:actual_frames].copy() if result_angle is not None else None
+        final_torsion = result_torsion.T[:actual_frames].copy() if result_torsion is not None else None
+        final_cdis = result_cdis.T[:actual_frames].copy() if result_cdis is not None else None
+        final_cang = result_cang.T[:actual_frames].copy() if result_cang is not None else None
+        final_ctor = result_ctor.T[:actual_frames].copy() if result_ctor is not None else None
 
-        result_angle = None
-        if n_angl > 0 and result_angle_ptr:
-            angl_flat = c2py_util.conv_double_ndarray(result_angle_ptr, n_angl * n_frame)
-            result_angle = angl_flat.reshape((n_angl, n_frame), order='F').T
-
-        result_torsion = None
-        if n_tors > 0 and result_torsion_ptr:
-            tors_flat = c2py_util.conv_double_ndarray(result_torsion_ptr, n_tors * n_frame)
-            result_torsion = tors_flat.reshape((n_tors, n_frame), order='F').T
-
-        # Convert COM-based results
-        result_cdis = None
-        if n_cdis > 0 and result_cdis_ptr:
-            cdis_flat = c2py_util.conv_double_ndarray(result_cdis_ptr, n_cdis * n_frame)
-            result_cdis = cdis_flat.reshape((n_cdis, n_frame), order='F').T
-
-        result_cang = None
-        if n_cang > 0 and result_cang_ptr:
-            cang_flat = c2py_util.conv_double_ndarray(result_cang_ptr, n_cang * n_frame)
-            result_cang = cang_flat.reshape((n_cang, n_frame), order='F').T
-
-        result_ctor = None
-        if n_ctor > 0 and result_ctor_ptr:
-            ctor_flat = c2py_util.conv_double_ndarray(result_ctor_ptr, n_ctor * n_frame)
-            result_ctor = ctor_flat.reshape((n_ctor, n_frame), order='F').T
-
-        return TrjAnalysisZerocopyCOMResult(
-            result_distance, result_angle, result_torsion,
-            result_cdis, result_cang, result_ctor
+        return TrjAnalysisResult(
+            final_distance, final_angle, final_torsion,
+            final_cdis, final_cang, final_ctor
         )
 
-    finally:
-        # Cleanup - deallocate Fortran allocated results
-        lib.deallocate_trj_results_c()
+    else:
+        # Simple atom-based analysis (no COM)
+        with suppress_stdout_capture_stderr() as captured:
+            lib.trj_analysis_c(
+                ctypes.byref(trajs.get_c_obj()),
+                ctypes.c_int(ana_period),
+                dist_list_ptr,
+                ctypes.c_int(n_dist),
+                angl_list_ptr,
+                ctypes.c_int(n_angl),
+                tors_list_ptr,
+                ctypes.c_int(n_tors),
+                dist_ptr,
+                ctypes.c_int(n_dist * n_frame),
+                angl_ptr,
+                ctypes.c_int(n_angl * n_frame),
+                tors_ptr,
+                ctypes.c_int(n_tors * n_frame),
+                ctypes.byref(nstru_out),
+                ctypes.byref(status),
+                msg,
+                ctypes.c_int(msglen),
+            )
 
+        if status.value != 0:
+            error_msg = msg.value.decode('utf-8', errors='replace').strip()
+            stderr_output = captured.stderr if captured else ""
+            raise_fortran_error(status.value, error_msg, stderr_output)
 
-def trj_analysis_zerocopy_full_com(
-        molecule: SMolecule,
-        trajs: STrajectories,
-        distance_pairs: Optional[npt.NDArray[np.int32]] = None,
-        angle_triplets: Optional[npt.NDArray[np.int32]] = None,
-        torsion_quadruplets: Optional[npt.NDArray[np.int32]] = None,
-        cdis_groups: Optional[List[Tuple[List[int], List[int]]]] = None,
-        cang_groups: Optional[List[Tuple[List[int], List[int], List[int]]]] = None,
-        ctor_groups: Optional[List[Tuple[List[int], List[int], List[int], List[int]]]] = None,
-        ana_period: int = 1,
-        ) -> TrjAnalysisZerocopyCOMResult:
-    """
-    Executes trj_analysis with full zerocopy interface including COM calculations.
+        n_actual = nstru_out.value
 
-    This version pre-allocates all result arrays in Python, eliminating all
-    memory copies for both input and output.
+        # Transpose to Python convention and slice
+        final_distance = result_distance[:, :n_actual].T.copy() if result_distance is not None else None
+        final_angle = result_angle[:, :n_actual].T.copy() if result_angle is not None else None
+        final_torsion = result_torsion[:, :n_actual].T.copy() if result_torsion is not None else None
 
-    Args:
-        molecule: SMolecule object containing mass information
-        trajs: STrajectories object containing trajectory data
-        distance_pairs: 2D array of shape (n_pairs, 2) with atom index pairs
-                        (1-indexed as in Fortran convention)
-        angle_triplets: 2D array of shape (n_triplets, 3) with atom indices
-        torsion_quadruplets: 2D array of shape (n_quadruplets, 4) with atom indices
-        cdis_groups: List of tuples for COM distance
-        cang_groups: List of tuples for COM angles
-        ctor_groups: List of tuples for COM torsions
-        ana_period: Analysis period (default: 1)
-
-    Returns:
-        TrjAnalysisZerocopyCOMResult with pre-allocated result arrays
-    """
-    lib = LibGenesis().lib
-
-    # Get mass array (zerocopy)
-    mass = molecule.mass.astype(np.float64, copy=False)
-    mass = np.ascontiguousarray(mass)
-    mass_ptr = mass.ctypes.data_as(ctypes.c_void_p)
-    n_atoms = len(mass)
-
-    # Calculate output frame count
-    n_frame = int(trajs.nframe / ana_period)
-
-    # Prepare distance list
-    n_dist = 0
-    dist_ptr = ctypes.c_void_p()
-    if distance_pairs is not None and len(distance_pairs) > 0:
-        n_dist = distance_pairs.shape[0]
-        dist_f = np.asfortranarray(distance_pairs.T, dtype=np.int32)
-        dist_ptr = dist_f.ctypes.data_as(ctypes.c_void_p)
-
-    # Prepare angle list
-    n_angl = 0
-    angl_ptr = ctypes.c_void_p()
-    if angle_triplets is not None and len(angle_triplets) > 0:
-        n_angl = angle_triplets.shape[0]
-        angl_f = np.asfortranarray(angle_triplets.T, dtype=np.int32)
-        angl_ptr = angl_f.ctypes.data_as(ctypes.c_void_p)
-
-    # Prepare torsion list
-    n_tors = 0
-    tors_ptr = ctypes.c_void_p()
-    if torsion_quadruplets is not None and len(torsion_quadruplets) > 0:
-        n_tors = torsion_quadruplets.shape[0]
-        tors_f = np.asfortranarray(torsion_quadruplets.T, dtype=np.int32)
-        tors_ptr = tors_f.ctypes.data_as(ctypes.c_void_p)
-
-    # Prepare COM distance groups
-    n_cdis = 0
-    cdis_atoms = np.array([], dtype=np.int32)
-    cdis_offsets = np.array([0], dtype=np.int32)
-    cdis_pairs = np.array([], dtype=np.int32)
-    if cdis_groups is not None and len(cdis_groups) > 0:
-        n_cdis = len(cdis_groups)
-        cdis_atoms, cdis_offsets, cdis_pairs = _flatten_com_groups(cdis_groups, 2)
-
-    # Prepare COM angle groups
-    n_cang = 0
-    cang_atoms = np.array([], dtype=np.int32)
-    cang_offsets = np.array([0], dtype=np.int32)
-    cang_triplets_arr = np.array([], dtype=np.int32)
-    if cang_groups is not None and len(cang_groups) > 0:
-        n_cang = len(cang_groups)
-        cang_atoms, cang_offsets, cang_triplets_arr = _flatten_com_groups(cang_groups, 3)
-
-    # Prepare COM torsion groups
-    n_ctor = 0
-    ctor_atoms = np.array([], dtype=np.int32)
-    ctor_offsets = np.array([0], dtype=np.int32)
-    ctor_quads = np.array([], dtype=np.int32)
-    if ctor_groups is not None and len(ctor_groups) > 0:
-        n_ctor = len(ctor_groups)
-        ctor_atoms, ctor_offsets, ctor_quads = _flatten_com_groups(ctor_groups, 4)
-
-    # Pre-allocate result arrays (Fortran order: n_measurements x n_frames)
-    result_distance = np.zeros((n_dist, n_frame), dtype=np.float64, order='F') if n_dist > 0 else None
-    result_angle = np.zeros((n_angl, n_frame), dtype=np.float64, order='F') if n_angl > 0 else None
-    result_torsion = np.zeros((n_tors, n_frame), dtype=np.float64, order='F') if n_tors > 0 else None
-    result_cdis = np.zeros((n_cdis, n_frame), dtype=np.float64, order='F') if n_cdis > 0 else None
-    result_cang = np.zeros((n_cang, n_frame), dtype=np.float64, order='F') if n_cang > 0 else None
-    result_ctor = np.zeros((n_ctor, n_frame), dtype=np.float64, order='F') if n_ctor > 0 else None
-
-    # Get pointers for pre-allocated arrays
-    dist_result_ptr = result_distance.ctypes.data_as(ctypes.c_void_p) if result_distance is not None else ctypes.c_void_p()
-    angl_result_ptr = result_angle.ctypes.data_as(ctypes.c_void_p) if result_angle is not None else ctypes.c_void_p()
-    tors_result_ptr = result_torsion.ctypes.data_as(ctypes.c_void_p) if result_torsion is not None else ctypes.c_void_p()
-    cdis_result_ptr = result_cdis.ctypes.data_as(ctypes.c_void_p) if result_cdis is not None else ctypes.c_void_p()
-    cang_result_ptr = result_cang.ctypes.data_as(ctypes.c_void_p) if result_cang is not None else ctypes.c_void_p()
-    ctor_result_ptr = result_ctor.ctypes.data_as(ctypes.c_void_p) if result_ctor is not None else ctypes.c_void_p()
-
-    nstru_out = ctypes.c_int()
-    status = ctypes.c_int()
-    msglen = _DEFAULT_MSG_LEN
-    msg = ctypes.create_string_buffer(msglen)
-
-    with suppress_stdout_capture_stderr() as captured:
-        lib.trj_analysis_zerocopy_full_com_c(
-            mass_ptr,
-            ctypes.c_int(n_atoms),
-            ctypes.byref(trajs.get_c_obj()),
-            ctypes.c_int(ana_period),
-            # Atom-based measurements
-            dist_ptr,
-            ctypes.c_int(n_dist),
-            angl_ptr,
-            ctypes.c_int(n_angl),
-            tors_ptr,
-            ctypes.c_int(n_tors),
-            # COM distance
-            cdis_atoms.ctypes.data_as(ctypes.c_void_p),
-            ctypes.c_int(len(cdis_atoms)),
-            cdis_offsets.ctypes.data_as(ctypes.c_void_p),
-            ctypes.c_int(len(cdis_offsets)),
-            cdis_pairs.ctypes.data_as(ctypes.c_void_p),
-            ctypes.c_int(n_cdis),
-            # COM angle
-            cang_atoms.ctypes.data_as(ctypes.c_void_p),
-            ctypes.c_int(len(cang_atoms)),
-            cang_offsets.ctypes.data_as(ctypes.c_void_p),
-            ctypes.c_int(len(cang_offsets)),
-            cang_triplets_arr.ctypes.data_as(ctypes.c_void_p),
-            ctypes.c_int(n_cang),
-            # COM torsion
-            ctor_atoms.ctypes.data_as(ctypes.c_void_p),
-            ctypes.c_int(len(ctor_atoms)),
-            ctor_offsets.ctypes.data_as(ctypes.c_void_p),
-            ctypes.c_int(len(ctor_offsets)),
-            ctor_quads.ctypes.data_as(ctypes.c_void_p),
-            ctypes.c_int(n_ctor),
-            # Pre-allocated output arrays
-            dist_result_ptr,
-            ctypes.c_int(n_dist * n_frame),
-            angl_result_ptr,
-            ctypes.c_int(n_angl * n_frame),
-            tors_result_ptr,
-            ctypes.c_int(n_tors * n_frame),
-            cdis_result_ptr,
-            ctypes.c_int(n_cdis * n_frame),
-            cang_result_ptr,
-            ctypes.c_int(n_cang * n_frame),
-            ctor_result_ptr,
-            ctypes.c_int(n_ctor * n_frame),
-            # Output
-            ctypes.byref(nstru_out),
-            ctypes.byref(status),
-            msg,
-            ctypes.c_int(msglen),
+        return TrjAnalysisResult(
+            final_distance, final_angle, final_torsion,
+            None, None, None
         )
-
-    # Check for errors
-    if status.value != 0:
-        error_msg = msg.value.decode('utf-8', errors='replace').strip()
-        stderr_output = captured.stderr if captured else ""
-        raise_fortran_error(status.value, error_msg, stderr_output)
-
-    actual_frames = nstru_out.value
-
-    # Transpose to Python convention (n_frames, n_measurements) and slice
-    final_distance = result_distance.T[:actual_frames] if result_distance is not None else None
-    final_angle = result_angle.T[:actual_frames] if result_angle is not None else None
-    final_torsion = result_torsion.T[:actual_frames] if result_torsion is not None else None
-    final_cdis = result_cdis.T[:actual_frames] if result_cdis is not None else None
-    final_cang = result_cang.T[:actual_frames] if result_cang is not None else None
-    final_ctor = result_ctor.T[:actual_frames] if result_ctor is not None else None
-
-    return TrjAnalysisZerocopyCOMResult(
-        final_distance, final_angle, final_torsion,
-        final_cdis, final_cang, final_ctor
-    )
 
 
 RgAnalysisResult = namedtuple(
@@ -1113,73 +562,7 @@ RgAnalysisResult = namedtuple(
         ['rg'])
 
 
-def rg_analysis(molecule: SMolecule, trajs: STrajectories,
-                ana_period: Optional[int] = 1,
-                selection_group: Optional[Iterable[str]] = None,
-                selection_mole_name: Optional[Iterable[str]] = None,
-                fitting_method: Optional[str] = None,
-                fitting_atom: Optional[int] = None,
-                check_only: Optional[bool] = None,
-                analysis_atom: Optional[int] = None,
-                mass_weighted: Optional[bool] = None,
-                ) -> RgAnalysisResult:
-    """
-    Executes rg_analysis.
-
-    Args:
-        molecule:
-        trajs:
-        ana_period:
-    Returns:
-        rg
-    """
-    ana_period_c = ctypes.c_int(ana_period)
-    result_rg_c = ctypes.c_void_p()
-    mol_c = molecule.to_SMoleculeC()
-    try:
-        ctrl = io.BytesIO()
-        ctrl_files.write_ctrl_output(
-                ctrl,
-                rgfile="dummy.rg")
-        ctrl_files.write_ctrl_selection(
-                ctrl, selection_group, selection_mole_name)
-        ctrl_files.write_ctrl_fitting(
-                ctrl, fitting_method, fitting_atom)
-        ctrl.write(b"[OPTION]\n")
-        ctrl_files.write_kwargs(
-                ctrl,
-                check_only=check_only,
-                analysis_atom=analysis_atom,
-                mass_weighted=mass_weighted,
-                )
-
-        ctrl_bytes = ctrl.getvalue()
-        ctrl_len = len(ctrl_bytes)
-        with suppress_stdout_capture_stderr() as captured:
-            LibGenesis().lib.rg_analysis_c(
-                    ctypes.byref(mol_c),
-                    ctypes.byref(trajs.get_c_obj()),
-                    ctypes.byref(ana_period_c),
-                    ctrl_bytes,
-                    ctypes.c_int(ctrl_len),
-                    ctypes.byref(result_rg_c),
-                    )
-        n_frame_c = ctypes.c_int(int(trajs.nframe / ana_period))
-        result_rg = (c2py_util.conv_double_ndarray(
-            result_rg_c, n_frame_c.value)
-                    if result_rg_c else None)
-        return RgAnalysisResult(
-                result_rg)
-    finally:
-        if result_rg_c:
-            LibGenesis().lib.deallocate_double(
-                    ctypes.byref(result_rg_c),
-                    ctypes.byref(n_frame_c))
-        if mol_c:
-            LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
-
-
-def rg_analysis_zerocopy(
+def rg_analysis(
         molecule: SMolecule,
         trajs: STrajectories,
         analysis_selection: str,
@@ -1187,11 +570,10 @@ def rg_analysis_zerocopy(
         mass_weighted: bool = True,
         ) -> RgAnalysisResult:
     """
-    Executes rg_analysis with true zero-copy interface.
+    Executes radius of gyration (RG) analysis.
 
-    This function passes the mass array pointer directly from Python NumPy
-    to Fortran, eliminating all data copies. The Fortran code creates a
-    view of the Python array using C_F_POINTER.
+    This function calculates the radius of gyration for selected atoms
+    across all trajectory frames.
 
     Args:
         molecule: Molecular structure
@@ -1204,87 +586,7 @@ def rg_analysis_zerocopy(
         RgAnalysisResult containing the radius of gyration array
 
     Example:
-        >>> result = rg_analysis_zerocopy(mol, trajs, "an:CA")
-        >>> print(result.rg)
-    """
-    lib = LibGenesis().lib
-
-    # Get atom indices using GENESIS selection
-    analysis_indices = selection(molecule, analysis_selection)
-    n_analysis = len(analysis_indices)
-
-    # Ensure mass array is contiguous and correct dtype
-    mass = np.ascontiguousarray(molecule.mass, dtype=np.float64)
-
-    # Get pointer to mass array (zero-copy)
-    mass_ptr = mass.ctypes.data_as(ctypes.c_void_p)
-
-    # Output variables
-    result_rg_c = ctypes.c_void_p()
-    status = ctypes.c_int()
-    msglen = _DEFAULT_MSG_LEN
-    msg = ctypes.create_string_buffer(msglen)
-
-    try:
-        with suppress_stdout_capture_stderr() as captured:
-            lib.rg_analysis_zerocopy_c(
-                mass_ptr,
-                ctypes.c_int(molecule.num_atoms),
-                ctypes.byref(trajs.get_c_obj()),
-                ctypes.c_int(ana_period),
-                analysis_indices.ctypes.data_as(ctypes.c_void_p),
-                ctypes.c_int(n_analysis),
-                ctypes.c_int(1 if mass_weighted else 0),
-                ctypes.byref(result_rg_c),
-                ctypes.byref(status),
-                msg,
-                ctypes.c_int(msglen),
-            )
-
-        # Check for errors
-        if status.value != 0:
-            error_msg = msg.value.decode('utf-8', errors='replace').strip()
-            stderr_output = captured.stderr if captured else ""
-            raise_fortran_error(status.value, error_msg, stderr_output)
-
-        # Convert result to numpy array
-        n_frame = int(trajs.nframe / ana_period)
-        result_rg = (c2py_util.conv_double_ndarray(result_rg_c, n_frame)
-                     if result_rg_c else None)
-
-        return RgAnalysisResult(result_rg)
-
-    finally:
-        # Cleanup - only deallocate results, not the mass array (Python owns it)
-        lib.deallocate_rg_results_c()
-        # Note: NO deallocate_s_molecule_c call - we didn't allocate any s_molecule_c!
-
-
-def rg_analysis_zerocopy_full(
-        molecule: SMolecule,
-        trajs: STrajectories,
-        analysis_selection: str,
-        ana_period: int = 1,
-        mass_weighted: bool = True,
-        ) -> RgAnalysisResult:
-    """
-    Executes rg_analysis with full zero-copy interface.
-
-    This function passes the mass array pointer and pre-allocates the result
-    array in Python, eliminating all data copies in both directions.
-
-    Args:
-        molecule: Molecular structure
-        trajs: Trajectories to analyze
-        analysis_selection: GENESIS selection string (e.g., "an:CA", "heavy")
-        ana_period: Analysis period (default: 1)
-        mass_weighted: Use mass weighting for RG calculation (default: True)
-
-    Returns:
-        RgAnalysisResult containing the radius of gyration array
-
-    Example:
-        >>> result = rg_analysis_zerocopy_full(mol, trajs, "an:CA")
+        >>> result = rg_analysis(mol, trajs, "an:CA")
         >>> print(result.rg)
     """
     lib = LibGenesis().lib
@@ -1311,7 +613,7 @@ def rg_analysis_zerocopy_full(
     msg = ctypes.create_string_buffer(msglen)
 
     with suppress_stdout_capture_stderr() as captured:
-        lib.rg_analysis_zerocopy_full_c(
+        lib.rg_analysis_c(
             mass_ptr,
             ctypes.c_int(molecule.num_atoms),
             ctypes.byref(trajs.get_c_obj()),
@@ -1342,178 +644,6 @@ RmsdAnalysisResult = namedtuple(
         ['rmsd'])
 
 
-def rmsd_analysis(
-        molecule: SMolecule, trajs: STrajectories,
-        ana_period: Optional[int] = 1,
-        selection_group: Optional[Iterable[str]] = None,
-        selection_mole_name: Optional[Iterable[str]] = None,
-        fitting_method: Optional[str] = None,
-        fitting_atom: Optional[int] = None,
-        check_only: Optional[bool] = None,
-        analysis_atom: Optional[int] = None,
-        ) -> RmsdAnalysisResult:
-    """
-    Executes rmsd_analysis.
-
-    Args:
-        molecule:
-        trajs:
-        ana_period:
-    Returns:
-        rmsd
-    """
-    mol_c = None
-    ana_period_c = ctypes.c_int(ana_period)
-    result_rmsd_c = ctypes.c_void_p()
-    try:
-        mol_c = molecule.to_SMoleculeC()
-        ctrl = io.BytesIO()
-        ctrl_files.write_ctrl_output(
-                ctrl,
-                rmsfile="dummy.rms")
-        ctrl_files.write_ctrl_selection(
-                ctrl, selection_group, selection_mole_name)
-        ctrl_files.write_ctrl_fitting(
-                ctrl, fitting_method, fitting_atom)
-        ctrl.write(b"[OPTION]\n")
-        ctrl_files.write_kwargs(
-                ctrl,
-                check_only=check_only,
-                analysis_atom=analysis_atom,
-                )
-
-        ctrl_bytes = ctrl.getvalue()
-        ctrl_len = len(ctrl_bytes)
-        msgbuf, MSG_LEN = make_msgbuf()
-        status = ctypes.c_int(0)
-
-        with suppress_stdout_capture_stderr() as captured:
-            LibGenesis().lib.ra_analysis_c(
-                    ctypes.byref(mol_c),
-                    ctypes.byref(trajs.get_c_obj()),
-                    ctypes.byref(ana_period_c),
-                    ctrl_bytes,
-                    ctypes.c_int(ctrl_len),
-                    ctypes.byref(result_rmsd_c),
-                    ctypes.byref(status),
-                    msgbuf,
-                    ctypes.c_int(MSG_LEN),
-                    )
-
-        if status.value != 0:
-            error_msg = msgbuf.value.decode("utf-8", "replace")
-            raise_fortran_error(
-                error_msg,
-                code=status.value,
-                stderr_output=captured.stderr
-            )
-        n_frame_c = ctypes.c_int(int(trajs.nframe / ana_period))
-        result_rmsd = (c2py_util.conv_double_ndarray(
-            result_rmsd_c, n_frame_c.value)
-                    if result_rmsd_c else None)
-        return RmsdAnalysisResult(
-                result_rmsd)
-    finally:
-        if result_rmsd_c:
-            LibGenesis().lib.deallocate_double(
-                    ctypes.byref(result_rmsd_c),
-                    ctypes.byref(n_frame_c))
-        if mol_c:
-            LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
-
-
-def rmsd_analysis_zerocopy(
-        molecule: SMolecule,
-        trajs: STrajectories,
-        analysis_selection: str,
-        ana_period: int = 1,
-        mass_weighted: bool = False,
-        ) -> RmsdAnalysisResult:
-    """
-    Executes rmsd_analysis with true zero-copy interface.
-
-    This function passes the mass and reference coordinate arrays directly from
-    Python NumPy to Fortran, eliminating all data copies. The Fortran code
-    creates views of the Python arrays using C_F_POINTER.
-
-    NOTE: This version does NOT perform structural alignment (fitting).
-    Use this when:
-    - Coordinates are already aligned (e.g., trajectory was centered/aligned)
-    - Fitting is done in Python (e.g., using MDAnalysis or MDTraj)
-    - You want to measure raw coordinate deviation without superposition
-
-    Args:
-        molecule: Molecular structure (provides mass and reference coordinates)
-        trajs: Trajectories to analyze
-        analysis_selection: GENESIS selection string (e.g., "an:CA", "heavy")
-        ana_period: Analysis period (default: 1)
-        mass_weighted: Use mass weighting for RMSD calculation (default: False)
-
-    Returns:
-        RmsdAnalysisResult containing the RMSD array
-
-    Example:
-        >>> # Calculate RMSD for CA atoms (assumes pre-aligned trajectory)
-        >>> result = rmsd_analysis_zerocopy(mol, trajs, "an:CA")
-        >>> print(result.rmsd)
-    """
-    lib = LibGenesis().lib
-
-    # Get atom indices using GENESIS selection
-    analysis_indices = selection(molecule, analysis_selection)
-    n_analysis = len(analysis_indices)
-
-    # Ensure arrays are contiguous and correct dtype
-    mass = np.ascontiguousarray(molecule.mass, dtype=np.float64)
-    # Reference coordinates: Fortran expects (3, n_atoms)
-    ref_coord = np.asfortranarray(molecule.atom_coord.T, dtype=np.float64)
-
-    # Get pointers (zero-copy)
-    mass_ptr = mass.ctypes.data_as(ctypes.c_void_p)
-    ref_coord_ptr = ref_coord.ctypes.data_as(ctypes.c_void_p)
-
-    # Output variables
-    result_rmsd_c = ctypes.c_void_p()
-    status = ctypes.c_int()
-    msglen = _DEFAULT_MSG_LEN
-    msg = ctypes.create_string_buffer(msglen)
-
-    try:
-        with suppress_stdout_capture_stderr() as captured:
-            lib.rmsd_analysis_zerocopy_c(
-                mass_ptr,
-                ref_coord_ptr,
-                ctypes.c_int(molecule.num_atoms),
-                ctypes.byref(trajs.get_c_obj()),
-                ctypes.c_int(ana_period),
-                analysis_indices.ctypes.data_as(ctypes.c_void_p),
-                ctypes.c_int(n_analysis),
-                ctypes.c_int(1 if mass_weighted else 0),
-                ctypes.byref(result_rmsd_c),
-                ctypes.byref(status),
-                msg,
-                ctypes.c_int(msglen),
-            )
-
-        # Check for errors
-        if status.value != 0:
-            error_msg = msg.value.decode('utf-8', errors='replace').strip()
-            stderr_output = captured.stderr if captured else ""
-            raise_fortran_error(status.value, error_msg, stderr_output)
-
-        # Convert result to numpy array
-        n_frame = int(trajs.nframe / ana_period)
-        result_rmsd = (c2py_util.conv_double_ndarray(result_rmsd_c, n_frame)
-                       if result_rmsd_c else None)
-
-        return RmsdAnalysisResult(result_rmsd)
-
-    finally:
-        # Cleanup - only deallocate results, not the input arrays (Python owns them)
-        lib.deallocate_rmsd_results_c()
-        # Note: NO deallocate_s_molecule_c call - we didn't allocate any s_molecule_c!
-
-
 # Fitting method constants
 class FittingMethod:
     """Fitting method constants for RMSD analysis with fitting."""
@@ -1525,28 +655,30 @@ class FittingMethod:
     XYTR_ZROT = 6
 
 
-def rmsd_analysis_zerocopy_with_fitting(
+def rmsd_analysis(
         molecule: SMolecule,
         trajs: STrajectories,
-        fitting_selection: str,
         analysis_selection: str,
+        fitting_selection: Optional[str] = None,
         fitting_method: str = "TR+ROT",
         ana_period: int = 1,
         mass_weighted: bool = False,
         ref_coord: Optional[np.ndarray] = None,
         ) -> RmsdAnalysisResult:
     """
-    Executes rmsd_analysis with structural fitting (zerocopy version).
+    Executes RMSD analysis with optional structural fitting.
 
-    This function performs structural alignment (fitting) before calculating RMSD.
-    It uses the zerocopy interface for efficient data transfer.
+    This function calculates the root-mean-square deviation (RMSD) between
+    trajectory frames and a reference structure. When fitting_selection is
+    provided, structural alignment is performed before RMSD calculation.
 
     Args:
         molecule: Molecular structure (provides mass and reference coordinates)
         trajs: Trajectories to analyze
-        fitting_selection: GENESIS selection for fitting atoms (e.g., "an:CA")
         analysis_selection: GENESIS selection for RMSD calculation atoms (e.g., "an:CA")
-        fitting_method: Fitting method:
+        fitting_selection: GENESIS selection for fitting atoms (e.g., "an:CA").
+            If None, no fitting is performed (use when trajectory is pre-aligned).
+        fitting_method: Fitting method (only used when fitting_selection is provided):
             - "NO": No fitting
             - "TR+ROT": Translation + rotation (default, most common)
             - "TR": Translation only
@@ -1561,46 +693,32 @@ def rmsd_analysis_zerocopy_with_fitting(
     Returns:
         RmsdAnalysisResult containing the RMSD array
 
-    Example:
+    Examples:
+        >>> # Calculate RMSD without fitting (pre-aligned trajectory)
+        >>> result = rmsd_analysis(mol, trajs, analysis_selection="an:CA")
+        >>> print(result.rmsd)
+
         >>> # Calculate RMSD with TR+ROT fitting using CA atoms
-        >>> result = rmsd_analysis_zerocopy_with_fitting(
+        >>> result = rmsd_analysis(
         ...     mol, trajs,
-        ...     fitting_selection="an:CA",
         ...     analysis_selection="an:CA",
+        ...     fitting_selection="an:CA",
         ...     fitting_method="TR+ROT"
         ... )
         >>> print(result.rmsd)
 
         >>> # Fit on CA atoms, but calculate RMSD for all heavy atoms
-        >>> result = rmsd_analysis_zerocopy_with_fitting(
+        >>> result = rmsd_analysis(
         ...     mol, trajs,
-        ...     fitting_selection="an:CA",
         ...     analysis_selection="heavy",
+        ...     fitting_selection="an:CA",
         ...     fitting_method="TR+ROT"
         ... )
     """
     lib = LibGenesis().lib
 
-    # Fitting method mapping
-    method_map = {
-        "NO": FittingMethod.NO,
-        "TR+ROT": FittingMethod.TR_ROT,
-        "TR": FittingMethod.TR,
-        "TR+ZROT": FittingMethod.TR_ZROT,
-        "XYTR": FittingMethod.XYTR,
-        "XYTR+ZROT": FittingMethod.XYTR_ZROT,
-    }
-    if fitting_method not in method_map:
-        raise GenesisValidationError(
-            f"Invalid fitting_method: {fitting_method}. "
-            f"Valid options: {list(method_map.keys())}"
-        )
-    method_int = method_map[fitting_method]
-
     # Get atom indices using GENESIS selection
-    fitting_indices = selection(molecule, fitting_selection)
     analysis_indices = selection(molecule, analysis_selection)
-    n_fitting = len(fitting_indices)
     n_analysis = len(analysis_indices)
 
     # Ensure arrays are contiguous and correct dtype
@@ -1617,16 +735,60 @@ def rmsd_analysis_zerocopy_with_fitting(
     mass_ptr = mass.ctypes.data_as(ctypes.c_void_p)
     ref_coord_ptr = ref_coord_f.ctypes.data_as(ctypes.c_void_p)
 
+    # Pre-allocate result array (full zero-copy)
+    n_frame = int(trajs.nframe / ana_period)
+    result_rmsd = np.zeros(n_frame, dtype=np.float64)
+    result_ptr = result_rmsd.ctypes.data_as(ctypes.c_void_p)
+
     # Output variables
-    result_rmsd_c = ctypes.c_void_p()
-    nframes_out = ctypes.c_int()
+    nstru_out = ctypes.c_int()
     status = ctypes.c_int()
     msglen = _DEFAULT_MSG_LEN
     msg = ctypes.create_string_buffer(msglen)
 
-    try:
+    if fitting_selection is None:
+        # No fitting - call simple RMSD analysis
         with suppress_stdout_capture_stderr() as captured:
-            lib.rmsd_analysis_zerocopy_fitting_c(
+            lib.rmsd_analysis_c(
+                mass_ptr,
+                ref_coord_ptr,
+                ctypes.c_int(molecule.num_atoms),
+                ctypes.byref(trajs.get_c_obj()),
+                ctypes.c_int(ana_period),
+                analysis_indices.ctypes.data_as(ctypes.c_void_p),
+                ctypes.c_int(n_analysis),
+                ctypes.c_int(1 if mass_weighted else 0),
+                result_ptr,
+                ctypes.c_int(n_frame),
+                ctypes.byref(nstru_out),
+                ctypes.byref(status),
+                msg,
+                ctypes.c_int(msglen),
+            )
+    else:
+        # With fitting
+        # Fitting method mapping
+        method_map = {
+            "NO": FittingMethod.NO,
+            "TR+ROT": FittingMethod.TR_ROT,
+            "TR": FittingMethod.TR,
+            "TR+ZROT": FittingMethod.TR_ZROT,
+            "XYTR": FittingMethod.XYTR,
+            "XYTR+ZROT": FittingMethod.XYTR_ZROT,
+        }
+        if fitting_method not in method_map:
+            raise GenesisValidationError(
+                f"Invalid fitting_method: {fitting_method}. "
+                f"Valid options: {list(method_map.keys())}"
+            )
+        method_int = method_map[fitting_method]
+
+        # Get fitting indices
+        fitting_indices = selection(molecule, fitting_selection)
+        n_fitting = len(fitting_indices)
+
+        with suppress_stdout_capture_stderr() as captured:
+            lib.rmsd_analysis_fitting_c(
                 mass_ptr,
                 ref_coord_ptr,
                 ctypes.c_int(molecule.num_atoms),
@@ -1638,225 +800,13 @@ def rmsd_analysis_zerocopy_with_fitting(
                 ctypes.c_int(n_analysis),
                 ctypes.c_int(method_int),
                 ctypes.c_int(1 if mass_weighted else 0),
-                ctypes.byref(result_rmsd_c),
-                ctypes.byref(nframes_out),
+                result_ptr,
+                ctypes.c_int(n_frame),
+                ctypes.byref(nstru_out),
                 ctypes.byref(status),
                 msg,
                 ctypes.c_int(msglen),
             )
-
-        # Check for errors
-        if status.value != 0:
-            error_msg = msg.value.decode('utf-8', errors='replace').strip()
-            stderr_output = captured.stderr if captured else ""
-            raise_fortran_error(status.value, error_msg, stderr_output)
-
-        # Convert result to numpy array
-        n_frame = nframes_out.value
-        result_rmsd = (c2py_util.conv_double_ndarray(result_rmsd_c, n_frame)
-                       if result_rmsd_c else None)
-
-        return RmsdAnalysisResult(result_rmsd)
-
-    finally:
-        # Cleanup - only deallocate results, not the input arrays (Python owns them)
-        lib.deallocate_rmsd_results_c()
-
-
-def rmsd_analysis_zerocopy_full(
-        molecule: SMolecule,
-        trajs: STrajectories,
-        analysis_selection: str,
-        ana_period: int = 1,
-        mass_weighted: bool = False,
-        ref_coord: Optional[np.ndarray] = None,
-        ) -> RmsdAnalysisResult:
-    """
-    Executes rmsd_analysis with full zero-copy interface.
-
-    This function passes arrays directly AND uses a pre-allocated result array,
-    eliminating all data copies in both directions. No fitting is performed.
-
-    Args:
-        molecule: Molecular structure (provides mass and reference coordinates)
-        trajs: Trajectories to analyze
-        analysis_selection: GENESIS selection for analysis atoms (e.g., "an:CA")
-        ana_period: Analysis period (default: 1)
-        mass_weighted: Use mass weighting (default: False)
-        ref_coord: Reference coordinates (default: molecule.atom_coord).
-                   Shape should be (n_atoms, 3).
-
-    Returns:
-        RmsdAnalysisResult containing the RMSD array
-
-    Note:
-        This version does NOT perform structural fitting. Use
-        rmsd_analysis_zerocopy_full_with_fitting for fitting support.
-    """
-    lib = LibGenesis().lib
-
-    # Get atom indices using GENESIS selection
-    analysis_indices = selection(molecule, analysis_selection)
-    n_analysis = len(analysis_indices)
-
-    # Ensure arrays are contiguous and correct dtype
-    mass = np.ascontiguousarray(molecule.mass, dtype=np.float64)
-
-    # Reference coordinates: Fortran expects (3, n_atoms)
-    if ref_coord is None:
-        ref_coord_arr = molecule.atom_coord
-    else:
-        ref_coord_arr = ref_coord
-    ref_coord_f = np.asfortranarray(ref_coord_arr.T, dtype=np.float64)
-
-    # Get pointers (zero-copy)
-    mass_ptr = mass.ctypes.data_as(ctypes.c_void_p)
-    ref_coord_ptr = ref_coord_f.ctypes.data_as(ctypes.c_void_p)
-
-    # Pre-allocate result array (full zero-copy)
-    n_frame = int(trajs.nframe / ana_period)
-    result_rmsd = np.zeros(n_frame, dtype=np.float64)
-    result_ptr = result_rmsd.ctypes.data_as(ctypes.c_void_p)
-
-    # Output variables
-    nstru_out = ctypes.c_int()
-    status = ctypes.c_int()
-    msglen = _DEFAULT_MSG_LEN
-    msg = ctypes.create_string_buffer(msglen)
-
-    with suppress_stdout_capture_stderr() as captured:
-        lib.rmsd_analysis_zerocopy_full_c(
-            mass_ptr,
-            ref_coord_ptr,
-            ctypes.c_int(molecule.num_atoms),
-            ctypes.byref(trajs.get_c_obj()),
-            ctypes.c_int(ana_period),
-            analysis_indices.ctypes.data_as(ctypes.c_void_p),
-            ctypes.c_int(n_analysis),
-            ctypes.c_int(1 if mass_weighted else 0),
-            result_ptr,
-            ctypes.c_int(n_frame),
-            ctypes.byref(nstru_out),
-            ctypes.byref(status),
-            msg,
-            ctypes.c_int(msglen),
-        )
-
-    # Check for errors
-    if status.value != 0:
-        error_msg = msg.value.decode('utf-8', errors='replace').strip()
-        stderr_output = captured.stderr if captured else ""
-        raise_fortran_error(status.value, error_msg, stderr_output)
-
-    # Return the pre-allocated result array (already filled by Fortran)
-    return RmsdAnalysisResult(result_rmsd[:nstru_out.value])
-
-
-def rmsd_analysis_zerocopy_full_with_fitting(
-        molecule: SMolecule,
-        trajs: STrajectories,
-        fitting_selection: str,
-        analysis_selection: str,
-        fitting_method: str = "TR+ROT",
-        ana_period: int = 1,
-        mass_weighted: bool = False,
-        ref_coord: Optional[np.ndarray] = None,
-        ) -> RmsdAnalysisResult:
-    """
-    Executes rmsd_analysis with structural fitting (full zero-copy version).
-
-    This function performs structural alignment (fitting) before calculating RMSD.
-    It uses the full zerocopy interface with pre-allocated result arrays.
-
-    Args:
-        molecule: Molecular structure (provides mass and reference coordinates)
-        trajs: Trajectories to analyze
-        fitting_selection: GENESIS selection for fitting atoms (e.g., "an:CA")
-        analysis_selection: GENESIS selection for RMSD calculation atoms (e.g., "an:CA")
-        fitting_method: Fitting method:
-            - "NO": No fitting
-            - "TR+ROT": Translation + rotation (default, most common)
-            - "TR": Translation only
-            - "TR+ZROT": Translation + Z-axis rotation
-            - "XYTR": XY-plane translation only
-            - "XYTR+ZROT": XY translation + Z-axis rotation
-        ana_period: Analysis period (default: 1)
-        mass_weighted: Use mass weighting for both fitting and RMSD (default: False)
-        ref_coord: Reference coordinates (default: molecule.atom_coord).
-                   Shape should be (n_atoms, 3).
-
-    Returns:
-        RmsdAnalysisResult containing the RMSD array
-    """
-    lib = LibGenesis().lib
-
-    # Fitting method mapping
-    method_map = {
-        "NO": FittingMethod.NO,
-        "TR+ROT": FittingMethod.TR_ROT,
-        "TR": FittingMethod.TR,
-        "TR+ZROT": FittingMethod.TR_ZROT,
-        "XYTR": FittingMethod.XYTR,
-        "XYTR+ZROT": FittingMethod.XYTR_ZROT,
-    }
-    if fitting_method not in method_map:
-        raise GenesisValidationError(
-            f"Invalid fitting_method: {fitting_method}. "
-            f"Valid options: {list(method_map.keys())}"
-        )
-    method_int = method_map[fitting_method]
-
-    # Get atom indices using GENESIS selection
-    fitting_indices = selection(molecule, fitting_selection)
-    analysis_indices = selection(molecule, analysis_selection)
-    n_fitting = len(fitting_indices)
-    n_analysis = len(analysis_indices)
-
-    # Ensure arrays are contiguous and correct dtype
-    mass = np.ascontiguousarray(molecule.mass, dtype=np.float64)
-
-    # Reference coordinates: Fortran expects (3, n_atoms)
-    if ref_coord is None:
-        ref_coord_arr = molecule.atom_coord
-    else:
-        ref_coord_arr = ref_coord
-    ref_coord_f = np.asfortranarray(ref_coord_arr.T, dtype=np.float64)
-
-    # Get pointers (zero-copy)
-    mass_ptr = mass.ctypes.data_as(ctypes.c_void_p)
-    ref_coord_ptr = ref_coord_f.ctypes.data_as(ctypes.c_void_p)
-
-    # Pre-allocate result array (full zero-copy)
-    n_frame = int(trajs.nframe / ana_period)
-    result_rmsd = np.zeros(n_frame, dtype=np.float64)
-    result_ptr = result_rmsd.ctypes.data_as(ctypes.c_void_p)
-
-    # Output variables
-    nstru_out = ctypes.c_int()
-    status = ctypes.c_int()
-    msglen = _DEFAULT_MSG_LEN
-    msg = ctypes.create_string_buffer(msglen)
-
-    with suppress_stdout_capture_stderr() as captured:
-        lib.rmsd_analysis_zerocopy_full_fitting_c(
-            mass_ptr,
-            ref_coord_ptr,
-            ctypes.c_int(molecule.num_atoms),
-            ctypes.byref(trajs.get_c_obj()),
-            ctypes.c_int(ana_period),
-            fitting_indices.ctypes.data_as(ctypes.c_void_p),
-            ctypes.c_int(n_fitting),
-            analysis_indices.ctypes.data_as(ctypes.c_void_p),
-            ctypes.c_int(n_analysis),
-            ctypes.c_int(method_int),
-            ctypes.c_int(1 if mass_weighted else 0),
-            result_ptr,
-            ctypes.c_int(n_frame),
-            ctypes.byref(nstru_out),
-            ctypes.byref(status),
-            msg,
-            ctypes.c_int(msglen),
-        )
 
     # Check for errors
     if status.value != 0:
@@ -1874,104 +824,6 @@ DrmsAnalysisResult = namedtuple(
 
 
 def drms_analysis(
-        molecule: SMolecule, trajs: STrajectories,
-        ana_period: Optional[int] = 1,
-        selection_group: Optional[Iterable[str]] = None,
-        selection_mole_name: Optional[Iterable[str]] = None,
-        fitting_method: Optional[str] = None,
-        fitting_atom: Optional[int] = None,
-        check_only: Optional[bool] = None,
-        contact_groups: Optional[int] = None,
-        ignore_hydrogen: Optional[bool] = None,
-        two_states: Optional[bool] = None,
-        avoid_bonding: Optional[bool] = None,
-        exclude_residues: Optional[int] = None,
-        minimum_distance: Optional[float] = None,
-        maximum_distance: Optional[float] = None,
-        pbc_correct: Optional[bool] = None,
-        verbose: Optional[bool] = None,
-        ) -> DrmsAnalysisResult:
-    """
-    Executes drms_analysis.
-
-    Args:
-        molecule:
-        trajs:
-        ana_period:
-    Returns:
-        drms
-    """
-    if ana_period is None:
-        ana_period = 1
-    mol_c = None
-    ana_period_c = ctypes.c_int(ana_period)
-    result_drms_c = ctypes.c_void_p()
-    try:
-        mol_c = molecule.to_SMoleculeC()
-        ctrl = io.BytesIO()
-        ctrl_files.write_ctrl_output(
-                ctrl,
-                rmsfile="dummy.rms")
-        ctrl_files.write_ctrl_selection(
-                ctrl, selection_group, selection_mole_name)
-        ctrl_files.write_ctrl_fitting(
-                ctrl, fitting_method, fitting_atom)
-        ctrl.write(b"[OPTION]\n")
-        ctrl_files.write_kwargs(
-                ctrl,
-                check_only=check_only,
-                contact_groups=contact_groups,
-                ignore_hydrogen=ignore_hydrogen,
-                two_states=two_states,
-                avoid_bonding=avoid_bonding,
-                exclude_residues=exclude_residues,
-                minimum_distance=minimum_distance,
-                maximum_distance=maximum_distance,
-                pbc_correct=pbc_correct,
-                verbose=verbose,
-                )
-
-        ctrl_bytes = ctrl.getvalue()
-        ctrl_len = len(ctrl_bytes)
-        msgbuf, MSG_LEN = make_msgbuf()
-        status = ctypes.c_int(0)
-
-        with suppress_stdout_capture_stderr() as captured:
-            LibGenesis().lib.dr_analysis_c(
-                    ctypes.byref(mol_c),
-                    ctypes.byref(trajs.get_c_obj()),
-                    ctypes.byref(ana_period_c),
-                    ctrl_bytes,
-                    ctypes.c_int(ctrl_len),
-                    ctypes.byref(result_drms_c),
-                    ctypes.byref(status),
-                    msgbuf,
-                    ctypes.c_int(MSG_LEN),
-                    )
-        if status.value != 0:
-            error_msg = msgbuf.value.decode("utf-8", "replace")
-            raise_fortran_error(
-                error_msg,
-                code=status.value,
-                stderr_output=captured.stderr
-            )
-
-        n_frame_c = ctypes.c_int(int(trajs.nframe / ana_period))
-        result_drms = (c2py_util.conv_double_ndarray(
-            result_drms_c, n_frame_c.value)
-                    if result_drms_c else None)
-        return DrmsAnalysisResult(
-                result_drms)
-    finally:
-        if result_drms_c:
-            LibGenesis().lib.deallocate_double(
-                    ctypes.byref(result_drms_c),
-                    ctypes.byref(n_frame_c))
-        if mol_c:
-            LibGenesis().lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
-
-
-def drms_analysis_zerocopy(
         trajs: STrajectories,
         contact_list: np.ndarray,
         contact_dist: np.ndarray,
@@ -1979,105 +831,10 @@ def drms_analysis_zerocopy(
         pbc_correct: bool = False,
         ) -> DrmsAnalysisResult:
     """
-    Executes drms_analysis with true zero-copy interface.
+    Executes distance RMSD (DRMS) analysis.
 
-    This function passes the contact list and distance arrays directly from
-    Python NumPy to Fortran, eliminating all data copies. The Fortran code
-    creates views of the Python arrays using C_F_POINTER.
-
-    Args:
-        trajs: Trajectories to analyze
-        contact_list: Contact atom pairs as (2, n_contact) array with 1-indexed
-                      atom indices. Each column is [atom1_idx, atom2_idx].
-        contact_dist: Reference distances for each contact pair (n_contact,)
-        ana_period: Analysis period (default: 1)
-        pbc_correct: Apply PBC correction for distances (default: False)
-
-    Returns:
-        DrmsAnalysisResult containing the DRMS array
-
-    Example:
-        >>> # Create contact list from atom selections
-        >>> contact_list = np.array([[1, 2, 3], [10, 11, 12]], dtype=np.int32)
-        >>> contact_dist = np.array([5.0, 6.0, 7.0], dtype=np.float64)
-        >>> result = drms_analysis_zerocopy(trajs, contact_list, contact_dist)
-        >>> print(result.drms)
-    """
-    lib = LibGenesis().lib
-
-    # Ensure arrays are contiguous and correct dtype
-    # contact_list should be (2, n_contact) with Fortran order for column-major
-    contact_list_f = np.asfortranarray(contact_list, dtype=np.int32)
-    contact_dist_f = np.ascontiguousarray(contact_dist, dtype=np.float64)
-
-    # Validate shapes
-    if contact_list_f.ndim != 2 or contact_list_f.shape[0] != 2:
-        raise GenesisValidationError(
-            f"contact_list must be shape (2, n_contact), got {contact_list.shape}"
-        )
-    n_contact = contact_list_f.shape[1]
-    if contact_dist_f.shape[0] != n_contact:
-        raise GenesisValidationError(
-            f"contact_dist must have {n_contact} elements, got {contact_dist.shape[0]}"
-        )
-
-    # Get pointers (zero-copy)
-    contact_list_ptr = contact_list_f.ctypes.data_as(ctypes.c_void_p)
-    contact_dist_ptr = contact_dist_f.ctypes.data_as(ctypes.c_void_p)
-
-    # Output variables
-    result_drms_c = ctypes.c_void_p()
-    status = ctypes.c_int()
-    msglen = _DEFAULT_MSG_LEN
-    msg = ctypes.create_string_buffer(msglen)
-
-    try:
-        with suppress_stdout_capture_stderr() as captured:
-            lib.drms_analysis_zerocopy_c(
-                contact_list_ptr,
-                contact_dist_ptr,
-                ctypes.c_int(n_contact),
-                ctypes.byref(trajs.get_c_obj()),
-                ctypes.c_int(ana_period),
-                ctypes.c_int(1 if pbc_correct else 0),
-                ctypes.byref(result_drms_c),
-                ctypes.byref(status),
-                msg,
-                ctypes.c_int(msglen),
-            )
-
-        # Check for errors
-        if status.value != 0:
-            error_msg = msg.value.decode('utf-8', errors='replace').strip()
-            stderr_output = captured.stderr if captured else ""
-            raise_fortran_error(status.value, error_msg, stderr_output)
-
-        # Convert result to numpy array
-        n_frame = int(trajs.nframe / ana_period)
-        result_drms = (c2py_util.conv_double_ndarray(result_drms_c, n_frame)
-                       if result_drms_c else None)
-
-        return DrmsAnalysisResult(result_drms)
-
-    finally:
-        # Cleanup - only deallocate results, not the input arrays (Python owns them)
-        lib.deallocate_drms_results_c()
-        # Note: NO deallocate_s_molecule_c call - we didn't allocate any s_molecule_c!
-
-
-def drms_analysis_zerocopy_full(
-        trajs: STrajectories,
-        contact_list: np.ndarray,
-        contact_dist: np.ndarray,
-        ana_period: int = 1,
-        pbc_correct: bool = False,
-        ) -> DrmsAnalysisResult:
-    """
-    Executes drms_analysis with full zero-copy interface (pre-allocated result).
-
-    This is the most efficient version: input arrays AND result arrays are
-    pre-allocated in Python and passed to Fortran. No memory allocation
-    happens on the Fortran side.
+    This function calculates the root-mean-square deviation of distances
+    between predefined atom contact pairs compared to reference distances.
 
     Args:
         trajs: Trajectories to analyze
@@ -2093,7 +850,7 @@ def drms_analysis_zerocopy_full(
     Example:
         >>> contact_list = np.array([[1, 2, 3], [10, 11, 12]], dtype=np.int32)
         >>> contact_dist = np.array([5.0, 6.0, 7.0], dtype=np.float64)
-        >>> result = drms_analysis_zerocopy_full(trajs, contact_list, contact_dist)
+        >>> result = drms_analysis(trajs, contact_list, contact_dist)
         >>> print(result.drms)
     """
     lib = LibGenesis().lib
@@ -2129,7 +886,7 @@ def drms_analysis_zerocopy_full(
     msg = ctypes.create_string_buffer(msglen)
 
     with suppress_stdout_capture_stderr() as captured:
-        lib.drms_analysis_zerocopy_full_c(
+        lib.drms_analysis_c(
             contact_list_ptr,
             contact_dist_ptr,
             ctypes.c_int(n_contact),
@@ -2319,86 +1076,12 @@ def hb_analysis(molecule: SMolecule, trajs: STrajectories,
                 pass
 
 
-def diffusion_analysis(msd_data: npt.NDArray[np.float64],
-                       time_step: Optional[int] = None,
-                       start: Optional[str] = None,
-                       ) -> npt.NDArray[np.float64]:
-    """
-    Executes diffusion_analysis.
-
-    Args:
-    Returns:
-        diffusion
-    """
-    result = ctypes.c_void_p(None)
-    mol_c = None
-
-    c_msd = None
-    c_out = ctypes.c_void_p(0)
-    if msd_data.ndim != 2:
-        raise GenesisValidationError(f"msd_data must be 2D, got {msd_data.ndim}D")
-    d0 = ctypes.c_int(msd_data.shape[0])
-    d1 = ctypes.c_int(msd_data.shape[1])
-
-    try:
-        c_msd = ctypes.c_void_p(
-                LibGenesis().lib.allocate_c_double_array2(
-                    ctypes.byref(d0),
-                    ctypes.byref(d1)))
-        py2c_util.write_double_ndarray(msd_data, c_msd)
-        ctrl = io.BytesIO()
-        ctrl_files.write_ctrl_output(
-                ctrl,
-                outfile="dummy.out")
-        ctrl.write(b"[OPTION]\n")
-        ctrl_files.write_kwargs(
-                ctrl,
-                time_step=time_step,
-                start=start,
-                )
-
-        ctrl_bytes = ctrl.getvalue()
-        ctrl_len = len(ctrl_bytes)
-        msgbuf, MSG_LEN = make_msgbuf()
-        status = ctypes.c_int(0)
-        with suppress_stdout_capture_stderr() as captured:
-            LibGenesis().lib.diffusion_analysis_c(
-                ctypes.byref(c_msd),
-                ctypes.byref(d0),
-                ctypes.byref(d1),
-                ctrl_bytes,
-                ctypes.c_int(ctrl_len),
-                ctypes.byref(c_out),
-                ctypes.byref(status),
-                msgbuf,
-                ctypes.c_int(MSG_LEN),
-                )
-        if status.value != 0:
-            error_msg = msgbuf.value.decode("utf-8", "replace")
-            raise_fortran_error(
-                error_msg,
-                code=status.value,
-                stderr_output=captured.stderr
-            )
-
-        return c2py_util.conv_double_ndarray(
-                c_out, (msd_data.shape[0], msd_data.shape[1] * 2 - 1))
-    finally:
-        if c_msd:
-            LibGenesis().lib.deallocate_double2(
-                    ctypes.byref(c_msd), ctypes.byref(d0), ctypes.byref(d1))
-        if c_out:
-            ci = ctypes.c_int(msd_data.shape[0] * (msd_data.shape[1] * 2 - 1))
-            LibGenesis().lib.deallocate_double(
-                    ctypes.byref(c_out), ctypes.byref(ci))
-
-
 DiffusionAnalysisResult = namedtuple(
         'DiffusionAnalysisResult',
         ['out_data', 'diffusion_coefficients'])
 
 
-def diffusion_analysis_zerocopy(
+def diffusion_analysis(
         msd_data: npt.NDArray[np.float64],
         time_step: float = 1.0,
         distance_unit: float = 1.0,
@@ -2407,11 +1090,11 @@ def diffusion_analysis_zerocopy(
         stop_step: Optional[int] = None,
         ) -> DiffusionAnalysisResult:
     """
-    Executes diffusion_analysis with true zero-copy interface.
+    Executes diffusion analysis on mean square displacement data.
 
-    This function passes the MSD data array directly from Python NumPy to
-    Fortran, eliminating unnecessary data copies. Parameters are passed directly
-    instead of through a control file.
+    This function analyzes MSD data to calculate diffusion coefficients
+    using linear fitting. It uses zero-copy memory sharing with pre-allocated
+    result arrays for optimal performance.
 
     Args:
         msd_data: 2D numpy array of shape (ndata, ncols) where:
@@ -2431,119 +1114,7 @@ def diffusion_analysis_zerocopy(
     Example:
         >>> # MSD data with time column and one MSD set
         >>> msd = np.array([[0, 0.0], [1, 0.1], [2, 0.3], ...])
-        >>> result = diffusion_analysis_zerocopy(msd, time_step=0.01)
-        >>> print(f"D = {result.diffusion_coefficients[0]:.2e} cm^2/s")
-    """
-    lib = LibGenesis().lib
-
-    # Validate input
-    if msd_data.ndim != 2:
-        raise GenesisValidationError(f"msd_data must be 2D, got {msd_data.ndim}D")
-    if msd_data.shape[1] < 2:
-        raise GenesisValidationError("msd_data must have at least 2 columns")
-
-    ndata = msd_data.shape[0]
-    ncols = msd_data.shape[1]
-    n_sets = ncols - 1
-
-    # Set default stop_step
-    if stop_step is None:
-        stop_step = ndata
-
-    # Ensure array is Fortran order (column-major)
-    msd_f = np.asfortranarray(msd_data.T, dtype=np.float64)
-
-    # Get pointer (zero-copy)
-    msd_ptr = msd_f.ctypes.data_as(ctypes.c_void_p)
-
-    # Output variables
-    out_data_ptr = ctypes.c_void_p()
-    diff_coeff_ptr = ctypes.c_void_p()
-    status = ctypes.c_int()
-    msglen = _DEFAULT_MSG_LEN
-    msg = ctypes.create_string_buffer(msglen)
-
-    try:
-        with suppress_stdout_capture_stderr() as captured:
-            lib.diffusion_analysis_zerocopy_c(
-                msd_ptr,
-                ctypes.c_int(ndata),
-                ctypes.c_int(ncols),
-                ctypes.c_double(time_step),
-                ctypes.c_double(distance_unit),
-                ctypes.c_int(ndofs),
-                ctypes.c_int(start_step),
-                ctypes.c_int(stop_step),
-                ctypes.byref(out_data_ptr),
-                ctypes.byref(diff_coeff_ptr),
-                ctypes.byref(status),
-                msg,
-                ctypes.c_int(msglen),
-            )
-
-        # Check for errors
-        if status.value != 0:
-            error_msg = msg.value.decode('utf-8', errors='replace').strip()
-            stderr_output = captured.stderr if captured else ""
-            raise_fortran_error(status.value, error_msg, stderr_output)
-
-        # Convert results to numpy arrays
-        out_ncols = 2 * n_sets + 1  # time + (msd + fit) * n_sets
-
-        # Read flat array and reshape with Fortran order
-        out_data_flat = c2py_util.conv_double_ndarray(
-            out_data_ptr, out_ncols * ndata) if out_data_ptr else None
-        diff_coeff = c2py_util.conv_double_ndarray(
-            diff_coeff_ptr, n_sets) if diff_coeff_ptr else None
-
-        # Reshape with Fortran order (column-major) and transpose to (ndata, ncols)
-        if out_data_flat is not None:
-            out_data = out_data_flat.reshape((out_ncols, ndata), order='F').T
-        else:
-            out_data = None
-
-        return DiffusionAnalysisResult(out_data, diff_coeff)
-
-    finally:
-        # Cleanup - deallocate Fortran allocated results
-        lib.deallocate_diffusion_results_c()
-        # Note: msd_f is a Python array, no need to deallocate
-
-
-def diffusion_analysis_zerocopy_full(
-        msd_data: npt.NDArray[np.float64],
-        time_step: float = 1.0,
-        distance_unit: float = 1.0,
-        ndofs: int = 3,
-        start_step: int = 1,
-        stop_step: Optional[int] = None,
-        ) -> DiffusionAnalysisResult:
-    """
-    Executes diffusion_analysis with full zero-copy interface.
-
-    This function pre-allocates result arrays in Python and passes pointers
-    to Fortran, eliminating all data copies. Both input and output arrays
-    use zero-copy memory sharing.
-
-    Args:
-        msd_data: 2D numpy array of shape (ndata, ncols) where:
-                  - column 0: time steps (integers or floats)
-                  - columns 1+: MSD values for each set
-        time_step: Time per step in ps (default: 1.0)
-        distance_unit: Distance unit factor (default: 1.0 for Angstrom)
-        ndofs: Degrees of freedom (default: 3 for 3D diffusion)
-        start_step: Start step for linear fitting (1-indexed, default: 1)
-        stop_step: Stop step for linear fitting (1-indexed, default: ndata)
-
-    Returns:
-        DiffusionAnalysisResult containing:
-        - out_data: 2D array with time, MSD, and fitted values
-        - diffusion_coefficients: 1D array of diffusion coefficients (cm^2/s)
-
-    Example:
-        >>> # MSD data with time column and one MSD set
-        >>> msd = np.array([[0, 0.0], [1, 0.1], [2, 0.3], ...])
-        >>> result = diffusion_analysis_zerocopy_full(msd, time_step=0.01)
+        >>> result = diffusion_analysis(msd, time_step=0.01)
         >>> print(f"D = {result.diffusion_coefficients[0]:.2e} cm^2/s")
     """
     lib = LibGenesis().lib
@@ -2581,7 +1152,7 @@ def diffusion_analysis_zerocopy_full(
     msg = ctypes.create_string_buffer(msglen)
 
     with suppress_stdout_capture_stderr() as captured:
-        lib.diffusion_analysis_zerocopy_full_c(
+        lib.diffusion_analysis_c(
             msd_ptr,
             ctypes.c_int(ndata),
             ctypes.c_int(ncols),

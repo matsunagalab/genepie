@@ -49,54 +49,7 @@ def compute_contact_list_from_refcoord(mol, selection_indices, min_dist=1.0, max
 
 
 def test_drms_analysis():
-    mol = SMolecule.from_file(pdb=BPTI_PDB, psf=BPTI_PSF, ref=BPTI_PDB)
-    trajs, subset_mol =  genesis_exe.crd_convert(
-            mol,
-            traj_params = [
-                TrajectoryParameters(
-                    trjfile = str(BPTI_DCD),
-                    md_step = 10,
-                    mdout_period = 1,
-                    ana_period = 1,
-                    repeat = 1,
-                    ),
-                ],
-            trj_format = "DCD",
-            trj_type = "COOR+BOX",
-            trj_natom = 0,
-            selection_group = ["all", ],
-            fitting_method = "NO",
-            fitting_atom = 1,
-            check_only = False,
-            pbc_correct = "NO",
-    ) 
-
-    _ = subset_mol
-
-    try: 
-        for t in trajs:
-            drms, = genesis_exe.drms_analysis(
-                    mol, t,
-                    selection_group = ["an: CA", ],
-                    check_only = False,
-                    contact_groups = 1,
-                    ignore_hydrogen  = False,
-                    two_states       = False,
-                    avoid_bonding    = True,
-                    exclude_residues = 4,
-                    minimum_distance = 1.0,
-                    maximum_distance = 6.0,
-                    pbc_correct      = False,
-                    verbose          = True,
-                    )
-            print(drms)
-    finally:
-        if hasattr(trajs, "close"):
-            trajs.close()
-
-
-def test_drms_zerocopy():
-    """Test zerocopy DRMS analysis and compare with legacy implementation."""
+    """Test DRMS analysis with zerocopy interface."""
     mol = SMolecule.from_file(pdb=BPTI_PDB, psf=BPTI_PSF, ref=BPTI_PDB)
     trajs, subset_mol = genesis_exe.crd_convert(
             mol,
@@ -135,8 +88,8 @@ def test_drms_zerocopy():
             print(f"contact_list shape: {contact_list.shape}")
             print(f"contact_dist shape: {contact_dist.shape}")
 
-            # Run zerocopy version
-            result_zerocopy = genesis_exe.drms_analysis_zerocopy(
+            # Run DRMS analysis
+            result = genesis_exe.drms_analysis(
                 t,
                 contact_list=contact_list,
                 contact_dist=contact_dist,
@@ -145,156 +98,12 @@ def test_drms_zerocopy():
             )
 
             # Validate results
-            assert result_zerocopy.drms is not None, "Zerocopy DRMS result should not be None"
-            assert len(result_zerocopy.drms) > 0, "Zerocopy DRMS result should have values"
-            assert all(d >= 0 for d in result_zerocopy.drms), "DRMS values should be non-negative"
+            assert result.drms is not None, "DRMS result should not be None"
+            assert len(result.drms) > 0, "DRMS result should have values"
+            assert all(d >= 0 for d in result.drms), "DRMS values should be non-negative"
 
-            print(f"Zerocopy DRMS (n={len(result_zerocopy.drms)}): "
-                  f"min={min(result_zerocopy.drms):.5f}, max={max(result_zerocopy.drms):.5f}")
-
-    finally:
-        if hasattr(trajs, "close"):
-            trajs.close()
-
-
-def test_drms_zerocopy_vs_legacy():
-    """Compare zerocopy and legacy DRMS implementations for consistency."""
-    mol = SMolecule.from_file(pdb=BPTI_PDB, psf=BPTI_PSF, ref=BPTI_PDB)
-    trajs, subset_mol = genesis_exe.crd_convert(
-            mol,
-            traj_params=[
-                TrajectoryParameters(
-                    trjfile=str(BPTI_DCD),
-                    md_step=10,
-                    mdout_period=1,
-                    ana_period=1,
-                    repeat=1,
-                ),
-            ],
-            trj_format="DCD",
-            trj_type="COOR+BOX",
-            trj_natom=0,
-            selection_group=["all"],
-            fitting_method="NO",
-            fitting_atom=1,
-            check_only=False,
-            pbc_correct="NO",
-    )
-    _ = subset_mol
-
-    try:
-        for t in trajs:
-            # Run legacy version
-            result_legacy = genesis_exe.drms_analysis(
-                mol, t,
-                selection_group=["an: CA"],
-                check_only=False,
-                contact_groups=1,
-                ignore_hydrogen=False,
-                two_states=False,
-                avoid_bonding=False,  # Disable to match our Python contact computation
-                exclude_residues=4,
-                minimum_distance=1.0,
-                maximum_distance=6.0,
-                pbc_correct=False,
-                verbose=True,
-            )
-
-            # Compute contacts the same way legacy does (without avoid_bonding)
-            ca_indices = genesis_exe.selection(mol, "an: CA")
-            contact_list, contact_dist = compute_contact_list_from_refcoord(
-                mol, ca_indices,
-                min_dist=1.0, max_dist=6.0, exclude_residues=4
-            )
-
-            # Run zerocopy version
-            result_zerocopy = genesis_exe.drms_analysis_zerocopy(
-                t,
-                contact_list=contact_list,
-                contact_dist=contact_dist,
-                ana_period=1,
-                pbc_correct=False,
-            )
-
-            print(f"Legacy DRMS: min={min(result_legacy.drms):.5f}, max={max(result_legacy.drms):.5f}")
-            print(f"Zerocopy DRMS: min={min(result_zerocopy.drms):.5f}, max={max(result_zerocopy.drms):.5f}")
-
-            # Check that results match (within numerical tolerance)
-            # Note: They may differ slightly due to different contact selection
-            assert len(result_legacy.drms) == len(result_zerocopy.drms), \
-                "Result lengths should match"
-
-    finally:
-        if hasattr(trajs, "close"):
-            trajs.close()
-
-
-def test_drms_zerocopy_full():
-    """Test zerocopy_full DRMS analysis (pre-allocated result)."""
-    mol = SMolecule.from_file(pdb=BPTI_PDB, psf=BPTI_PSF, ref=BPTI_PDB)
-    trajs, subset_mol = genesis_exe.crd_convert(
-            mol,
-            traj_params=[
-                TrajectoryParameters(
-                    trjfile=str(BPTI_DCD),
-                    md_step=10,
-                    mdout_period=1,
-                    ana_period=1,
-                    repeat=1,
-                ),
-            ],
-            trj_format="DCD",
-            trj_type="COOR+BOX",
-            trj_natom=0,
-            selection_group=["all"],
-            fitting_method="NO",
-            fitting_atom=1,
-            check_only=False,
-            pbc_correct="NO",
-    )
-    _ = subset_mol
-
-    try:
-        for t in trajs:
-            # Get CA atom indices and compute contacts
-            ca_indices = genesis_exe.selection(mol, "an: CA")
-            contact_list, contact_dist = compute_contact_list_from_refcoord(
-                mol, ca_indices,
-                min_dist=1.0, max_dist=6.0, exclude_residues=4
-            )
-
-            # Run zerocopy version
-            result_zerocopy = genesis_exe.drms_analysis_zerocopy(
-                t,
-                contact_list=contact_list,
-                contact_dist=contact_dist,
-                ana_period=1,
-                pbc_correct=False,
-            )
-
-            # Run zerocopy_full version
-            result_full = genesis_exe.drms_analysis_zerocopy_full(
-                t,
-                contact_list=contact_list,
-                contact_dist=contact_dist,
-                ana_period=1,
-                pbc_correct=False,
-            )
-
-            # Validate results
-            assert result_full.drms is not None, "zerocopy_full DRMS should not be None"
-            assert len(result_full.drms) > 0, "zerocopy_full should have values"
-            assert len(result_full.drms) == len(result_zerocopy.drms), \
-                f"Lengths should match: {len(result_full.drms)} vs {len(result_zerocopy.drms)}"
-
-            # Check values match exactly
-            diff = np.abs(np.array(result_full.drms) - np.array(result_zerocopy.drms))
-            max_diff = np.max(diff)
-            assert max_diff < 1e-10, f"Results should match exactly, got max diff {max_diff}"
-
-            print(f"Zerocopy_full DRMS (n={len(result_full.drms)}): "
-                  f"min={min(result_full.drms):.5f}, max={max(result_full.drms):.5f}")
-            print(f"Max difference from zerocopy: {max_diff:.2e}")
+            print(f"DRMS (n={len(result.drms)}): "
+                  f"min={min(result.drms):.5f}, max={max(result.drms):.5f}")
 
     finally:
         if hasattr(trajs, "close"):
@@ -304,27 +113,11 @@ def test_drms_zerocopy_full():
 def main():
     if os.path.exists("dummy.trj"):
         os.remove("dummy.trj")
-    # Run zerocopy tests first to avoid Fortran global state issues
-    # Legacy -> zerocopy sequence crashes, but zerocopy -> legacy works
-    try:
-        test_drms_zerocopy_full()
-        print("\n✓ test_drms_zerocopy_full: PASSED")
-    except Exception as e:
-        print(f"\n✗ test_drms_zerocopy_full: FAILED - {e}")
-        raise
-
-    try:
-        test_drms_zerocopy()
-        print("\n✓ test_drms_zerocopy: PASSED")
-    except Exception as e:
-        print(f"\n✗ test_drms_zerocopy: FAILED - {e}")
-        raise
-
     try:
         test_drms_analysis()
-        print("\n✓ test_drms_analysis: PASSED")
+        print("\nAll DRMS tests passed!")
     except Exception as e:
-        print(f"\n✗ test_drms_analysis: FAILED - {e}")
+        print(f"\nDRMS test FAILED: {e}")
         raise
 
 
