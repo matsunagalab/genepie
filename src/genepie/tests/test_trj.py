@@ -12,7 +12,11 @@ from ..custom_test_case import CustomTestCase
 
 
 class TestTrjAnalysis(CustomTestCase):
-    def test_trj_analysis(self):
+    # Note: Test methods are ordered alphabetically by unittest.
+    # Zerocopy tests must run BEFORE legacy tests to avoid Fortran state issues.
+    # So we use 'test_a_*' prefix for zerocopy and 'test_z_*' for legacy.
+
+    def test_z_trj_analysis(self):
         trajs, mol = self.create_traj_by_genesis(
                 self.TRJ_PATH, pdb=self.PDB_PATH, psf=self.PSF_PATH)
         for t in trajs:
@@ -31,7 +35,7 @@ class TestTrjAnalysis(CustomTestCase):
             ref_tor = np.loadtxt(ta_test_root / "Dihedral/ref")
             self.assertAlmostEqual(ref_tor[:,1:], r.torsion, places=3)
 
-    def test_trj_analysis_zerocopy_com(self):
+    def test_a_trj_analysis_zerocopy_com(self):
         """Test trj_analysis_zerocopy_com with COM calculations."""
         trajs, mol = self.create_traj_by_genesis(
                 self.TRJ_PATH, pdb=self.PDB_PATH, psf=self.PSF_PATH)

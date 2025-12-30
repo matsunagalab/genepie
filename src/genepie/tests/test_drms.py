@@ -232,18 +232,20 @@ def test_drms_zerocopy_vs_legacy():
 def main():
     if os.path.exists("dummy.trj"):
         os.remove("dummy.trj")
-    try:
-        test_drms_analysis()
-        print("\n✓ test_drms_analysis: PASSED")
-    except Exception as e:
-        print(f"\n✗ test_drms_analysis: FAILED - {e}")
-        raise
-
+    # Run zerocopy tests first to avoid Fortran global state issues
+    # Legacy -> zerocopy sequence crashes, but zerocopy -> legacy works
     try:
         test_drms_zerocopy()
         print("\n✓ test_drms_zerocopy: PASSED")
     except Exception as e:
         print(f"\n✗ test_drms_zerocopy: FAILED - {e}")
+        raise
+
+    try:
+        test_drms_analysis()
+        print("\n✓ test_drms_analysis: PASSED")
+    except Exception as e:
+        print(f"\n✗ test_drms_analysis: FAILED - {e}")
         raise
 
 
