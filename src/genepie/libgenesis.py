@@ -217,6 +217,24 @@ class LibGenesis:
                 ]
         self.lib.rg_analysis_zerocopy_c.restype = None
 
+        # RG analysis with full zero-copy (pre-allocated result array)
+        self.lib.rg_analysis_zerocopy_full_c.argtypes = [
+                ctypes.c_void_p,                  # mass_ptr (pointer to NumPy array)
+                ctypes.c_int,                     # n_atoms
+                ctypes.POINTER(STrajectoriesC),   # s_trajes_c
+                ctypes.c_int,                     # ana_period
+                ctypes.c_void_p,                  # analysis_idx (pointer to int array)
+                ctypes.c_int,                     # n_analysis
+                ctypes.c_int,                     # mass_weighted (0 or 1)
+                ctypes.c_void_p,                  # result_ptr (pre-allocated result)
+                ctypes.c_int,                     # result_size
+                ctypes.POINTER(ctypes.c_int),     # nstru_out (output)
+                ctypes.POINTER(ctypes.c_int),     # status (output)
+                ctypes.c_char_p,                  # msg (output)
+                ctypes.c_int,                     # msglen
+                ]
+        self.lib.rg_analysis_zerocopy_full_c.restype = None
+
         self.lib.ra_analysis_c.argtypes = [
                 ctypes.POINTER(SMoleculeC),
                 ctypes.POINTER(STrajectoriesC),

@@ -44,7 +44,7 @@ msd_c_mod.lo: msd_c_mod.fpp s_trajectories_c_mod.mod s_molecule_c_mod.mod conv_f
 msd_c_mod.mod: msd_c_mod.fpp msd_c_mod.lo
 msd_impl.lo: msd_impl.fpp s_trajectories_c_mod.mod 
 msd_impl_mod.mod: msd_impl.fpp msd_impl.lo
-rg_c_mod.lo: rg_c_mod.fpp s_trajectories_c_mod.mod s_molecule_c_mod.mod rg_impl_mod.mod conv_f_c_util.mod 
+rg_c_mod.lo: rg_c_mod.fpp s_trajectories_c_mod.mod s_molecule_c_mod.mod rg_impl_mod.mod error_mod.mod conv_f_c_util.mod
 rg_c_mod.mod: rg_c_mod.fpp rg_c_mod.lo
 rg_impl.lo: rg_impl.fpp s_trajectories_c_mod.mod 
 rg_impl_mod.mod: rg_impl.fpp rg_impl.lo

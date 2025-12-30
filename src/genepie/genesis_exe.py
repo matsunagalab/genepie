@@ -941,6 +941,83 @@ def rg_analysis_zerocopy(
         # Note: NO deallocate_s_molecule_c call - we didn't allocate any s_molecule_c!
 
 
+def rg_analysis_zerocopy_full(
+        molecule: SMolecule,
+        trajs: STrajectories,
+        analysis_selection: str,
+        ana_period: int = 1,
+        mass_weighted: bool = True,
+        ) -> RgAnalysisResult:
+    """
+    Executes rg_analysis with full zero-copy interface.
+
+    This function passes the mass array pointer and pre-allocates the result
+    array in Python, eliminating all data copies in both directions.
+
+    Args:
+        molecule: Molecular structure
+        trajs: Trajectories to analyze
+        analysis_selection: GENESIS selection string (e.g., "an:CA", "heavy")
+        ana_period: Analysis period (default: 1)
+        mass_weighted: Use mass weighting for RG calculation (default: True)
+
+    Returns:
+        RgAnalysisResult containing the radius of gyration array
+
+    Example:
+        >>> result = rg_analysis_zerocopy_full(mol, trajs, "an:CA")
+        >>> print(result.rg)
+    """
+    lib = LibGenesis().lib
+
+    # Get atom indices using GENESIS selection
+    analysis_indices = selection(molecule, analysis_selection)
+    n_analysis = len(analysis_indices)
+
+    # Ensure mass array is contiguous and correct dtype
+    mass = np.ascontiguousarray(molecule.mass, dtype=np.float64)
+
+    # Get pointer to mass array (zero-copy)
+    mass_ptr = mass.ctypes.data_as(ctypes.c_void_p)
+
+    # Pre-allocate result array (zero-copy)
+    n_frame = int(trajs.nframe / ana_period)
+    result_rg = np.zeros(n_frame, dtype=np.float64)
+    result_ptr = result_rg.ctypes.data_as(ctypes.c_void_p)
+
+    # Output variables
+    nstru_out = ctypes.c_int()
+    status = ctypes.c_int()
+    msglen = _DEFAULT_MSG_LEN
+    msg = ctypes.create_string_buffer(msglen)
+
+    with suppress_stdout_capture_stderr() as captured:
+        lib.rg_analysis_zerocopy_full_c(
+            mass_ptr,
+            ctypes.c_int(molecule.num_atoms),
+            ctypes.byref(trajs.get_c_obj()),
+            ctypes.c_int(ana_period),
+            analysis_indices.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(n_analysis),
+            ctypes.c_int(1 if mass_weighted else 0),
+            result_ptr,
+            ctypes.c_int(n_frame),
+            ctypes.byref(nstru_out),
+            ctypes.byref(status),
+            msg,
+            ctypes.c_int(msglen),
+        )
+
+    # Check for errors
+    if status.value != 0:
+        error_msg = msg.value.decode('utf-8', errors='replace').strip()
+        stderr_output = captured.stderr if captured else ""
+        raise_fortran_error(status.value, error_msg, stderr_output)
+
+    # Return the pre-allocated result array (already filled by Fortran)
+    return RgAnalysisResult(result_rg[:nstru_out.value])
+
+
 RmsdAnalysisResult = namedtuple(
         'RmsdAnalysisResult',
         ['rmsd'])

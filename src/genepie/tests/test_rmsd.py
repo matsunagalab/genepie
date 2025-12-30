@@ -254,39 +254,61 @@ def test_rmsd_zerocopy_with_fitting():
             trajs.close()
 
 
+def _run_test_in_subprocess(test_name: str) -> bool:
+    """Run a single test function in isolated subprocess to avoid Fortran state issues."""
+    import subprocess
+    import sys
+
+    code = f'''
+import sys
+# Handle package imports when run as subprocess
+if __name__ == "__main__":
+    import pathlib
+    pkg_dir = pathlib.Path("{__file__}").resolve().parent
+    sys.path.insert(0, str(pkg_dir.parent.parent))
+
+from genepie.tests.test_rmsd import {test_name}
+{test_name}()
+'''
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        timeout=120
+    )
+
+    if result.returncode == 0:
+        # Print stdout (test output)
+        if result.stdout:
+            print(result.stdout, end='')
+        return True
+    else:
+        print(f"stderr: {result.stderr}" if result.stderr else "")
+        return False
+
+
 def main():
     if os.path.exists("dummy.trj"):
         os.remove("dummy.trj")
-    # Run zerocopy tests first to avoid Fortran global state issues
-    # Legacy -> zerocopy sequence crashes, but zerocopy -> legacy works
-    try:
-        test_rmsd_zerocopy()
-        print("\n✓ test_rmsd_zerocopy: PASSED")
-    except Exception as e:
-        print(f"\n✗ test_rmsd_zerocopy: FAILED - {e}")
-        raise
 
-    try:
-        test_rmsd_zerocopy_with_fitting()
-        print("\n✓ test_rmsd_zerocopy_with_fitting: PASSED")
-    except Exception as e:
-        print(f"\n✗ test_rmsd_zerocopy_with_fitting: FAILED - {e}")
-        raise
+    # Run each test in separate subprocess to avoid Fortran global state accumulation
+    # This prevents crashes on macOS ARM64 when multiple tests run in same process
+    tests = [
+        "test_rmsd_zerocopy",
+        "test_rmsd_zerocopy_with_fitting",
+        "test_rmsd_analysis",
+    ]
 
-    try:
-        test_rmsd_analysis()
-        print("\n✓ test_rmsd_analysis: PASSED")
-    except Exception as e:
-        print(f"\n✗ test_rmsd_analysis: FAILED - {e}")
-        raise
+    failed = []
+    for test_name in tests:
+        if _run_test_in_subprocess(test_name):
+            print(f"\n✓ {test_name}: PASSED")
+        else:
+            print(f"\n✗ {test_name}: FAILED")
+            failed.append(test_name)
 
-    # Skip the combined test as it runs legacy first then zerocopy, which crashes
-    # try:
-    #     test_rmsd_zerocopy_vs_legacy_no_fitting()
-    #     print("\n✓ test_rmsd_zerocopy_vs_legacy_no_fitting: PASSED")
-    # except Exception as e:
-    #     print(f"\n✗ test_rmsd_zerocopy_vs_legacy_no_fitting: FAILED - {e}")
-    #     raise
+    if failed:
+        raise RuntimeError(f"Tests failed: {', '.join(failed)}")
 
 
 if __name__ == "__main__":
