@@ -176,6 +176,84 @@ def test_rmsd_zerocopy_vs_legacy_no_fitting():
             trajs.close()
 
 
+def test_rmsd_zerocopy_with_fitting():
+    """Test RMSD zerocopy with TR+ROT fitting vs legacy implementation."""
+    import numpy as np
+
+    mol = SMolecule.from_file(pdb=BPTI_PDB, psf=BPTI_PSF, ref=BPTI_PDB)
+    trajs, subset_mol = genesis_exe.crd_convert(
+            mol,
+            traj_params=[
+                TrajectoryParameters(
+                    trjfile=str(BPTI_DCD),
+                    md_step=10,
+                    mdout_period=1,
+                    ana_period=1,
+                    repeat=1,
+                ),
+            ],
+            trj_format="DCD",
+            trj_type="COOR+BOX",
+            trj_natom=0,
+            selection_group=["all"],
+            fitting_method="NO",
+            fitting_atom=1,
+            check_only=False,
+            pbc_correct="NO",
+    )
+    _ = subset_mol
+
+    try:
+        for t in trajs:
+            # Test zerocopy with fitting (TR+ROT)
+            result_zc = genesis_exe.rmsd_analysis_zerocopy_with_fitting(
+                mol, t,
+                fitting_selection="sid:BPTI and an:CA",
+                analysis_selection="sid:BPTI and an:CA",
+                fitting_method="TR+ROT",
+                ana_period=1,
+                mass_weighted=False,
+            )
+
+            # Validate results
+            assert result_zc.rmsd is not None, "Zerocopy fitting RMSD should not be None"
+            assert len(result_zc.rmsd) > 0, "Zerocopy fitting RMSD should have values"
+            assert all(r >= 0 for r in result_zc.rmsd), "RMSD values should be non-negative"
+            assert all(r < 50.0 for r in result_zc.rmsd), "RMSD values should be reasonable (< 50 Å)"
+
+            print(f"Zerocopy with fitting RMSD (n={len(result_zc.rmsd)}): "
+                  f"min={min(result_zc.rmsd):.5f}, max={max(result_zc.rmsd):.5f}")
+
+            # Compare with legacy implementation
+            result_legacy = genesis_exe.rmsd_analysis(
+                mol, t,
+                selection_group=["sid:BPTI and an:CA"],
+                fitting_method="TR+ROT",
+                fitting_atom=1,
+                check_only=False,
+                analysis_atom=1,
+            )
+
+            print(f"Legacy RMSD (n={len(result_legacy.rmsd)}): "
+                  f"min={min(result_legacy.rmsd):.5f}, max={max(result_legacy.rmsd):.5f}")
+
+            # Check that results match
+            assert len(result_zc.rmsd) == len(result_legacy.rmsd), \
+                f"Result lengths should match: {len(result_zc.rmsd)} vs {len(result_legacy.rmsd)}"
+
+            # Compare values (should be very close)
+            diff = np.abs(np.array(result_zc.rmsd) - np.array(result_legacy.rmsd))
+            max_diff = np.max(diff)
+            print(f"Max difference between zerocopy and legacy: {max_diff:.6f} Å")
+
+            # Allow small numerical tolerance
+            assert max_diff < 0.001, f"Results should match within 0.001 Å, got {max_diff}"
+
+    finally:
+        if hasattr(trajs, "close"):
+            trajs.close()
+
+
 def main():
     if os.path.exists("dummy.trj"):
         os.remove("dummy.trj")
@@ -186,6 +264,13 @@ def main():
         print("\n✓ test_rmsd_zerocopy: PASSED")
     except Exception as e:
         print(f"\n✗ test_rmsd_zerocopy: FAILED - {e}")
+        raise
+
+    try:
+        test_rmsd_zerocopy_with_fitting()
+        print("\n✓ test_rmsd_zerocopy_with_fitting: PASSED")
+    except Exception as e:
+        print(f"\n✗ test_rmsd_zerocopy_with_fitting: FAILED - {e}")
         raise
 
     try:

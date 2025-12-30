@@ -247,6 +247,27 @@ class LibGenesis:
                 ]
         self.lib.rmsd_analysis_zerocopy_c.restype = None
 
+        # RMSD zerocopy with fitting (structural alignment before RMSD)
+        self.lib.rmsd_analysis_zerocopy_fitting_c.argtypes = [
+                ctypes.c_void_p,                  # mass_ptr
+                ctypes.c_void_p,                  # ref_coord_ptr
+                ctypes.c_int,                     # n_atoms
+                ctypes.POINTER(STrajectoriesC),   # s_trajes_c
+                ctypes.c_int,                     # ana_period
+                ctypes.c_void_p,                  # fitting_idx_ptr
+                ctypes.c_int,                     # n_fitting
+                ctypes.c_void_p,                  # analysis_idx_ptr
+                ctypes.c_int,                     # n_analysis
+                ctypes.c_int,                     # fitting_method
+                ctypes.c_int,                     # mass_weighted
+                ctypes.POINTER(ctypes.c_void_p),  # result_rmsd (output)
+                ctypes.POINTER(ctypes.c_int),     # nframes_out (output)
+                ctypes.POINTER(ctypes.c_int),     # status (output)
+                ctypes.c_char_p,                  # msg (output)
+                ctypes.c_int,                     # msglen
+                ]
+        self.lib.rmsd_analysis_zerocopy_fitting_c.restype = None
+
         self.lib.deallocate_rmsd_results_c.argtypes = []
         self.lib.deallocate_rmsd_results_c.restype = None
 
