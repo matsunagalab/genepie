@@ -1118,6 +1118,155 @@ def rmsd_analysis_zerocopy(
         # Note: NO deallocate_s_molecule_c call - we didn't allocate any s_molecule_c!
 
 
+# Fitting method constants
+class FittingMethod:
+    """Fitting method constants for RMSD analysis with fitting."""
+    NO = 1
+    TR_ROT = 2
+    TR = 3
+    TR_ZROT = 4
+    XYTR = 5
+    XYTR_ZROT = 6
+
+
+def rmsd_analysis_zerocopy_with_fitting(
+        molecule: SMolecule,
+        trajs: STrajectories,
+        fitting_selection: str,
+        analysis_selection: str,
+        fitting_method: str = "TR+ROT",
+        ana_period: int = 1,
+        mass_weighted: bool = False,
+        ref_coord: Optional[np.ndarray] = None,
+        ) -> RmsdAnalysisResult:
+    """
+    Executes rmsd_analysis with structural fitting (zerocopy version).
+
+    This function performs structural alignment (fitting) before calculating RMSD.
+    It uses the zerocopy interface for efficient data transfer.
+
+    Args:
+        molecule: Molecular structure (provides mass and reference coordinates)
+        trajs: Trajectories to analyze
+        fitting_selection: GENESIS selection for fitting atoms (e.g., "an:CA")
+        analysis_selection: GENESIS selection for RMSD calculation atoms (e.g., "an:CA")
+        fitting_method: Fitting method:
+            - "NO": No fitting
+            - "TR+ROT": Translation + rotation (default, most common)
+            - "TR": Translation only
+            - "TR+ZROT": Translation + Z-axis rotation
+            - "XYTR": XY-plane translation only
+            - "XYTR+ZROT": XY translation + Z-axis rotation
+        ana_period: Analysis period (default: 1)
+        mass_weighted: Use mass weighting for both fitting and RMSD (default: False)
+        ref_coord: Reference coordinates (default: molecule.atom_coord).
+                   Shape should be (n_atoms, 3).
+
+    Returns:
+        RmsdAnalysisResult containing the RMSD array
+
+    Example:
+        >>> # Calculate RMSD with TR+ROT fitting using CA atoms
+        >>> result = rmsd_analysis_zerocopy_with_fitting(
+        ...     mol, trajs,
+        ...     fitting_selection="an:CA",
+        ...     analysis_selection="an:CA",
+        ...     fitting_method="TR+ROT"
+        ... )
+        >>> print(result.rmsd)
+
+        >>> # Fit on CA atoms, but calculate RMSD for all heavy atoms
+        >>> result = rmsd_analysis_zerocopy_with_fitting(
+        ...     mol, trajs,
+        ...     fitting_selection="an:CA",
+        ...     analysis_selection="heavy",
+        ...     fitting_method="TR+ROT"
+        ... )
+    """
+    lib = LibGenesis().lib
+
+    # Fitting method mapping
+    method_map = {
+        "NO": FittingMethod.NO,
+        "TR+ROT": FittingMethod.TR_ROT,
+        "TR": FittingMethod.TR,
+        "TR+ZROT": FittingMethod.TR_ZROT,
+        "XYTR": FittingMethod.XYTR,
+        "XYTR+ZROT": FittingMethod.XYTR_ZROT,
+    }
+    if fitting_method not in method_map:
+        raise GenesisValidationError(
+            f"Invalid fitting_method: {fitting_method}. "
+            f"Valid options: {list(method_map.keys())}"
+        )
+    method_int = method_map[fitting_method]
+
+    # Get atom indices using GENESIS selection
+    fitting_indices = selection(molecule, fitting_selection)
+    analysis_indices = selection(molecule, analysis_selection)
+    n_fitting = len(fitting_indices)
+    n_analysis = len(analysis_indices)
+
+    # Ensure arrays are contiguous and correct dtype
+    mass = np.ascontiguousarray(molecule.mass, dtype=np.float64)
+
+    # Reference coordinates: Fortran expects (3, n_atoms)
+    if ref_coord is None:
+        ref_coord_arr = molecule.atom_coord
+    else:
+        ref_coord_arr = ref_coord
+    ref_coord_f = np.asfortranarray(ref_coord_arr.T, dtype=np.float64)
+
+    # Get pointers (zero-copy)
+    mass_ptr = mass.ctypes.data_as(ctypes.c_void_p)
+    ref_coord_ptr = ref_coord_f.ctypes.data_as(ctypes.c_void_p)
+
+    # Output variables
+    result_rmsd_c = ctypes.c_void_p()
+    nframes_out = ctypes.c_int()
+    status = ctypes.c_int()
+    msglen = _DEFAULT_MSG_LEN
+    msg = ctypes.create_string_buffer(msglen)
+
+    try:
+        with suppress_stdout_capture_stderr() as captured:
+            lib.rmsd_analysis_zerocopy_fitting_c(
+                mass_ptr,
+                ref_coord_ptr,
+                ctypes.c_int(molecule.num_atoms),
+                ctypes.byref(trajs.get_c_obj()),
+                ctypes.c_int(ana_period),
+                fitting_indices.ctypes.data_as(ctypes.c_void_p),
+                ctypes.c_int(n_fitting),
+                analysis_indices.ctypes.data_as(ctypes.c_void_p),
+                ctypes.c_int(n_analysis),
+                ctypes.c_int(method_int),
+                ctypes.c_int(1 if mass_weighted else 0),
+                ctypes.byref(result_rmsd_c),
+                ctypes.byref(nframes_out),
+                ctypes.byref(status),
+                msg,
+                ctypes.c_int(msglen),
+            )
+
+        # Check for errors
+        if status.value != 0:
+            error_msg = msg.value.decode('utf-8', errors='replace').strip()
+            stderr_output = captured.stderr if captured else ""
+            raise_fortran_error(status.value, error_msg, stderr_output)
+
+        # Convert result to numpy array
+        n_frame = nframes_out.value
+        result_rmsd = (c2py_util.conv_double_ndarray(result_rmsd_c, n_frame)
+                       if result_rmsd_c else None)
+
+        return RmsdAnalysisResult(result_rmsd)
+
+    finally:
+        # Cleanup - only deallocate results, not the input arrays (Python owns them)
+        lib.deallocate_rmsd_results_c()
+
+
 DrmsAnalysisResult = namedtuple(
         'DrmsAnalysisResult',
         ['drms'])

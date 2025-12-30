@@ -50,7 +50,7 @@ rg_impl.lo: rg_impl.fpp s_trajectories_c_mod.mod
 rg_impl_mod.mod: rg_impl.fpp rg_impl.lo
 rmsd_c_mod.lo: rmsd_c_mod.fpp rmsd_impl_mod.mod s_trajectories_c_mod.mod s_molecule_c_mod.mod error_mod.mod conv_f_c_util.mod 
 rmsd_c_mod.mod: rmsd_c_mod.fpp rmsd_c_mod.lo
-rmsd_impl.lo: rmsd_impl.fpp error_mod.mod s_trajectories_c_mod.mod 
+rmsd_impl.lo: rmsd_impl.fpp error_mod.mod s_trajectories_c_mod.mod
 rmsd_impl_mod.mod: rmsd_impl.fpp rmsd_impl.lo
 s_molecule_c_mod.lo: s_molecule_c_mod.fpp conv_f_c_util.mod
 s_molecule_c_mod.mod: s_molecule_c_mod.fpp s_molecule_c_mod.lo
