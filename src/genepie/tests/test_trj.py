@@ -31,6 +31,53 @@ class TestTrjAnalysis(CustomTestCase):
             ref_tor = np.loadtxt(ta_test_root / "Dihedral/ref")
             self.assertAlmostEqual(ref_tor[:,1:], r.torsion, places=3)
 
+    def test_trj_analysis_zerocopy_com(self):
+        """Test trj_analysis_zerocopy_com with COM calculations."""
+        trajs, mol = self.create_traj_by_genesis(
+                self.TRJ_PATH, pdb=self.PDB_PATH, psf=self.PSF_PATH)
+        for t in trajs:
+            # Test COM distance using selection to get atom indices
+            # First, get indices for residue 1 and residue 2
+            res1_idx = genesis_exe.selection(mol, "rno:1")  # 1-indexed
+            res2_idx = genesis_exe.selection(mol, "rno:2")
+            res3_idx = genesis_exe.selection(mol, "rno:3")
+
+            # Test COM distance between residue 1 and residue 2
+            cdis_groups = [
+                (list(res1_idx), list(res2_idx)),
+            ]
+
+            # Test COM angle between residue 1, 2, and 3
+            cang_groups = [
+                (list(res1_idx), list(res2_idx), list(res3_idx)),
+            ]
+
+            result = genesis_exe.trj_analysis_zerocopy_com(
+                mol, t,
+                cdis_groups=cdis_groups,
+                cang_groups=cang_groups,
+            )
+
+            # Verify we got results
+            self.assertIsNotNone(result.cdis)
+            self.assertIsNotNone(result.cang)
+
+            # Check shapes
+            n_frames = t.nframe
+            self.assertEqual(result.cdis.shape, (n_frames, 1))
+            self.assertEqual(result.cang.shape, (n_frames, 1))
+
+            # Verify distance is positive
+            self.assertTrue(np.all(result.cdis > 0))
+
+            # Verify angle is in valid range (0-180 degrees)
+            self.assertTrue(np.all(result.cang >= 0))
+            self.assertTrue(np.all(result.cang <= 180))
+
+            # Verify values are reasonable (not NaN or Inf)
+            self.assertTrue(np.all(np.isfinite(result.cdis)))
+            self.assertTrue(np.all(np.isfinite(result.cang)))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -27,9 +27,12 @@ module trj_c_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
+  use error_mod
   implicit none
 
   public :: trj_analysis_c
+  public :: trj_analysis_zerocopy_c
+  public :: trj_analysis_zerocopy_com_c
   public :: deallocate_trj_results_c
 
   ! Module-level pointers for results (to be deallocated later)
@@ -147,6 +150,479 @@ contains
       num_ctor = 0
     end if
   end subroutine trj_analysis_c
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    trj_analysis_zerocopy_c
+  !> @brief        Trajectory analysis with zerocopy interface
+  !! @authors      Claude Code
+  !! @param[in]    s_trajes_c   : trajectories C structure
+  !! @param[in]    ana_period   : analysis period
+  !! @param[in]    dist_list_ptr: pointer to distance atom pairs (2, n_dist)
+  !! @param[in]    n_dist       : number of distance measurements
+  !! @param[in]    angl_list_ptr: pointer to angle atom triplets (3, n_angl)
+  !! @param[in]    n_angl       : number of angle measurements
+  !! @param[in]    tors_list_ptr: pointer to torsion atom quadruplets (4, n_tors)
+  !! @param[in]    n_tors       : number of torsion measurements
+  !! @param[out]   result_distance: pointer to distance results
+  !! @param[out]   result_angle   : pointer to angle results
+  !! @param[out]   result_torsion : pointer to torsion results
+  !! @param[out]   n_frames       : number of output frames
+  !! @param[out]   status         : error status
+  !! @param[out]   msg            : error message
+  !! @param[in]    msglen         : max length of error message
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine trj_analysis_zerocopy_c(s_trajes_c, ana_period, &
+                                     dist_list_ptr, n_dist, &
+                                     angl_list_ptr, n_angl, &
+                                     tors_list_ptr, n_tors, &
+                                     result_distance, result_angle, result_torsion, &
+                                     n_frames, status, msg, msglen) &
+        bind(C, name="trj_analysis_zerocopy_c")
+    implicit none
+
+    ! Arguments
+    type(s_trajectories_c), intent(in) :: s_trajes_c
+    integer(c_int), value :: ana_period
+    type(c_ptr), value :: dist_list_ptr
+    integer(c_int), value :: n_dist
+    type(c_ptr), value :: angl_list_ptr
+    integer(c_int), value :: n_angl
+    type(c_ptr), value :: tors_list_ptr
+    integer(c_int), value :: n_tors
+    type(c_ptr), intent(out) :: result_distance
+    type(c_ptr), intent(out) :: result_angle
+    type(c_ptr), intent(out) :: result_torsion
+    integer(c_int), intent(out) :: n_frames
+    integer(c_int), intent(out) :: status
+    character(kind=c_char), intent(out) :: msg(*)
+    integer(c_int), value :: msglen
+
+    ! Local variables
+    type(s_error) :: err
+    integer, pointer :: dist_list_f(:,:)
+    integer, pointer :: angl_list_f(:,:)
+    integer, pointer :: tors_list_f(:,:)
+    integer, allocatable :: dist_list_copy(:,:)
+    integer, allocatable :: angl_list_copy(:,:)
+    integer, allocatable :: tors_list_copy(:,:)
+
+    ! Initialize
+    call error_init(err)
+    status = 0
+    result_distance = c_null_ptr
+    result_angle = c_null_ptr
+    result_torsion = c_null_ptr
+    n_frames = s_trajes_c%nframe / ana_period
+
+    ! Deallocate previous results
+    call deallocate_trj_results_internal()
+
+    ! Set MPI variables for analysis
+    my_city_rank = 0
+    nproc_city   = 1
+    main_rank    = .true.
+
+    write(MsgOut,'(A)') '[STEP1] Trajectory Analysis (zerocopy interface)'
+    write(MsgOut,'(A)') ' '
+
+    ! Convert C pointers to Fortran arrays (create copies for proper indexing)
+    ! Note: Fortran array is (2, n_dist), C array is (n_dist, 2) row-major
+    ! so C_F_POINTER with (2, n_dist) reads it correctly
+
+    if (n_dist > 0 .and. c_associated(dist_list_ptr)) then
+      call C_F_POINTER(dist_list_ptr, dist_list_f, [2, n_dist])
+      allocate(dist_list_copy(2, n_dist))
+      dist_list_copy = dist_list_f
+    else
+      allocate(dist_list_copy(2, 0))
+    end if
+
+    if (n_angl > 0 .and. c_associated(angl_list_ptr)) then
+      call C_F_POINTER(angl_list_ptr, angl_list_f, [3, n_angl])
+      allocate(angl_list_copy(3, n_angl))
+      angl_list_copy = angl_list_f
+    else
+      allocate(angl_list_copy(3, 0))
+    end if
+
+    if (n_tors > 0 .and. c_associated(tors_list_ptr)) then
+      call C_F_POINTER(tors_list_ptr, tors_list_f, [4, n_tors])
+      allocate(tors_list_copy(4, n_tors))
+      tors_list_copy = tors_list_f
+    else
+      allocate(tors_list_copy(4, 0))
+    end if
+
+    ! Run analysis
+    call analyze_zerocopy(s_trajes_c, ana_period, &
+                          dist_list_copy, n_dist, &
+                          angl_list_copy, n_angl, &
+                          tors_list_copy, n_tors, &
+                          distance_ptr, angle_ptr, torsion_ptr)
+
+    ! Return pointers to results
+    if (associated(distance_ptr)) then
+      result_distance = c_loc(distance_ptr)
+    end if
+    if (associated(angle_ptr)) then
+      result_angle = c_loc(angle_ptr)
+    end if
+    if (associated(torsion_ptr)) then
+      result_torsion = c_loc(torsion_ptr)
+    end if
+
+    ! Cleanup local arrays
+    deallocate(dist_list_copy)
+    deallocate(angl_list_copy)
+    deallocate(tors_list_copy)
+
+  end subroutine trj_analysis_zerocopy_c
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    trj_analysis_zerocopy_com_c
+  !> @brief        Trajectory analysis with COM calculations (zerocopy C interface)
+  !! @authors      Claude Code
+  !! @param[in]    mass_ptr     : pointer to atomic masses
+  !! @param[in]    n_atoms      : number of atoms
+  !! @param[in]    s_trajes_c   : trajectories C structure
+  !! @param[in]    ana_period   : analysis period
+  !! @param[in]    dist_list_ptr: pointer to distance atom pairs (2, n_dist)
+  !! @param[in]    n_dist       : number of distance measurements
+  !! @param[in]    angl_list_ptr: pointer to angle atom triplets (3, n_angl)
+  !! @param[in]    n_angl       : number of angle measurements
+  !! @param[in]    tors_list_ptr: pointer to torsion atom quadruplets (4, n_tors)
+  !! @param[in]    n_tors       : number of torsion measurements
+  !! @param[in]    cdis_atoms_ptr: flat array of atom indices for COM distance
+  !! @param[in]    n_cdis_atoms : total number of atoms in cdis_atoms
+  !! @param[in]    cdis_offsets_ptr: offsets for each COM distance group
+  !! @param[in]    n_cdis_offsets: number of offsets (n_cdis_groups + 1)
+  !! @param[in]    cdis_pairs_ptr: group pair indices for COM distances
+  !! @param[in]    n_cdis       : number of COM distance measurements
+  !! @param[in]    cang_atoms_ptr: flat array of atom indices for COM angles
+  !! @param[in]    n_cang_atoms : total number of atoms in cang_atoms
+  !! @param[in]    cang_offsets_ptr: offsets for each COM angle group
+  !! @param[in]    n_cang_offsets: number of offsets
+  !! @param[in]    cang_triplets_ptr: group triplet indices for COM angles
+  !! @param[in]    n_cang       : number of COM angle measurements
+  !! @param[in]    ctor_atoms_ptr: flat array of atom indices for COM torsions
+  !! @param[in]    n_ctor_atoms : total number of atoms in ctor_atoms
+  !! @param[in]    ctor_offsets_ptr: offsets for each COM torsion group
+  !! @param[in]    n_ctor_offsets: number of offsets
+  !! @param[in]    ctor_quads_ptr: group quad indices for COM torsions
+  !! @param[in]    n_ctor       : number of COM torsion measurements
+  !! @param[out]   result_distance: pointer to distance results
+  !! @param[out]   result_angle   : pointer to angle results
+  !! @param[out]   result_torsion : pointer to torsion results
+  !! @param[out]   result_cdis    : pointer to COM distance results
+  !! @param[out]   result_cang    : pointer to COM angle results
+  !! @param[out]   result_ctor    : pointer to COM torsion results
+  !! @param[out]   n_frames       : number of output frames
+  !! @param[out]   status         : error status
+  !! @param[out]   msg            : error message
+  !! @param[in]    msglen         : max length of error message
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine trj_analysis_zerocopy_com_c(mass_ptr, n_atoms, &
+                                         s_trajes_c, ana_period, &
+                                         dist_list_ptr, n_dist, &
+                                         angl_list_ptr, n_angl, &
+                                         tors_list_ptr, n_tors, &
+                                         cdis_atoms_ptr, n_cdis_atoms, &
+                                         cdis_offsets_ptr, n_cdis_offsets, &
+                                         cdis_pairs_ptr, n_cdis, &
+                                         cang_atoms_ptr, n_cang_atoms, &
+                                         cang_offsets_ptr, n_cang_offsets, &
+                                         cang_triplets_ptr, n_cang, &
+                                         ctor_atoms_ptr, n_ctor_atoms, &
+                                         ctor_offsets_ptr, n_ctor_offsets, &
+                                         ctor_quads_ptr, n_ctor, &
+                                         result_distance, result_angle, result_torsion, &
+                                         result_cdis, result_cang, result_ctor, &
+                                         n_frames, status, msg, msglen) &
+        bind(C, name="trj_analysis_zerocopy_com_c")
+    implicit none
+
+    ! Arguments - mass array
+    type(c_ptr), value :: mass_ptr
+    integer(c_int), value :: n_atoms
+
+    ! Arguments - trajectories
+    type(s_trajectories_c), intent(in) :: s_trajes_c
+    integer(c_int), value :: ana_period
+
+    ! Arguments - atom-based measurements
+    type(c_ptr), value :: dist_list_ptr
+    integer(c_int), value :: n_dist
+    type(c_ptr), value :: angl_list_ptr
+    integer(c_int), value :: n_angl
+    type(c_ptr), value :: tors_list_ptr
+    integer(c_int), value :: n_tors
+
+    ! Arguments - COM distance
+    type(c_ptr), value :: cdis_atoms_ptr
+    integer(c_int), value :: n_cdis_atoms
+    type(c_ptr), value :: cdis_offsets_ptr
+    integer(c_int), value :: n_cdis_offsets
+    type(c_ptr), value :: cdis_pairs_ptr
+    integer(c_int), value :: n_cdis
+
+    ! Arguments - COM angle
+    type(c_ptr), value :: cang_atoms_ptr
+    integer(c_int), value :: n_cang_atoms
+    type(c_ptr), value :: cang_offsets_ptr
+    integer(c_int), value :: n_cang_offsets
+    type(c_ptr), value :: cang_triplets_ptr
+    integer(c_int), value :: n_cang
+
+    ! Arguments - COM torsion
+    type(c_ptr), value :: ctor_atoms_ptr
+    integer(c_int), value :: n_ctor_atoms
+    type(c_ptr), value :: ctor_offsets_ptr
+    integer(c_int), value :: n_ctor_offsets
+    type(c_ptr), value :: ctor_quads_ptr
+    integer(c_int), value :: n_ctor
+
+    ! Arguments - output
+    type(c_ptr), intent(out) :: result_distance
+    type(c_ptr), intent(out) :: result_angle
+    type(c_ptr), intent(out) :: result_torsion
+    type(c_ptr), intent(out) :: result_cdis
+    type(c_ptr), intent(out) :: result_cang
+    type(c_ptr), intent(out) :: result_ctor
+    integer(c_int), intent(out) :: n_frames
+    integer(c_int), intent(out) :: status
+    character(kind=c_char), intent(out) :: msg(*)
+    integer(c_int), value :: msglen
+
+    ! Local variables - Fortran pointers from C
+    real(wp), pointer :: mass_f(:)
+    integer, pointer :: dist_list_f(:,:)
+    integer, pointer :: angl_list_f(:,:)
+    integer, pointer :: tors_list_f(:,:)
+    integer, pointer :: cdis_atoms_f(:)
+    integer, pointer :: cdis_offsets_f(:)
+    integer, pointer :: cdis_pairs_f(:)
+    integer, pointer :: cang_atoms_f(:)
+    integer, pointer :: cang_offsets_f(:)
+    integer, pointer :: cang_triplets_f(:)
+    integer, pointer :: ctor_atoms_f(:)
+    integer, pointer :: ctor_offsets_f(:)
+    integer, pointer :: ctor_quads_f(:)
+
+    ! Local copies
+    integer, allocatable :: dist_list_copy(:,:)
+    integer, allocatable :: angl_list_copy(:,:)
+    integer, allocatable :: tors_list_copy(:,:)
+    integer, allocatable :: cdis_atoms_copy(:)
+    integer, allocatable :: cdis_offsets_copy(:)
+    integer, allocatable :: cdis_pairs_copy(:)
+    integer, allocatable :: cang_atoms_copy(:)
+    integer, allocatable :: cang_offsets_copy(:)
+    integer, allocatable :: cang_triplets_copy(:)
+    integer, allocatable :: ctor_atoms_copy(:)
+    integer, allocatable :: ctor_offsets_copy(:)
+    integer, allocatable :: ctor_quads_copy(:)
+
+    integer :: n_cdis_groups, n_cang_groups, n_ctor_groups
+
+    ! Initialize
+    status = 0
+    result_distance = c_null_ptr
+    result_angle = c_null_ptr
+    result_torsion = c_null_ptr
+    result_cdis = c_null_ptr
+    result_cang = c_null_ptr
+    result_ctor = c_null_ptr
+    n_frames = s_trajes_c%nframe / ana_period
+
+    ! Deallocate previous results
+    call deallocate_trj_results_internal()
+
+    ! Set MPI variables for analysis
+    my_city_rank = 0
+    nproc_city   = 1
+    main_rank    = .true.
+
+    write(MsgOut,'(A)') '[STEP1] Trajectory Analysis with COM (zerocopy interface)'
+    write(MsgOut,'(A)') ' '
+
+    ! Get mass array (zerocopy)
+    if (.not. c_associated(mass_ptr)) then
+      status = 301
+      call copy_error_msg("Mass pointer is null", msg, msglen)
+      return
+    end if
+    call C_F_POINTER(mass_ptr, mass_f, [n_atoms])
+
+    ! Convert atom-based measurement arrays
+    if (n_dist > 0 .and. c_associated(dist_list_ptr)) then
+      call C_F_POINTER(dist_list_ptr, dist_list_f, [2, n_dist])
+      allocate(dist_list_copy(2, n_dist))
+      dist_list_copy = dist_list_f
+    else
+      allocate(dist_list_copy(2, 0))
+    end if
+
+    if (n_angl > 0 .and. c_associated(angl_list_ptr)) then
+      call C_F_POINTER(angl_list_ptr, angl_list_f, [3, n_angl])
+      allocate(angl_list_copy(3, n_angl))
+      angl_list_copy = angl_list_f
+    else
+      allocate(angl_list_copy(3, 0))
+    end if
+
+    if (n_tors > 0 .and. c_associated(tors_list_ptr)) then
+      call C_F_POINTER(tors_list_ptr, tors_list_f, [4, n_tors])
+      allocate(tors_list_copy(4, n_tors))
+      tors_list_copy = tors_list_f
+    else
+      allocate(tors_list_copy(4, 0))
+    end if
+
+    ! Convert COM distance arrays
+    n_cdis_groups = n_cdis_offsets - 1
+    if (n_cdis > 0 .and. n_cdis_atoms > 0) then
+      call C_F_POINTER(cdis_atoms_ptr, cdis_atoms_f, [n_cdis_atoms])
+      allocate(cdis_atoms_copy(n_cdis_atoms))
+      cdis_atoms_copy = cdis_atoms_f
+
+      call C_F_POINTER(cdis_offsets_ptr, cdis_offsets_f, [n_cdis_offsets])
+      allocate(cdis_offsets_copy(n_cdis_offsets))
+      cdis_offsets_copy = cdis_offsets_f
+
+      call C_F_POINTER(cdis_pairs_ptr, cdis_pairs_f, [2 * n_cdis])
+      allocate(cdis_pairs_copy(2 * n_cdis))
+      cdis_pairs_copy = cdis_pairs_f
+    else
+      allocate(cdis_atoms_copy(0))
+      allocate(cdis_offsets_copy(1))
+      cdis_offsets_copy(1) = 0
+      allocate(cdis_pairs_copy(0))
+      n_cdis_groups = 0
+    end if
+
+    ! Convert COM angle arrays
+    n_cang_groups = n_cang_offsets - 1
+    if (n_cang > 0 .and. n_cang_atoms > 0) then
+      call C_F_POINTER(cang_atoms_ptr, cang_atoms_f, [n_cang_atoms])
+      allocate(cang_atoms_copy(n_cang_atoms))
+      cang_atoms_copy = cang_atoms_f
+
+      call C_F_POINTER(cang_offsets_ptr, cang_offsets_f, [n_cang_offsets])
+      allocate(cang_offsets_copy(n_cang_offsets))
+      cang_offsets_copy = cang_offsets_f
+
+      call C_F_POINTER(cang_triplets_ptr, cang_triplets_f, [3 * n_cang])
+      allocate(cang_triplets_copy(3 * n_cang))
+      cang_triplets_copy = cang_triplets_f
+    else
+      allocate(cang_atoms_copy(0))
+      allocate(cang_offsets_copy(1))
+      cang_offsets_copy(1) = 0
+      allocate(cang_triplets_copy(0))
+      n_cang_groups = 0
+    end if
+
+    ! Convert COM torsion arrays
+    n_ctor_groups = n_ctor_offsets - 1
+    if (n_ctor > 0 .and. n_ctor_atoms > 0) then
+      call C_F_POINTER(ctor_atoms_ptr, ctor_atoms_f, [n_ctor_atoms])
+      allocate(ctor_atoms_copy(n_ctor_atoms))
+      ctor_atoms_copy = ctor_atoms_f
+
+      call C_F_POINTER(ctor_offsets_ptr, ctor_offsets_f, [n_ctor_offsets])
+      allocate(ctor_offsets_copy(n_ctor_offsets))
+      ctor_offsets_copy = ctor_offsets_f
+
+      call C_F_POINTER(ctor_quads_ptr, ctor_quads_f, [4 * n_ctor])
+      allocate(ctor_quads_copy(4 * n_ctor))
+      ctor_quads_copy = ctor_quads_f
+    else
+      allocate(ctor_atoms_copy(0))
+      allocate(ctor_offsets_copy(1))
+      ctor_offsets_copy(1) = 0
+      allocate(ctor_quads_copy(0))
+      n_ctor_groups = 0
+    end if
+
+    ! Run analysis
+    call analyze_zerocopy_com(mass_f, s_trajes_c, ana_period, &
+                              dist_list_copy, n_dist, &
+                              angl_list_copy, n_angl, &
+                              tors_list_copy, n_tors, &
+                              cdis_atoms_copy, cdis_offsets_copy, cdis_pairs_copy, &
+                              n_cdis, n_cdis_groups, &
+                              cang_atoms_copy, cang_offsets_copy, cang_triplets_copy, &
+                              n_cang, n_cang_groups, &
+                              ctor_atoms_copy, ctor_offsets_copy, ctor_quads_copy, &
+                              n_ctor, n_ctor_groups, &
+                              distance_ptr, angle_ptr, torsion_ptr, &
+                              cdis_ptr, cang_ptr, ctor_ptr)
+
+    ! Return pointers to results
+    if (associated(distance_ptr)) then
+      result_distance = c_loc(distance_ptr)
+    end if
+    if (associated(angle_ptr)) then
+      result_angle = c_loc(angle_ptr)
+    end if
+    if (associated(torsion_ptr)) then
+      result_torsion = c_loc(torsion_ptr)
+    end if
+    if (associated(cdis_ptr)) then
+      result_cdis = c_loc(cdis_ptr)
+    end if
+    if (associated(cang_ptr)) then
+      result_cang = c_loc(cang_ptr)
+    end if
+    if (associated(ctor_ptr)) then
+      result_ctor = c_loc(ctor_ptr)
+    end if
+
+    ! Cleanup local arrays
+    deallocate(dist_list_copy)
+    deallocate(angl_list_copy)
+    deallocate(tors_list_copy)
+    deallocate(cdis_atoms_copy)
+    deallocate(cdis_offsets_copy)
+    deallocate(cdis_pairs_copy)
+    deallocate(cang_atoms_copy)
+    deallocate(cang_offsets_copy)
+    deallocate(cang_triplets_copy)
+    deallocate(ctor_atoms_copy)
+    deallocate(ctor_offsets_copy)
+    deallocate(ctor_quads_copy)
+
+  end subroutine trj_analysis_zerocopy_com_c
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    copy_error_msg
+  !> @brief        Copy error message to C buffer
+  !! @authors      Claude Code
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine copy_error_msg(fortran_msg, c_msg, msglen)
+    implicit none
+    character(len=*), intent(in) :: fortran_msg
+    character(kind=c_char), intent(out) :: c_msg(*)
+    integer(c_int), value :: msglen
+
+    integer :: i, copy_len
+
+    copy_len = min(len_trim(fortran_msg), msglen - 1)
+    do i = 1, copy_len
+      c_msg(i) = fortran_msg(i:i)
+    end do
+    c_msg(copy_len + 1) = c_null_char
+
+  end subroutine copy_error_msg
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

@@ -33,6 +33,7 @@ module rmsd_c_mod
   implicit none
 
   public :: ra_analysis_c
+  public :: rmsd_analysis_zerocopy_c
   public :: deallocate_rmsd_results_c
 
   ! Module-level pointer for results (to be deallocated later)
@@ -80,6 +81,121 @@ contains
 
     result_ra = c_loc(ra_ptr)
   end subroutine ra_analysis_c
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    rmsd_analysis_zerocopy_c
+  !> @brief        RMSD analysis with true zero-copy (arrays from Python)
+  !! @authors      Claude Code
+  !! @param[in]    mass_ptr       : pointer to mass array (from Python NumPy)
+  !! @param[in]    ref_coord_ptr  : pointer to reference coordinates (3, n_atoms)
+  !! @param[in]    n_atoms        : number of atoms
+  !! @param[in]    s_trajes_c     : trajectories C structure
+  !! @param[in]    ana_period     : analysis period
+  !! @param[in]    analysis_idx   : analysis atom indices (1-indexed)
+  !! @param[in]    n_analysis     : number of analysis atoms
+  !! @param[in]    mass_weighted  : use mass weighting (0 or 1)
+  !! @param[out]   result_rmsd    : pointer to result array
+  !! @param[out]   status         : error status
+  !! @param[out]   msg            : error message
+  !! @param[in]    msglen         : max length of error message
+  !! @note         This version does NOT perform fitting. Use when coordinates
+  !!               are already aligned or fitting is done in Python.
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine rmsd_analysis_zerocopy_c(mass_ptr, ref_coord_ptr, n_atoms, &
+                                      s_trajes_c, ana_period, &
+                                      analysis_idx, n_analysis, mass_weighted, &
+                                      result_rmsd, status, msg, msglen) &
+        bind(C, name="rmsd_analysis_zerocopy_c")
+    implicit none
+
+    ! Arguments
+    type(c_ptr), value :: mass_ptr
+    type(c_ptr), value :: ref_coord_ptr
+    integer(c_int), value :: n_atoms
+    type(s_trajectories_c), intent(in) :: s_trajes_c
+    integer(c_int), value :: ana_period
+    type(c_ptr), value :: analysis_idx
+    integer(c_int), value :: n_analysis
+    integer(c_int), value :: mass_weighted
+    type(c_ptr), intent(out) :: result_rmsd
+    integer(c_int), intent(out) :: status
+    character(kind=c_char), intent(out) :: msg(*)
+    integer(c_int), value :: msglen
+
+    ! Local variables
+    type(s_error) :: err
+    real(wp), pointer :: mass_f(:)
+    real(wp), pointer :: ref_coord_f(:,:)
+    integer, pointer :: idx_f(:)
+    integer, allocatable :: idx_copy(:)
+    logical :: use_mass
+
+    ! Initialize
+    call error_init(err)
+    status = 0
+    result_rmsd = c_null_ptr
+
+    ! Deallocate previous results if any
+    if (associated(ra_ptr)) then
+      deallocate(ra_ptr)
+      nullify(ra_ptr)
+    end if
+
+    ! Validate inputs
+    if (n_analysis <= 0) then
+      call error_set(err, ERROR_INVALID_PARAM, &
+                     "rmsd_analysis_zerocopy_c: n_analysis must be positive")
+      call error_to_c(err, status, msg, msglen)
+      return
+    end if
+
+    if (.not. c_associated(mass_ptr)) then
+      call error_set(err, ERROR_INVALID_PARAM, &
+                     "rmsd_analysis_zerocopy_c: mass_ptr is null")
+      call error_to_c(err, status, msg, msglen)
+      return
+    end if
+
+    if (.not. c_associated(ref_coord_ptr)) then
+      call error_set(err, ERROR_INVALID_PARAM, &
+                     "rmsd_analysis_zerocopy_c: ref_coord_ptr is null")
+      call error_to_c(err, status, msg, msglen)
+      return
+    end if
+
+    ! Create zero-copy view of arrays from Python
+    call C_F_POINTER(mass_ptr, mass_f, [n_atoms])
+    call C_F_POINTER(ref_coord_ptr, ref_coord_f, [3, n_atoms])
+
+    ! Convert analysis indices from C pointer to Fortran array
+    call C_F_POINTER(analysis_idx, idx_f, [n_analysis])
+    allocate(idx_copy(n_analysis))
+    idx_copy(:) = idx_f(:)
+
+    ! Convert mass_weighted to logical
+    use_mass = (mass_weighted /= 0)
+
+    ! Set MPI variables for analysis
+    my_city_rank = 0
+    nproc_city   = 1
+    main_rank    = .true.
+
+    ! Run analysis
+    write(MsgOut,'(A)') '[STEP1] RMSD Analysis (zero-copy interface, no fitting)'
+    write(MsgOut,'(A)') ' '
+
+    call analyze_zerocopy(mass_f, ref_coord_f, s_trajes_c, ana_period, &
+                          idx_copy, n_analysis, use_mass, ra_ptr)
+
+    result_rmsd = c_loc(ra_ptr)
+
+    ! Cleanup local arrays (mass_f, ref_coord_f are views, don't deallocate)
+    deallocate(idx_copy)
+
+  end subroutine rmsd_analysis_zerocopy_c
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

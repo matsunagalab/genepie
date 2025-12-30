@@ -30,6 +30,7 @@ module rg_impl_mod
 
   ! subroutines
   public  :: analyze
+  public  :: analyze_zerocopy
 
 contains
 
@@ -152,5 +153,99 @@ contains
     return
 
   end subroutine analyze
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    analyze_zerocopy
+  !> @brief        RG analysis with true zero-copy (mass array from Python)
+  !! @authors      Claude Code
+  !! @param[in]    mass           : mass array pointer (view of Python NumPy)
+  !! @param[in]    trajes_c       : trajectory C structure
+  !! @param[in]    ana_period     : analysis period
+  !! @param[in]    analysis_idx   : analysis atom indices (1-indexed)
+  !! @param[in]    n_analysis     : number of analysis atoms
+  !! @param[in]    mass_weighted  : use mass weighting
+  !! @param[out]   rg_results     : radius of gyration results
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine analyze_zerocopy(mass, trajes_c, ana_period, &
+                              analysis_idx, n_analysis, mass_weighted, &
+                              rg_results)
+    use s_trajectories_c_mod
+
+    ! formal arguments
+    real(wp), pointer,       intent(in)    :: mass(:)
+    type(s_trajectories_c),  intent(in)    :: trajes_c
+    integer,                 intent(in)    :: ana_period
+    integer,                 intent(in)    :: analysis_idx(:)
+    integer,                 intent(in)    :: n_analysis
+    logical,                 intent(in)    :: mass_weighted
+    real(wp), pointer,       intent(out)   :: rg_results(:)
+
+    ! local variables
+    type(s_trajectory) :: trajectory
+    integer            :: nstru, istep
+    integer            :: i, iatom, idx
+    real(wp)           :: com(3), weight, tot_weight, rg
+
+    ! allocate results array
+    allocate(rg_results(trajes_c%nframe / ana_period))
+
+    ! analysis loop
+    nstru = 0
+
+    do istep = 1, trajes_c%nframe
+
+      ! read trajectory frame
+      call get_frame(trajes_c, istep, trajectory)
+
+      if (mod(istep, ana_period) == 0) then
+
+        nstru = nstru + 1
+        write(MsgOut,*) '      number of structures = ', nstru
+
+        ! compute center of mass
+        com(1:3) = 0.0_wp
+        tot_weight = 0.0_wp
+        do iatom = 1, n_analysis
+          idx = analysis_idx(iatom)
+          weight = 1.0_wp
+          if (mass_weighted) weight = mass(idx)
+          com(:) = com(:) + weight * trajectory%coord(:,idx)
+          tot_weight = tot_weight + weight
+        end do
+        com(:) = com(:) / tot_weight
+
+        ! compute radius of gyration
+        rg = 0.0_wp
+        do iatom = 1, n_analysis
+          idx = analysis_idx(iatom)
+          weight = 1.0_wp
+          if (mass_weighted) weight = mass(idx)
+          do i = 1, 3
+            rg = rg + weight * ((trajectory%coord(i,idx) - com(i)) ** 2)
+          end do
+        end do
+        rg = sqrt(rg / tot_weight)
+
+        rg_results(nstru) = rg
+
+        ! output results
+        write(MsgOut,'(a,f10.5)') '              RG of analysis atoms = ',rg
+        write(MsgOut,*) ''
+
+      end if
+
+    end do
+
+    ! Output summary
+    write(MsgOut,'(A)') ''
+    write(MsgOut,'(A)') 'Analyze_zerocopy> RG analysis completed (zero-copy)'
+    write(MsgOut,'(A)') ''
+
+    return
+
+  end subroutine analyze_zerocopy
 
 end module rg_impl_mod

@@ -28,6 +28,7 @@ module diffusion_impl_mod
 
   ! subroutines
   public  :: analyze
+  public  :: analyze_zerocopy
   private :: fit_least_squares
   private :: get_column_count
   private :: get_line_count
@@ -207,6 +208,125 @@ contains
     return
 
   end subroutine analyze
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    analyze_zerocopy
+  !> @brief        analyze diffusion with direct parameters (zerocopy version)
+  !! @authors      Claude Code
+  !! @param[in]    msd_data      : MSD data (ncols, ndata) - Fortran order
+  !! @param[in]    ndata         : number of data points
+  !! @param[in]    ncols         : number of columns (1 + n_sets)
+  !! @param[in]    time_step     : time per step in ps
+  !! @param[in]    distance_unit : distance unit factor (default 1.0 for Angstrom)
+  !! @param[in]    ndofs         : degrees of freedom (default 3 for 3D)
+  !! @param[in]    start_step    : start step for fitting (default 1)
+  !! @param[in]    stop_step     : stop step for fitting (default ndata)
+  !! @param[out]   out_data      : output data (time, msd, fit, ...)
+  !! @param[out]   diffusion_coeff : diffusion coefficients (cm^2/s)
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine analyze_zerocopy(msd_data, ndata, ncols, &
+                              time_step, distance_unit, ndofs, &
+                              start_step, stop_step, &
+                              out_data, diffusion_coeff)
+
+    ! formal arguments
+    real(wp), intent(in)  :: msd_data(:,:)
+    integer,  intent(in)  :: ndata
+    integer,  intent(in)  :: ncols
+    real(wp), intent(in)  :: time_step
+    real(wp), intent(in)  :: distance_unit
+    integer,  intent(in)  :: ndofs
+    integer,  intent(in)  :: start_step
+    integer,  intent(in)  :: stop_step
+    real(wp), intent(out) :: out_data(:,:)
+    real(wp), intent(out) :: diffusion_coeff(:)
+
+    ! local variables
+    integer                                :: n_sets
+    integer                                :: iset, idata
+    integer                                :: idx_start_fit, idx_stop_fit
+    real(wp)                               :: d_coeff
+    real(wp), allocatable, dimension(:, :) :: xydata
+    character(*), parameter                :: format_float = "es25.16e3"
+    type(s_fitting_result), dimension(:), allocatable :: fittings
+
+
+    ! Number of MSD sets (columns minus time column)
+    n_sets = ncols - 1
+
+    allocate(fittings(n_sets))
+    allocate(xydata(ncols, ndata))
+
+    ! Copy and convert data
+    xydata = msd_data
+
+    ! Convert to ps and angstroms
+    xydata(1, :)  = xydata(1, :)  * time_step
+    xydata(2:, :) = xydata(2:, :) * distance_unit ** 2
+    do iset = 2, ncols
+      xydata(iset, :) = xydata(iset, :) / (2.0_wp * ndofs)
+    end do
+
+    ! Determine fitting range
+    idx_start_fit = max(start_step, 1)
+    idx_stop_fit = min(stop_step, ndata)
+
+    ! Analyze
+    write(MsgOut, '()')
+    write(MsgOut, '("Analyze_zerocopy> Starting fit at",es9.2e2," ps")') &
+      xydata(1, idx_start_fit)
+    write(MsgOut, '("Analyze_zerocopy> Using ",i0," out of ",i0," points")') &
+      idx_stop_fit - idx_start_fit + 1, ndata
+    write(MsgOut, '("Analyze_zerocopy> Fitting: f(x) = b * x + a ")')
+    write(MsgOut, '()')
+
+    do iset = 1, n_sets
+
+      ! Fit - results are in A^2/ps
+      fittings(iset) = fit_least_squares(xydata(1,idx_start_fit:idx_stop_fit), &
+        xydata(iset+1, idx_start_fit:idx_stop_fit), .true.)
+
+      write(MsgOut, &
+        '("Analyze_zerocopy> (Set ",i0,") a =",'&
+        //format_float//')') iset, fittings(iset)%coeff(1)
+      write(MsgOut, &
+        '("Analyze_zerocopy> (Set ",i0,") b =",'&
+        //format_float//')') iset, fittings(iset)%coeff(2)
+      write(MsgOut, &
+        '("Analyze_zerocopy> (Set ",i0,") r =",'&
+        //format_float//')') iset, fittings(iset)%corr
+
+      ! Convert diffusion coefficient to cm^2/s
+      d_coeff = fittings(iset)%coeff(2) * 1e-4_wp
+      diffusion_coeff(iset) = d_coeff
+
+      write(MsgOut, &
+        '("Analyze_zerocopy> (Set ",i0,") D (cm^2/s):",'&
+        //format_float//')') iset, d_coeff
+      write(MsgOut, '()')
+
+    end do
+
+    ! Output results
+    do idata = 1, ndata
+      out_data(1, idata) = xydata(1, idata)
+      do iset = 1, n_sets
+        out_data(2*iset, idata) = xydata(iset+1, idata)
+        out_data(2*iset + 1, idata) = &
+            fittings(iset)%coeff(1)+fittings(iset)%coeff(2)*xydata(1, idata)
+      end do
+    end do
+
+    ! Cleanup
+    deallocate(xydata)
+    deallocate(fittings)
+
+    return
+
+  end subroutine analyze_zerocopy
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

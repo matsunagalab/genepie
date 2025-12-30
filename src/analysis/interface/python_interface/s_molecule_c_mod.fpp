@@ -352,14 +352,21 @@ contains
     f_dst%num_atoms = c_src%num_atoms
     f_dst%num_bonds = c_src%num_bonds
 
-    ! ポインタをnull初期化
+    ! ポインタをnull初期化（数値配列）
     nullify(f_dst%mass)
     nullify(f_dst%atom_coord)
     nullify(f_dst%atom_no)
     nullify(f_dst%residue_no)
     nullify(f_dst%bond_list)
+    ! ポインタをnull初期化（文字配列）
+    nullify(f_dst%atom_name)
+    nullify(f_dst%residue_name)
+    nullify(f_dst%segment_name)
+    nullify(f_dst%atom_cls_name)
+    nullify(f_dst%chain_id)
 
     ! C_F_POINTERでビューを作成（コピーなし）
+    ! 数値配列
     if (c_associated(c_src%mass) .and. c_src%num_atoms > 0) then
       call C_F_POINTER(c_src%mass, f_dst%mass, [c_src%num_atoms])
     end if
@@ -378,6 +385,30 @@ contains
 
     if (c_associated(c_src%bond_list) .and. c_src%num_bonds > 0) then
       call C_F_POINTER(c_src%bond_list, f_dst%bond_list, [2, c_src%num_bonds])
+    end if
+
+    ! 文字配列: C_F_POINTERでゼロコピービュー作成
+    ! メモリレイアウト互換性:
+    !   Python: [str0_c0][str0_c1][str0_c2][str0_c3][str1_c0]...
+    !   Fortran: character(4) :: buf(:) → column-major で同じレイアウト
+    if (c_associated(c_src%atom_name) .and. c_src%num_atoms > 0) then
+      call C_F_POINTER(c_src%atom_name, f_dst%atom_name, [c_src%num_atoms])
+    end if
+
+    if (c_associated(c_src%residue_name) .and. c_src%num_atoms > 0) then
+      call C_F_POINTER(c_src%residue_name, f_dst%residue_name, [c_src%num_atoms])
+    end if
+
+    if (c_associated(c_src%segment_name) .and. c_src%num_atoms > 0) then
+      call C_F_POINTER(c_src%segment_name, f_dst%segment_name, [c_src%num_atoms])
+    end if
+
+    if (c_associated(c_src%atom_cls_name) .and. c_src%num_atoms > 0) then
+      call C_F_POINTER(c_src%atom_cls_name, f_dst%atom_cls_name, [c_src%num_atoms])
+    end if
+
+    if (c_associated(c_src%chain_id) .and. c_src%num_atoms > 0) then
+      call C_F_POINTER(c_src%chain_id, f_dst%chain_id, [c_src%num_atoms])
     end if
   end subroutine c2f_s_molecule_ptr
 

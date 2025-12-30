@@ -33,6 +33,7 @@ module rmsd_impl_mod
 
   ! subroutines
   public  :: analyze
+  public  :: analyze_zerocopy
 
 contains
 
@@ -197,5 +198,102 @@ contains
     return
 
   end subroutine analyze
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    analyze_zerocopy
+  !> @brief        RMSD analysis with true zero-copy (arrays from Python)
+  !! @authors      Claude Code
+  !! @param[in]    mass           : mass array pointer (view of Python NumPy)
+  !! @param[in]    ref_coord      : reference coordinates (3, n_atoms)
+  !! @param[in]    trajes_c       : trajectory C structure
+  !! @param[in]    ana_period     : analysis period
+  !! @param[in]    analysis_idx   : analysis atom indices (1-indexed)
+  !! @param[in]    n_analysis     : number of analysis atoms
+  !! @param[in]    mass_weighted  : use mass weighting
+  !! @param[out]   rmsd_results   : RMSD results
+  !! @note         This version does NOT perform fitting. Use when coordinates
+  !!               are already aligned or fitting is done in Python.
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine analyze_zerocopy(mass, ref_coord, trajes_c, ana_period, &
+                              analysis_idx, n_analysis, mass_weighted, &
+                              rmsd_results)
+    use s_trajectories_c_mod
+
+    ! formal arguments
+    real(wp), pointer,       intent(in)    :: mass(:)
+    real(wp), pointer,       intent(in)    :: ref_coord(:,:)
+    type(s_trajectories_c),  intent(in)    :: trajes_c
+    integer,                 intent(in)    :: ana_period
+    integer,                 intent(in)    :: analysis_idx(:)
+    integer,                 intent(in)    :: n_analysis
+    logical,                 intent(in)    :: mass_weighted
+    real(wp), pointer,       intent(out)   :: rmsd_results(:)
+
+    ! local variables
+    type(s_trajectory) :: trajectory
+    integer            :: nstru, istep
+    integer            :: iatom, idx
+    real(wp)           :: rmsd, tot_mass, weight
+
+    ! allocate results array
+    allocate(rmsd_results(trajes_c%nframe / ana_period))
+
+    ! analysis loop
+    nstru = 0
+
+    do istep = 1, trajes_c%nframe
+
+      ! read trajectory frame
+      call get_frame(trajes_c, istep, trajectory)
+
+      if (mod(istep, ana_period) == 0) then
+
+        nstru = nstru + 1
+        write(MsgOut,*) '      number of structures = ', nstru
+
+        ! compute RMSD
+        rmsd = 0.0_wp
+        tot_mass = 0.0_wp
+
+        do iatom = 1, n_analysis
+          idx = analysis_idx(iatom)
+
+          if (mass_weighted) then
+            weight = mass(idx)
+          else
+            weight = 1.0_wp
+          end if
+
+          rmsd = rmsd + weight * ( &
+            (ref_coord(1, idx) - trajectory%coord(1, idx))**2 + &
+            (ref_coord(2, idx) - trajectory%coord(2, idx))**2 + &
+            (ref_coord(3, idx) - trajectory%coord(3, idx))**2)
+
+          tot_mass = tot_mass + weight
+        end do
+
+        if (tot_mass > EPS) rmsd = sqrt(rmsd / tot_mass)
+
+        rmsd_results(nstru) = rmsd
+
+        ! output results
+        write(MsgOut,'(a,f10.5)') '              RMSD of analysis atoms = ', rmsd
+        write(MsgOut,*) ''
+
+      end if
+
+    end do
+
+    ! Output summary
+    write(MsgOut,'(A)') ''
+    write(MsgOut,'(A)') 'Analyze_zerocopy> RMSD analysis completed (zero-copy, no fitting)'
+    write(MsgOut,'(A)') ''
+
+    return
+
+  end subroutine analyze_zerocopy
 
 end module rmsd_impl_mod
