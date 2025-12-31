@@ -8,10 +8,9 @@ import numpy as np
 import numpy.typing as npt
 from .libgenesis import LibGenesis
 from .s_molecule import SMolecule
-from .s_trajectories import STrajectories, STrajectoriesArray
+from .s_trajectories import STrajectories
 from . import ctrl_files
 from . import c2py_util
-from . import py2c_util
 from functools import lru_cache
 from .exceptions import (
     GenesisFortranError,

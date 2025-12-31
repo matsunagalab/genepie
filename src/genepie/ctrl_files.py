@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Any, Iterable, Optional, TextIO
 
 
@@ -242,79 +241,6 @@ def write_ctrl_output(
     for fortran_key, value in mapping.items():
         if value is not None:
             dst.write(f"{fortran_key} = {value}\n".encode('utf-8'))
-
-
-@dataclass
-class TrajectoryParameters:
-    """
-    Parameters for trajectory file specification.
-
-    Attributes:
-        trjfile: Path to trajectory file
-        md_step: Number of MD steps. If None or 0, auto-detect from DCD file.
-                 Negative values (e.g., -10) read all frames except last N.
-                 Auto-detection only works for DCD format.
-        mdout_period: MD output period. Auto-set to 1 when md_step is None/0/<0.
-        ana_period: Analysis period (default: 1)
-        repeat: Repeat count (default: 1)
-
-    Example:
-        # Auto-detect all frames (DCD only):
-        TrajectoryParameters(trjfile="traj.dcd")
-
-        # Explicit frame count:
-        TrajectoryParameters(trjfile="traj.dcd", md_step=1000)
-    """
-    trjfile: Optional[str] = None
-    md_step: Optional[int] = None
-    mdout_period: Optional[int] = None
-    ana_period: Optional[int] = None
-    repeat: Optional[int] = None
-
-
-def write_trajectory_info(
-    dst: TextIO,
-    trajectories: Iterable [TrajectoryParameters],
-    trj_format: Optional[str] = None,
-    trj_type: Optional[str] = None,
-    trj_natom: Optional[int] = None
-) -> None:
-    """
-    Write trajectory-related information to a file.
-
-    Args:
-        dst: output destination
-        trajectories: Set of TrajectoryParameters
-        trj_format: Trajectory format
-        trj_type: Trajectory type
-        trj_natom: Number of atoms in trajectories
-    """
-    dst.write(b"[TRAJECTORY]\n")
-    for idx, traj in enumerate(trajectories, 1):
-        if traj.trjfile is not None:
-            dst.write(f"trjfile{idx} = {traj.trjfile}\n".encode('utf-8'))
-
-        # md_step: None means auto-detect (write 0)
-        effective_md_step = traj.md_step if traj.md_step is not None else 0
-        dst.write(f"md_step{idx} = {effective_md_step}\n".encode('utf-8'))
-
-        # mdout_period: Must be 1 when auto-detecting (md_step <= 0)
-        if effective_md_step <= 0:
-            effective_mdout_period = 1
-        else:
-            effective_mdout_period = traj.mdout_period if traj.mdout_period is not None else 1
-        dst.write(f"mdout_period{idx} = {effective_mdout_period}\n".encode('utf-8'))
-
-        if traj.ana_period is not None:
-            dst.write(f"ana_period{idx} = {traj.ana_period}\n".encode('utf-8'))
-        if traj.repeat is not None:
-            dst.write(f"repeat{idx} = {traj.repeat}\n".encode('utf-8'))
-    if trj_format is not None:
-        dst.write(f"trj_format = {trj_format}\n".encode('utf-8'))
-    if trj_type is not None:
-        dst.write(f"trj_type = {trj_type}\n".encode('utf-8'))
-    if trj_natom is not None:
-        dst.write(f"trj_natom = {trj_natom}\n".encode('utf-8'))
 
 
 def write_ctrl_selection(dst: TextIO, group: Optional[Iterable[str]] = None,
