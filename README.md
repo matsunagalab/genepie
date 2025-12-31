@@ -285,15 +285,22 @@ genepie/
 
 ### Adding a New Analysis Tool
 
-**1. Fortran side** (`src/analysis/interface/python_interface/`):
-- Create `*_c_mod.fpp` with `bind(C)` interface wrapping GENESIS routines
-- Create `*_impl.fpp` for analysis implementation (or reuse existing code)
-- Update `Makefile.am` to include new `.fpp` files
+**Recommended: Unified Architecture** (for RMSD, RG, DRMS pattern)
 
-**2. Python side** (`src/genepie/`):
-- Add function signature to `libgenesis.py`
-- Create wrapper function in `genesis_exe.py`
-- Add test as `tests/test_<name>.py`
+When CLI already exists with `trj_source_mod` support:
+1. Export `analyze_*_unified()` from CLI's `*_analyze.fpp` with primitive arguments
+2. Create `*_c_mod.fpp` that calls unified function via `init_source_memory()` + `init_sink_array()`
+3. Add function signature to `libgenesis.py` and wrapper to `genesis_exe.py`
+4. Add test as `tests/test_<name>.py`
+
+**Alternative: Separate Implementation** (for HB, WHAM, MBAR pattern)
+
+When unified pattern doesn't fit:
+1. Create `*_c_mod.fpp` with `bind(C)` interface
+2. Create `*_impl.fpp` for analysis implementation
+3. Update `Makefile.am` to include new `.fpp` files
+4. Add function signature to `libgenesis.py` and wrapper to `genesis_exe.py`
+5. Add test as `tests/test_<name>.py`
 
 See [CLAUDE.md](CLAUDE.md) for detailed instructions.
 

@@ -164,11 +164,52 @@ The Python interface uses ctypes to call Fortran functions compiled into `libpyt
 | Pattern | Purpose |
 |---------|---------|
 | `*_c_mod.fpp` | C-callable wrappers for GENESIS Fortran routines |
-| `*_analysis.fpp` | Analysis algorithm implementations |
+| `trj_source_mod.fpp` | Trajectory source abstraction (FILE, MEMORY, LAZY_DCD modes) |
+| `result_sink_mod.fpp` | Result sink abstraction (FILE, ARRAY modes) |
 | `conv_f_c_util.fpp` | Fortran ↔ C data conversion utilities |
 | `s_molecule_c_mod.fpp` | s_molecule C structure allocation/deallocation |
 | `s_trajectories_c_mod.fpp` | s_trajectories C structure handling |
 | `atdyn_c_mod.fpp` | ATDYN MD/minimization C wrappers with state reset |
+
+#### CLI/Python Unified Architecture (RMSD, RG, DRMS)
+
+These analysis tools share a single implementation between CLI and Python interface:
+
+```
+CLI:    ra_analyze.fpp::analyze_rmsd_unified(source, sink, ...)
+Python: rmsd_c_mod.fpp → calls analyze_rmsd_unified()
+                                   ↑ Same function!
+```
+
+**Key modules:**
+- `trj_source_mod`: Abstracts trajectory input (file-based for CLI, memory/lazy for Python)
+- `result_sink_mod`: Abstracts result output (file for CLI, array for Python)
+
+**Pattern for `*_c_mod.fpp` (unified tools):**
+```fortran
+subroutine rmsd_analysis_c(...) bind(C)
+  use ra_analyze_mod, only: analyze_rmsd_unified  ! CLI module
+  use trj_source_mod
+  use result_sink_mod
+
+  ! Initialize source (memory mode for Python)
+  call init_source_memory(source, coords, pbc_boxes, natom, nframe, period)
+  call init_sink_array(sink, result_ptr, result_size)
+
+  ! Call unified function (same as CLI)
+  call analyze_rmsd_unified(source, sink, ref_coord, mass, ...)
+
+  call finalize_source(source)
+  call finalize_sink(sink)
+end subroutine
+```
+
+**Benefits:**
+- Single analysis implementation (no code duplication)
+- CLI and Python results are identical
+- Easier maintenance
+
+**Unified tools:** RMSD (`ra_analyze.fpp`), RG (`rg_analyze.fpp`), DRMS (`dr_analyze.fpp`)
 
 #### Timer Reset for Library Mode
 
@@ -481,13 +522,32 @@ python -m genepie.tests.test_error_handling
 
 ## Adding a New Analysis Function
 
+### Option A: Unified Architecture (Recommended)
+
+Use this approach when CLI analysis already exists with `trj_source_mod` support:
+
+1. Modify CLI's `*_analyze.fpp` to export `analyze_*_unified()` with primitive arguments
+2. Create `*_c_mod.fpp` that calls the CLI's unified function via `init_source_memory()` + `init_sink_array()`
+3. Add function signature to `src/genepie/libgenesis.py`
+4. Create Python wrapper function in `src/genepie/genesis_exe.py`
+5. Write regression test as `src/genepie/tests/test_<analysis_name>.py`
+6. Add test to `src/genepie/tests/all_run.sh`
+
+**Examples:** RMSD, RG, DRMS (see `rmsd_c_mod.fpp`, `rg_c_mod.fpp`, `drms_c_mod.fpp`)
+
+### Option B: Separate Implementation
+
+Use this approach for tools that don't fit the unified pattern:
+
 1. Create Fortran wrapper in `src/analysis/interface/python_interface/*_c_mod.fpp` with `bind(C)` interface
-2. Create analysis implementation in `*_analysis.fpp` (or reuse existing GENESIS code)
+2. Create `*_impl.fpp` for analysis implementation (or reuse existing GENESIS code)
 3. Add function signature to `src/genepie/libgenesis.py`
 4. Create Python wrapper function in `src/genepie/genesis_exe.py`
 5. Write regression test as `src/genepie/tests/test_<analysis_name>.py`
 6. Add test to `src/genepie/tests/all_run.sh`
 7. Update `src/analysis/interface/python_interface/Makefile.am` to include new `.fpp` files
+
+**Examples:** HB, WHAM, MBAR, K-means (see `hb_impl.fpp`, `wham_impl.fpp`)
 
 ## Key Patterns
 
