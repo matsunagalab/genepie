@@ -24,6 +24,8 @@ libana_a_SOURCES = \
 	output.fpp \
 	trajectory.fpp \
 	pbc_correct.fpp \
+	trj_source_mod.fpp \
+	result_sink_mod.fpp \
 	analysis_timers.fpp
 
 EXTRA_DIST = \

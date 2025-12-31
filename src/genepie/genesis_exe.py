@@ -1125,6 +1125,180 @@ def rmsd_analysis(
     return RmsdAnalysisResult(result_rmsd[:nstru_out.value])
 
 
+RmsdLazyAnalysisResult = namedtuple(
+        'RmsdLazyAnalysisResult',
+        ['rmsd', 'dcd_nframe', 'dcd_natom'])
+
+
+def rmsd_analysis_lazy(
+        molecule: SMolecule,
+        dcd_file: str,
+        analysis_selection: str,
+        fitting_selection: Optional[str] = None,
+        fitting_method: str = "TR+ROT",
+        ana_period: int = 1,
+        mass_weighted: bool = False,
+        ref_coord: Optional[np.ndarray] = None,
+        has_box: bool = False,
+        max_frames: int = 100000,
+        ) -> RmsdLazyAnalysisResult:
+    """
+    Executes RMSD analysis with lazy DCD loading (memory efficient).
+
+    This function calculates RMSD without loading the entire DCD trajectory
+    into memory. Instead, frames are read on-demand directly from the DCD file.
+    This is particularly useful for large trajectories that don't fit in memory.
+
+    Args:
+        molecule: Molecular structure (provides mass and reference coordinates)
+        dcd_file: Path to DCD trajectory file
+        analysis_selection: GENESIS selection for RMSD calculation atoms (e.g., "an:CA")
+        fitting_selection: GENESIS selection for fitting atoms (e.g., "an:CA").
+            If None, no fitting is performed (use when trajectory is pre-aligned).
+        fitting_method: Fitting method (only used when fitting_selection is provided):
+            - "NO": No fitting
+            - "TR+ROT": Translation + rotation (default, most common)
+            - "TR": Translation only
+            - "TR+ZROT": Translation + Z-axis rotation
+            - "XYTR": XY-plane translation only
+            - "XYTR+ZROT": XY translation + Z-axis rotation
+        ana_period: Analysis period (default: 1)
+        mass_weighted: Use mass weighting for both fitting and RMSD (default: False)
+        ref_coord: Reference coordinates (default: molecule.atom_coord).
+                   Shape should be (n_atoms, 3).
+        has_box: Whether DCD file contains box information (default: False)
+        max_frames: Maximum expected frames (for result array allocation, default: 100000)
+
+    Returns:
+        RmsdLazyAnalysisResult containing:
+            - rmsd: RMSD array
+            - dcd_nframe: Total frames in DCD file
+            - dcd_natom: Atoms per frame in DCD file
+
+    Examples:
+        >>> # Calculate RMSD without fitting (lazy loading)
+        >>> result = rmsd_analysis_lazy(mol, "trajectory.dcd",
+        ...                             analysis_selection="an:CA")
+        >>> print(f"DCD has {result.dcd_nframe} frames, {result.dcd_natom} atoms")
+        >>> print(result.rmsd)
+
+        >>> # Calculate RMSD with TR+ROT fitting using CA atoms
+        >>> result = rmsd_analysis_lazy(
+        ...     mol, "large_trajectory.dcd",
+        ...     analysis_selection="an:CA",
+        ...     fitting_selection="an:CA",
+        ...     fitting_method="TR+ROT"
+        ... )
+    """
+    lib = LibGenesis().lib
+
+    # Validate DCD file exists
+    if not os.path.exists(dcd_file):
+        raise GenesisValidationError(f"DCD file not found: {dcd_file}")
+
+    # Get atom indices using GENESIS selection
+    analysis_indices = selection(molecule, analysis_selection)
+    n_analysis = len(analysis_indices)
+
+    # Ensure arrays are contiguous and correct dtype
+    mass = np.ascontiguousarray(molecule.mass, dtype=np.float64)
+
+    # Reference coordinates: Fortran expects (3, n_atoms)
+    if ref_coord is None:
+        ref_coord_arr = molecule.atom_coord
+    else:
+        ref_coord_arr = ref_coord
+    ref_coord_f = np.asfortranarray(ref_coord_arr.T, dtype=np.float64)
+
+    # Get pointers (zero-copy)
+    mass_ptr = mass.ctypes.data_as(ctypes.c_void_p)
+    ref_coord_ptr = ref_coord_f.ctypes.data_as(ctypes.c_void_p)
+
+    # Pre-allocate result array (will be trimmed later)
+    result_rmsd = np.zeros(max_frames, dtype=np.float64)
+    result_ptr = result_rmsd.ctypes.data_as(ctypes.c_void_p)
+
+    # Convert filename to C string
+    dcd_filename_bytes = dcd_file.encode('utf-8')
+    filename_len = len(dcd_filename_bytes)
+
+    # Trajectory type: 1=COOR, 2=COOR+BOX (matches TrjTypeCoor=1, TrjTypeCoorBox=2)
+    trj_type = 2 if has_box else 1
+
+    # Output variables
+    nstru_out = ctypes.c_int()
+    dcd_nframe_out = ctypes.c_int()
+    dcd_natom_out = ctypes.c_int()
+    status = ctypes.c_int()
+    msglen = _DEFAULT_MSG_LEN
+    msg = ctypes.create_string_buffer(msglen)
+
+    # Fitting parameters
+    fitting_idx_ptr = ctypes.c_void_p(0)
+    n_fitting = 0
+    method_int = 0
+
+    if fitting_selection is not None:
+        # Fitting method mapping
+        method_map = {
+            "NO": FittingMethod.NO,
+            "TR+ROT": FittingMethod.TR_ROT,
+            "TR": FittingMethod.TR,
+            "TR+ZROT": FittingMethod.TR_ZROT,
+            "XYTR": FittingMethod.XYTR,
+            "XYTR+ZROT": FittingMethod.XYTR_ZROT,
+        }
+        if fitting_method not in method_map:
+            raise GenesisValidationError(
+                f"Invalid fitting_method: {fitting_method}. "
+                f"Valid options: {list(method_map.keys())}"
+            )
+        method_int = method_map[fitting_method]
+
+        # Get fitting indices
+        fitting_indices = selection(molecule, fitting_selection)
+        n_fitting = len(fitting_indices)
+        fitting_idx_ptr = fitting_indices.ctypes.data_as(ctypes.c_void_p)
+
+    with suppress_stdout_capture_stderr() as captured:
+        lib.rmsd_analysis_lazy_c(
+            dcd_filename_bytes,
+            ctypes.c_int(filename_len),
+            ctypes.c_int(trj_type),
+            mass_ptr,
+            ref_coord_ptr,
+            ctypes.c_int(molecule.num_atoms),
+            ctypes.c_int(ana_period),
+            fitting_idx_ptr,
+            ctypes.c_int(n_fitting),
+            analysis_indices.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(n_analysis),
+            ctypes.c_int(method_int),
+            ctypes.c_int(1 if mass_weighted else 0),
+            result_ptr,
+            ctypes.c_int(max_frames),
+            ctypes.byref(nstru_out),
+            ctypes.byref(dcd_nframe_out),
+            ctypes.byref(dcd_natom_out),
+            ctypes.byref(status),
+            msg,
+            ctypes.c_int(msglen),
+        )
+
+    # Check for errors
+    if status.value != 0:
+        error_msg = msg.value.decode('utf-8', errors='replace').strip()
+        stderr_output = captured.stderr if captured else ""
+        raise_fortran_error(status.value, error_msg, stderr_output)
+
+    # Return the result trimmed to actual size
+    return RmsdLazyAnalysisResult(
+        result_rmsd[:nstru_out.value],
+        dcd_nframe_out.value,
+        dcd_natom_out.value
+    )
+
+
 DrmsAnalysisResult = namedtuple(
         'DrmsAnalysisResult',
         ['drms'])

@@ -2,7 +2,7 @@
 !
 !  Module   ra_analyze_mod
 !> @brief   run analyzing trajectories
-!! @authors Takaharu Mori (TM)
+!! @authors Takaharu Mori (TM), Claude Code
 !
 !  (c) Copyright 2014 RIKEN. All rights reserved.
 !
@@ -15,6 +15,8 @@
 module ra_analyze_mod
 
   use ra_option_str_mod
+  use trj_source_mod
+  use result_sink_mod
   use fileio_trj_mod
   use fitting_mod
   use fitting_str_mod
@@ -26,7 +28,7 @@ module ra_analyze_mod
   use fileio_mod
   use messages_mod
   use constants_mod
- 
+
   implicit none
   private
 
@@ -39,7 +41,7 @@ contains
   !
   !  Subroutine    analyze
   !> @brief        run analyzing trajectories
-  !! @authors      TM
+  !! @authors      TM, Claude Code
   !! @param[in]    trj_list   : trajectory file list information
   !! @param[in]    output     : output information
   !! @param[inout] option     : option information
@@ -50,27 +52,25 @@ contains
   subroutine analyze(molecule, trj_list, output, option, trajectory, fitting)
 
     ! formal arguments
-    type(s_molecule),        intent(inout) :: molecule
-    type(s_trj_list),        intent(in)    :: trj_list
-    type(s_output),          intent(in)    :: output
-    type(s_option),          intent(inout) :: option
-    type(s_trajectory),      intent(inout) :: trajectory
-    type(s_fitting),         intent(inout) :: fitting
+    type(s_molecule),         intent(inout) :: molecule
+    type(s_trj_list), target, intent(in)    :: trj_list
+    type(s_output),           intent(in)    :: output
+    type(s_option),           intent(inout) :: option
+    type(s_trajectory),       intent(inout) :: trajectory
+    type(s_fitting),          intent(inout) :: fitting
 
     ! local variables
-    type(s_trj_file)         :: trj_in
-    integer                  :: nstru, ifile, istep, num_trjfiles
-    integer                  :: iatom, rms_out, idx, i
-    real(wp)                 :: rmsd, tot_mass
+    type(s_trj_source)       :: source
+    type(s_result_sink)      :: sink
+    integer                  :: nstru, n_atoms, n_analysis
+    integer                  :: iatom, idx
 
-    real(wp), allocatable    :: mass_fitting(:), mass_analysis(:)
+    real(wp), allocatable    :: mass(:)
+    integer,  allocatable    :: analysis_idx(:)
 
 
     if (option%check_only) &
       return
-
-!    if (fitting%mass_weight) &
-!      call error_msg('Analyze> mass weighted is not allowed')
 
     if (fitting%mass_weight .and. .not. option%mass_weight) then
       write(MsgOut, *) 'Warning: mass-weighted fitting is enable while RMSD is not mass-weighted '
@@ -78,120 +78,31 @@ contains
       write(MsgOut, *) 'Warning: mass-weighted RMSD is enable while fitting is not mass-weighted '
     endif
 
-    allocate(mass_fitting(1:size(molecule%mass(:))), &
-             mass_analysis(1:size(option%analysis_atom%idx)))
+    ! Get atom counts
+    n_atoms = size(molecule%mass)
+    n_analysis = size(option%analysis_atom%idx)
 
-    if (fitting%mass_weight) then
-      if (abs(molecule%mass(1)) < 1.0e-05_wp) then
-         call error_msg('Analyze> mass is not defined')
-      else
-         mass_fitting(:) = molecule%mass(:)
-      endif
-    else
-      mass_fitting(:)=1.0_wp
-    endif
+    ! Allocate and prepare arrays
+    allocate(mass(n_atoms))
+    allocate(analysis_idx(n_analysis))
 
-    if (option%mass_weight) then
-      tot_mass = 0.0_wp
-      do iatom = 1, size(option%analysis_atom%idx)
-        idx = option%analysis_atom%idx(iatom)
-        mass_analysis(iatom) = molecule%mass(idx)
-        tot_mass = tot_mass + mass_analysis(iatom)
-      end do
-    else
-      mass_analysis(:)=1.0_wp
-      tot_mass = real(size(option%analysis_atom%idx),wp)
-    endif
-    
+    mass(:) = molecule%mass(:)
+    analysis_idx(:) = option%analysis_atom%idx(:)
 
-    ! open output file
-    !
-    if (output%rmsfile /= '') &
-      call open_file(rms_out, output%rmsfile, IOFileOutputNew)
+    ! Initialize source and sink
+    call init_source_file(source, trj_list, n_atoms)
+    call init_sink_file(sink, output%rmsfile)
 
+    ! Run unified RMSD analysis
+    call analyze_rmsd_unified(source, sink, molecule, fitting, option, &
+                              mass, analysis_idx, n_analysis, nstru)
 
-    ! analysis loop
-    !
-    nstru = 0
-    num_trjfiles = size(trj_list%md_steps)
-
-    do ifile = 1, num_trjfiles
-
-      ! open trajectory file
-      !
-      call open_trj(trj_in, trj_list%filenames(ifile), &
-                            trj_list%trj_format,       &
-                            trj_list%trj_type, IOFileInput)
-
-      do istep = 1, trj_list%md_steps(ifile)
-
-        ! read trajectory
-        !   coordinates of one MD snapshot are saved in trajectory%coord)
-        !
-        call read_trj(trj_in, trajectory)
-
-        if (mod(istep, trj_list%ana_periods(ifile)) == 0) then
-
-          nstru = nstru + 1
-          write(MsgOut,*) '      number of structures = ', nstru
-
-
-          ! fitting
-          !
-          call run_fitting(fitting, &
-                           molecule%atom_coord, &
-                           trajectory%coord, &
-                           trajectory%coord, &
-                           mass_fitting)
-
-
-          ! compute RMSD for selected atoms
-          !
-          rmsd = 0.0_wp
-          do iatom = 1, size(option%analysis_atom%idx)
-
-            idx = option%analysis_atom%idx(iatom)
-            if (fitting%fitting_method == FittingMethodXYTR_ZROT) then
-              rmsd = rmsd + mass_analysis(iatom) * (                                    &
-                + (molecule%atom_coord(1,idx) - trajectory%coord(1,idx))**2  &
-                + (molecule%atom_coord(2,idx) - trajectory%coord(2,idx))**2)
-            else
-              rmsd = rmsd + mass_analysis(iatom) * (                                    &
-              + (molecule%atom_coord(1,idx) - trajectory%coord(1,idx))**2  &
-              + (molecule%atom_coord(2,idx) - trajectory%coord(2,idx))**2  &
-              + (molecule%atom_coord(3,idx) - trajectory%coord(3,idx))**2)
-            endif
-
-          end do
-          rmsd = sqrt(rmsd/tot_mass)
-
-
-          ! output results
-          !
-          write(MsgOut,'(a,f10.5)') '              RMSD of analysis atoms = ',rmsd
-          write(MsgOut,*) ''
-
-          if (output%rmsfile /= '') &
-            write(rms_out, '(i10,1x,f10.5)') nstru, rmsd
-
-        end if
-
-      end do
-
-      ! close trajectory file
-      !
-      call close_trj(trj_in)
-
-    end do
-
-
-    ! close output file
-    !
-    if (output%rmsfile /= '') call close_file(rms_out)
-
+    ! Cleanup
+    call finalize_sink(sink)
+    call finalize_source(source)
+    deallocate(mass, analysis_idx)
 
     ! Output summary
-    !
     write(MsgOut,'(A)') ''
     write(MsgOut,'(A)') 'Analyze> Detailed information in the output files'
     write(MsgOut,'(A)') ''
@@ -203,5 +114,111 @@ contains
     return
 
   end subroutine analyze
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    analyze_rmsd_unified
+  !> @brief        Unified RMSD analysis loop using source/sink abstractions
+  !! @authors      Claude Code
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine analyze_rmsd_unified(source, sink, molecule, fitting, option, &
+                                  mass, analysis_idx, n_analysis, nstru_out)
+
+    ! formal arguments
+    type(s_trj_source),  intent(inout) :: source
+    type(s_result_sink), intent(inout) :: sink
+    type(s_molecule),    intent(inout) :: molecule
+    type(s_fitting),     intent(inout) :: fitting
+    type(s_option),      intent(in)    :: option
+    real(wp),            intent(in)    :: mass(:)
+    integer,             intent(in)    :: analysis_idx(:)
+    integer,             intent(in)    :: n_analysis
+    integer,             intent(out)   :: nstru_out
+
+    ! local variables
+    type(s_trajectory)    :: trajectory
+    real(wp), allocatable :: mass_fitting(:)
+    real(wp)              :: rmsd, tot_mass, weight
+    integer               :: nstru, status, n_atoms
+    integer               :: iatom, idx
+
+    n_atoms = size(mass)
+
+    ! Allocate work buffers
+    allocate(mass_fitting(n_atoms))
+
+    ! Prepare mass array for fitting
+    if (fitting%mass_weight) then
+      mass_fitting(:) = mass(:)
+    else
+      mass_fitting(:) = 1.0_wp
+    end if
+
+    ! Main analysis loop
+    nstru = 0
+
+    do while (has_more_frames(source))
+
+      ! Get next frame
+      call get_next_frame(source, trajectory, status)
+      if (status /= 0) exit
+
+      nstru = nstru + 1
+
+      write(MsgOut,*) '      number of structures = ', nstru
+
+      ! Apply fitting if requested
+      if (fitting%fitting_method /= FittingMethodNO) then
+        call run_fitting(fitting, molecule%atom_coord, trajectory%coord, &
+                         trajectory%coord, mass_fitting)
+      end if
+
+      ! Compute RMSD for analysis atoms
+      rmsd = 0.0_wp
+      tot_mass = 0.0_wp
+
+      do iatom = 1, n_analysis
+        idx = analysis_idx(iatom)
+
+        if (option%mass_weight) then
+          weight = mass(idx)
+        else
+          weight = 1.0_wp
+        end if
+
+        rmsd = rmsd + weight * ( &
+               (molecule%atom_coord(1,idx) - trajectory%coord(1,idx))**2 + &
+               (molecule%atom_coord(2,idx) - trajectory%coord(2,idx))**2 + &
+               (molecule%atom_coord(3,idx) - trajectory%coord(3,idx))**2)
+
+        tot_mass = tot_mass + weight
+      end do
+
+      if (tot_mass > EPS) then
+        rmsd = sqrt(rmsd / tot_mass)
+      else
+        rmsd = 0.0_wp
+      end if
+
+      ! Write result
+      call write_result_with_index(sink, nstru, rmsd)
+
+      ! Output progress
+      write(MsgOut,'(a,f10.5)') '              RMSD of analysis atoms = ', rmsd
+      write(MsgOut,*) ''
+
+    end do
+
+    nstru_out = nstru
+
+    ! Cleanup
+    deallocate(mass_fitting)
+    if (allocated(trajectory%coord)) deallocate(trajectory%coord)
+
+    return
+
+  end subroutine analyze_rmsd_unified
 
 end module ra_analyze_mod
