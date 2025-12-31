@@ -139,8 +139,6 @@ Automated test suite that runs on every push and pull request to main:
 
 The Python interface uses ctypes to call Fortran functions compiled into `libpython_interface.so`.
 
-**Note**: `src/analysis/interface/python_interface/` is deprecated and exists only for backward compatibility. It re-exports from `genepie` with a deprecation warning.
-
 ### Core Components
 
 | File | Purpose |
@@ -520,6 +518,56 @@ with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
     # ... call Fortran function with ctrl.name
 ```
 
+### Zerocopy Memory Management
+
+Zerocopy eliminates data copying between Python and Fortran by sharing memory directly.
+
+#### Data Flow
+
+```
+Python: np.zeros() → .ctypes.data_as(c_void_p) → Fortran: C_F_POINTER()
+        ↑ GC owns memory                         ↑ Creates alias (no copy)
+```
+
+**Python side:**
+```python
+coords = np.zeros((n_frame, n_atom, 3), dtype=np.float64)
+lib.analysis_c(coords.ctypes.data_as(ctypes.c_void_p), ...)
+# coords now contains Fortran's output
+```
+
+**Fortran side:**
+```fortran
+subroutine analysis_c(coords_ptr, ...) bind(C)
+    type(c_ptr), value :: coords_ptr
+    real(c_double), pointer :: coords_f(:,:,:)
+    call C_F_POINTER(coords_ptr, coords_f, [3, n_atom, n_frame])
+    coords_f(1, i, frame) = value  ! Direct write to Python memory
+end subroutine
+```
+
+#### Array Layout
+
+| Language | Layout | Example Access |
+|----------|--------|----------------|
+| Python | `(nframe, natom, 3)` C-order | `coords[frame, atom, 0]` |
+| Fortran | `(3, natom, nframe)` F-order | `coords_f(1, atom+1, frame+1)` |
+
+Same memory, different indexing due to row-major vs column-major.
+
+#### Zerocopy Status
+
+| Zerocopy ✅ | Legacy (copy-based) |
+|-------------|---------------------|
+| `crd_convert`, `rmsd_analysis`, `rg_analysis` | `msd_analysis`, `hb_analysis` |
+| `trj_analysis`, `drms_analysis`, `diffusion_analysis` | `wham_analysis`, `mbar_analysis`, `avecrd_analysis`, `kmeans_clustering` |
+
+#### Safety Rules
+
+1. numpy array must outlive Fortran call
+2. Never resize array while Fortran holds pointer
+3. Use `np.ascontiguousarray()` for non-contiguous arrays
+
 ## Code Structure (Full Repository)
 
 - `src/spdyn/` - Domain decomposition MD engine (MPI parallel)
@@ -527,7 +575,7 @@ with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
 - `src/lib/` - Shared Fortran library
 - `src/analysis/` - Analysis tools
   - `libana/` - Analysis library
-  - `interface/python_interface/` - Fortran interface files (.fpp) and deprecated Python wrapper
+  - `interface/python_interface/` - Fortran interface files (`.fpp`) for Python bindings
   - `trj_analysis/`, `free_energy/`, `mode_analysis/`, etc.
 - `src/genepie/` - **Main Python package** (PyPI distribution)
   - `tests/` - Test files for genepie
