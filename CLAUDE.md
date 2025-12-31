@@ -520,31 +520,52 @@ with tempfile.NamedTemporaryFile(dir=os.getcwd(), delete=True) as ctrl:
 
 ### Zerocopy Memory Management
 
-Zerocopy eliminates data copying between Python and Fortran by sharing memory directly.
+**Zerocopy は STrajectories (座標データ) と解析結果のみに適用。SMolecule は従来のコピー方式。**
 
-#### Data Flow
+#### Zerocopy 対象
+
+| コンポーネント | 方式 | メモリ所有者 |
+|---------------|------|-------------|
+| STrajectories (座標) | ✅ Zerocopy | Python GC |
+| 解析結果 (RMSD等) | ✅ Zerocopy | Python GC |
+| SMolecule (分子構造) | ❌ コピー | Python/Fortran両方 |
+
+#### STrajectories の Zerocopy パターン
 
 ```
 Python: np.zeros() → .ctypes.data_as(c_void_p) → Fortran: C_F_POINTER()
         ↑ GC owns memory                         ↑ Creates alias (no copy)
 ```
 
-**Python side:**
 ```python
 coords = np.zeros((n_frame, n_atom, 3), dtype=np.float64)
 lib.analysis_c(coords.ctypes.data_as(ctypes.c_void_p), ...)
 # coords now contains Fortran's output
 ```
 
-**Fortran side:**
-```fortran
-subroutine analysis_c(coords_ptr, ...) bind(C)
-    type(c_ptr), value :: coords_ptr
-    real(c_double), pointer :: coords_f(:,:,:)
-    call C_F_POINTER(coords_ptr, coords_f, [3, n_atom, n_frame])
-    coords_f(1, i, frame) = value  ! Direct write to Python memory
-end subroutine
+#### SMolecule のメモリ管理 (コピー方式)
+
 ```
+Python SMolecule (GC管理)
+    ↓ to_SMoleculeC() でコピー
+C SMoleculeC (Fortran allocate)
+    ↓ 解析関数で使用
+    ↓
+deallocate_s_molecule_c() で明示解放 ← 必須！
+```
+
+```python
+mol_c = molecule.to_SMoleculeC()  # Python → C コピー
+try:
+    lib.some_analysis(ctypes.byref(mol_c), ...)
+finally:
+    lib.deallocate_s_molecule_c(ctypes.byref(mol_c))  # 明示解放
+```
+
+**SMolecule が zerocopy できない理由:**
+- 文字列フィールド (6件): Unicode → ASCII エンコード必須
+- 整数型不一致 (15+件): numpy int64 → Fortran int32
+- メモリレイアウト (16+件): row-major ↔ column-major
 
 #### Array Layout
 
@@ -553,9 +574,7 @@ end subroutine
 | Python | `(nframe, natom, 3)` C-order | `coords[frame, atom, 0]` |
 | Fortran | `(3, natom, nframe)` F-order | `coords_f(1, atom+1, frame+1)` |
 
-Same memory, different indexing due to row-major vs column-major.
-
-#### Zerocopy Status
+#### Zerocopy 対応状況
 
 | Zerocopy ✅ | Legacy (copy-based) |
 |-------------|---------------------|

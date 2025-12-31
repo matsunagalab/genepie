@@ -128,26 +128,6 @@ module molecules_str_mod
 
   end type s_molecule
 
-  ! Python Interface用の共有メモリ型（ポインタベース）
-  ! Python側が所有するメモリをC_F_POINTERでビューとして参照
-  ! allocatableではなくpointerを使用することでメモリコピーを回避
-  type, public :: s_molecule_ptr
-    integer :: num_atoms = 0
-    integer :: num_bonds = 0
-    ! Numeric arrays
-    real(wp), pointer :: mass(:) => null()
-    real(wp), pointer :: atom_coord(:,:) => null()
-    integer, pointer :: atom_no(:) => null()
-    integer, pointer :: residue_no(:) => null()
-    integer, pointer :: bond_list(:,:) => null()
-    ! Character arrays (for selection and output)
-    character(4), pointer :: atom_name(:) => null()
-    character(6), pointer :: residue_name(:) => null()
-    character(4), pointer :: segment_name(:) => null()
-    character(6), pointer :: atom_cls_name(:) => null()
-    character(1), pointer :: chain_id(:) => null()
-  end type s_molecule_ptr
-
   ! parameters for allocatable variables
   integer,      public, parameter :: MoleculeAtom = 1
   integer,      public, parameter :: MoleculeBond = 2
