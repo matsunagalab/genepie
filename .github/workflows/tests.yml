@@ -42,6 +42,7 @@ jobs:
       - name: Run basic tests
         run: |
           python -m genepie.tests.test_rmsd
+          python -m genepie.tests.test_rmsd_lazy
           python -m genepie.tests.test_rg
           python -m genepie.tests.test_drms
           python -m genepie.tests.test_crd_convert
@@ -106,6 +107,7 @@ jobs:
       - name: Run basic tests
         run: |
           python -m genepie.tests.test_rmsd
+          python -m genepie.tests.test_rmsd_lazy
           python -m genepie.tests.test_rg
           python -m genepie.tests.test_drms
           python -m genepie.tests.test_crd_convert
