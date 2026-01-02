@@ -60,15 +60,39 @@ def _get_glibc_version() -> Optional[Tuple[int, int]]:
     # Method 3: Parse /lib/libc.so.6 or similar symlink
     try:
         import re
-        for lib_dir in ['/lib', '/lib64', '/lib/x86_64-linux-gnu']:
+        for lib_dir in ['/lib', '/lib64', '/lib/x86_64-linux-gnu',
+                        '/lib/aarch64-linux-gnu']:  # ARM64 support
             libc_path = Path(lib_dir) / 'libc.so.6'
             if libc_path.exists():
                 # Try to read the symlink target or library itself
                 target = libc_path.resolve().name if libc_path.is_symlink() else libc_path.name
-                # Match patterns like "libc-2.31.so" or "libc.so.6"
-                match = re.search(r'libc[.-](\d+)\.(\d+)', target)
-                if match:
-                    return (int(match.group(1)), int(match.group(2)))
+                # Match patterns like "libc-2.31.so", "libc.so.6", or "libc-2.31-0ubuntu9.so"
+                patterns = [
+                    r'libc[.-](\d+)\.(\d+)',  # libc-2.31.so
+                    r'(\d+)\.(\d+)',           # Version numbers anywhere
+                ]
+                for pattern in patterns:
+                    match = re.search(pattern, target)
+                    if match:
+                        major, minor = int(match.group(1)), int(match.group(2))
+                        # Sanity check: glibc versions are 2.x or potentially 3.x
+                        if 2 <= major <= 3:
+                            return (major, minor)
+    except Exception:
+        pass
+
+    # Method 4: Parse ldd --version output (last resort)
+    try:
+        import re
+        import subprocess
+        result = subprocess.run(['ldd', '--version'],
+                              capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            # Output example: "ldd (Ubuntu GLIBC 2.31-0ubuntu9.7) 2.31"
+            first_line = result.stdout.split('\n')[0]
+            match = re.search(r'(\d+)\.(\d+)\s*$', first_line)
+            if match:
+                return (int(match.group(1)), int(match.group(2)))
     except Exception:
         pass
 
@@ -93,6 +117,37 @@ def _check_glibc_version(min_major: int = 2, min_minor: int = 28) -> None:
             f"Options:\n"
             f"  1. Upgrade to Ubuntu 20.04 or later\n"
             f"  2. Build genepie from source"
+        )
+
+
+def _validate_platform_compatibility() -> None:
+    """Validate platform is compatible with GENESIS.
+
+    Checks:
+    1. Endianness: GENESIS requires little-endian (x86_64, ARM64)
+    2. Pointer size: GENESIS requires 64-bit pointers
+
+    Raises:
+        OSError: If platform is not supported
+    """
+    import sys
+    import struct
+
+    # Check endianness
+    if sys.byteorder != 'little':
+        raise OSError(
+            f"GENESIS requires a little-endian platform. "
+            f"Detected: {sys.byteorder}-endian. "
+            f"Big-endian systems (SPARC, some IBM Power) are not supported."
+        )
+
+    # Check pointer size (must be 64-bit)
+    pointer_size = struct.calcsize('P') * 8
+    if pointer_size != 64:
+        raise OSError(
+            f"GENESIS requires a 64-bit platform. "
+            f"Detected: {pointer_size}-bit pointers. "
+            f"32-bit systems are not supported."
         )
 
 
@@ -164,6 +219,18 @@ def _diagnose_load_error(path: Path, error: OSError) -> str:
             "  Ubuntu/Debian: sudo apt install libgfortran5\n"
             "  RHEL/CentOS:   sudo yum install libgfortran\n"
             "  Fedora:        sudo dnf install libgfortran"
+        )
+
+    # Check for OpenMP runtime errors (libgomp)
+    if 'libgomp' in error_msg or 'GOMP_' in error_msg or 'omp_' in error_msg.lower():
+        suggestions.append(
+            "OpenMP runtime library (libgomp) not found.\n"
+            "  This is required for parallel execution in GENESIS.\n"
+            "  Install OpenMP runtime:\n"
+            "    Ubuntu/Debian: sudo apt install libgomp1\n"
+            "    RHEL/CentOS:   sudo yum install libgomp\n"
+            "    Fedora:        sudo dnf install libgomp\n"
+            "    macOS:         brew install gcc  # includes OpenMP support"
         )
 
     # Check for LAPACK/BLAS errors
@@ -255,6 +322,9 @@ def _find_in_installed_genepie() -> Optional[Path]:
 
 
 def load_genesis_lib() -> ctypes.CDLL:
+    # Validate platform compatibility (endianness, 64-bit)
+    _validate_platform_compatibility()
+
     # Check glibc version first on Linux (manylinux_2_28 wheels require glibc 2.28+)
     _check_glibc_version()
 
