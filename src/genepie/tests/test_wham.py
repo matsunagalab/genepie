@@ -69,6 +69,15 @@ class TestWhamAnalysis(CustomTestCase):
         with self.assertRaises(GenesisValidationError):
             self._run(cvfile=None)
 
+    def test_wham_analysis_rejects_missing_cvfile(self):
+        """A nonexistent cvfile must raise, not abort the whole process.
+
+        The Fortran open_file() calls exit(1) on a missing input file, so the
+        wrapper has to check existence up front.
+        """
+        with self.assertRaises(GenesisValidationError):
+            self._run(cvfile="/no/such/dir/{}.dis")
+
 
 if __name__ == "__main__":
     unittest.main()

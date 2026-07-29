@@ -3,6 +3,7 @@
 import ctypes
 import io
 import os
+import re
 import tempfile
 from typing import (
     Iterable,
@@ -43,6 +44,54 @@ def _check_free_energy_input(tool_name: str,
         raise GenesisValidationError(
             f"{tool_name}: cvfile is required. Pass a filename pattern whose "
             "placeholder expands to the replica index."
+        )
+
+
+# Matches the first ``{...}`` placeholder, the same span get_replicate_name1()
+# replaces with the replica index in the Fortran analyze code.
+_REPLICA_PLACEHOLDER = re.compile(r"\{[^}]*\}")
+
+
+def _infer_n_replica(*sequences: Optional[Iterable]) -> Optional[int]:
+    """Best-effort replica count from the per-replica restraint arrays.
+
+    ``constant``/``reference`` are given as one sequence per dimension, each
+    holding one value per replica, so the length of the first inner sequence is
+    the replica count for a 1-D reaction coordinate. Returns ``None`` when it
+    cannot be determined without consuming a lazy iterable.
+    """
+    for seq in sequences:
+        if isinstance(seq, (list, tuple)) and seq:
+            first = seq[0]
+            if isinstance(first, (list, tuple)):
+                return len(first)
+    return None
+
+
+def _validate_cvfiles_exist(tool_name: str, cvfile: str,
+                            n_replica: Optional[int]) -> None:
+    """Turn a missing CV file into a catchable exception before Fortran runs.
+
+    ``open_file(..., IOFileInput)`` calls ``error_msg`` -> ``exit(1)`` when the
+    file does not exist, which kills the host Python process instead of raising.
+    We expand the replica placeholder (mirroring ``get_replicate_name1``) and
+    check existence up front. When the replica count is unknown we still check
+    the first name, which is the one the Fortran side opens first, so an obvious
+    wrong path is always caught.
+    """
+    if _REPLICA_PLACEHOLDER.search(cvfile):
+        count = n_replica if (n_replica and n_replica > 0) else 1
+        names = [_REPLICA_PLACEHOLDER.sub(str(i), cvfile, count=1)
+                 for i in range(1, count + 1)]
+    else:
+        names = [cvfile]
+
+    missing = [name for name in names if not os.path.isfile(name)]
+    if missing:
+        listed = ", ".join(missing)
+        raise GenesisValidationError(
+            f"{tool_name}: cvfile not found: {listed}. Check the path and that "
+            "the placeholder expands to the replica index."
         )
 
 
@@ -107,6 +156,8 @@ def wham_analysis(
     validate_file_exists(prmtopfile, "prmtopfile", required=False)
     validate_file_exists(grotopfile, "grotopfile", required=False)
     validate_file_pattern(cvfile, "cvfile", required=False)
+    _validate_cvfiles_exist(
+        "wham_analysis", cvfile, _infer_n_replica(reference, constant))
 
     # Validate parameters
     if dimension is not None:
@@ -249,6 +300,7 @@ def mbar_analysis(
     validate_file_exists(prmtopfile, "prmtopfile", required=False)
     validate_file_exists(grotopfile, "grotopfile", required=False)
     validate_file_pattern(cvfile, "cvfile", required=False)
+    _validate_cvfiles_exist("mbar_analysis", cvfile, nreplica)
 
     # Validate parameters
     if dimension is not None:

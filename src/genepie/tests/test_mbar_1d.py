@@ -94,6 +94,15 @@ class MbarUmbrellaMixin:
         with self.assertRaises(GenesisValidationError):
             self.run_mbar(cvfile=None)
 
+    def test_mbar_analysis_rejects_missing_cvfile(self):
+        """A nonexistent cvfile must raise, not abort the whole process.
+
+        The Fortran open_file() calls exit(1) on a missing input file, so the
+        wrapper has to check existence up front.
+        """
+        with self.assertRaises(GenesisValidationError):
+            self.run_mbar(cvfile="/no/such/dir/{}.dat")
+
 
 class TestMbarAnalysis1D(MbarUmbrellaMixin, CustomTestCase):
     pass
