@@ -57,12 +57,7 @@ contains
 
     call crd_convert_main(f_molecule, ctrl_text, ctrl_len, s_trajes_c_array, num_trajs, &
                          selected_atom_indices, num_selected_atoms, err)
-    if (error_has(err)) then
-      call error_to_c(err, status, msg, msglen)
-      return
-    end if
-    status = 0
-    if (msglen > 0) msg(1) = c_null_char
+    call error_finish_to_c(err, status, msg, msglen)
   end subroutine crd_convert_c
 
   subroutine crd_convert_main(molecule, ctrl_text, ctrl_len, s_trajes_c_array, num_trajs, &
@@ -329,17 +324,14 @@ contains
     call get_info(f_molecule, trj_filenames, n_trj_files, filename_len, &
                   trj_format, trj_type, frame_counts, n_trajs, err)
 
+    call error_finish_to_c(err, status, msg, msglen)
+
     if (error_has(err)) then
       deallocate(frame_counts)
       frame_counts_ptr = c_null_ptr
-      call error_to_c(err, status, msg, msglen)
-      call dealloc_molecules_all(f_molecule)
-      return
+    else
+      frame_counts_ptr = c_loc(frame_counts(1))
     end if
-
-    frame_counts_ptr = c_loc(frame_counts(1))
-    status = 0
-    if (msglen > 0) msg(1) = c_null_char
 
     call dealloc_molecules_all(f_molecule)
 
@@ -456,14 +448,7 @@ contains
                           coords_ptrs_f, pbc_box_ptrs_f, &
                           err)
 
-    if (error_has(err)) then
-      call error_to_c(err, status, msg, msglen)
-      call dealloc_molecules_all(f_molecule)
-      return
-    end if
-
-    status = 0
-    if (msglen > 0) msg(1) = c_null_char
+    call error_finish_to_c(err, status, msg, msglen)
 
     call dealloc_molecules_all(f_molecule)
 

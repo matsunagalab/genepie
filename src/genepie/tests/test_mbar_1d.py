@@ -6,44 +6,98 @@ if __name__ == "__main__" and __package__ is None:
     __package__ = "genepie.tests"
 # --------------------------------------------
 import os
+import unittest
+import numpy as np
 from .. import genesis_exe
+from ..custom_test_case import CustomTestCase
+from ..exceptions import (
+    GenesisFortranNotSupportedError,
+    GenesisValidationError,
+)
+
+# 61 umbrella windows spaced 3 degrees apart along a periodic dihedral.
+NREPLICA = 61
+CONSTANT = (0.06092,) * NREPLICA
+REFERENCE = tuple(3.0 * i for i in range(NREPLICA))
 
 
-def test_mbar_analysis():
-    fene = genesis_exe.mbar_analysis(
-            cvfile = '../../../tests/regression_test/test_analysis/trajectories/umbrella_1d/{}.dat',
-            nreplica           = 61,
-            input_type         = "US",
-            dimension          = 1,
-            temperature        = 300.0,
-            target_temperature = 300.0,
-            tolerance          = 1E-08,
-            rest_function      = (1, ),
-            grids              = ((-1.0, 181.0, 81), ),
-            constant      =  ((0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,
-                               0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,
-                               0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,
-                               0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,
-                               0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,
-                               0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,
-                               0.06092,), ),
-            reference     = ((  0.0,  3.0,  6.0,  9.0, 12.0, 15.0, 18.0, 21.0, 24.0, 27.0, 30.0, 33.0,
-                               36.0, 39.0, 42.0, 45.0, 48.0, 51.0, 54.0, 57.0, 60.0, 63.0, 66.0, 69.0,
-                               72.0, 75.0, 78.0, 81.0, 84.0, 87.0, 90.0, 93.0, 96.0, 99.0,102.0,105.0,
-                              108.0,111.0,114.0,117.0,120.0,123.0,126.0,129.0,132.0,135.0,138.0,141.0,
-                              144.0,147.0,150.0,153.0,156.0,159.0,162.0,165.0,168.0,171.0,174.0,177.0,
-                              180.0,), ),
-            is_periodic   = (True, ),
-            box_size      = (360.0, ),
-            )
-    print(fene)
+def load_fene_reference(path):
+    """Load a fene reference file as a 2-D (n_replica, n_blocks) array."""
+    ref = np.loadtxt(path)
+    if ref.ndim == 1:
+        ref = ref[:, np.newaxis]
+    return ref
 
 
-def main():
-    if os.path.exists("fene.dat"):
-        os.remove("fene.dat")
-    test_mbar_analysis()
+class MbarUmbrellaMixin:
+    """Shared regression checks for the umbrella_1d MBAR dataset.
+
+    Kept separate from CustomTestCase so that subclassing it from another test
+    module does not make unittest collect the same tests twice.
+    """
+
+    # The MBAR iteration converges to 1e-8 and the CLI regression harness
+    # accepts 0.01 across platforms, so 1e-6 catches regressions while leaving
+    # room for BLAS-dependent differences in the solver.
+    TOLERANCE = 1.0e-6
+    NBLOCKS = None
+    REFERENCE_DIR = "umbrella_1d"
+
+    def reference_path(self):
+        return (self.TEST_ROOT / "test_analysis" / "test_mbar_analysis"
+                / self.REFERENCE_DIR / "fene.dat.ref")
+
+    def run_mbar(self, **overrides):
+        kwargs = dict(
+            cvfile=str(self.TEST_ROOT / "test_analysis" / "trajectories"
+                       / "umbrella_1d" / "{}.dat"),
+            nreplica=NREPLICA,
+            input_type="US",
+            dimension=1,
+            temperature=300.0,
+            target_temperature=300.0,
+            tolerance=1E-08,
+            rest_function=(1,),
+            grids=((-1.0, 181.0, 81),),
+            constant=(CONSTANT,),
+            reference=(REFERENCE,),
+            is_periodic=(True,),
+            box_size=(360.0,),
+        )
+        if self.NBLOCKS is not None:
+            kwargs["nblocks"] = self.NBLOCKS
+        kwargs.update(overrides)
+        return genesis_exe.mbar_analysis(**kwargs)
+
+    def test_mbar_analysis_matches_cli_reference(self):
+        """Free energies must reproduce what the CLI mbar_analysis writes."""
+        fene = self.run_mbar()
+
+        ref = load_fene_reference(self.reference_path())
+
+        self.assertEqual(ref.shape, fene.shape)
+        self.assertTrue(np.all(np.isfinite(fene)))
+        self.assertAlmostEqual(ref, fene, delta=self.TOLERANCE)
+
+    def test_mbar_analysis_leaves_cwd_clean(self):
+        """The Fortran writer must not drop fene.dat into the cwd."""
+        self.assertFalse(os.path.exists("fene.dat"))
+        self.run_mbar()
+        self.assertFalse(os.path.exists("fene.dat"))
+
+    def test_mbar_analysis_rejects_dcd_input(self):
+        """DCD input is unsupported because molecules are never defined."""
+        with self.assertRaises(GenesisFortranNotSupportedError):
+            self.run_mbar(dcdfile="whatever.dcd")
+
+    def test_mbar_analysis_requires_cvfile(self):
+        with self.assertRaises(GenesisValidationError):
+            self.run_mbar(cvfile=None)
+
+
+class TestMbarAnalysis1D(MbarUmbrellaMixin, CustomTestCase):
+    pass
 
 
 if __name__ == "__main__":
-    main()
+    unittest.main()

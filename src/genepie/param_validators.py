@@ -2,6 +2,12 @@
 
 from typing import List, Optional, Union
 
+from .constants import (
+    FITTING_METHODS as FITTING_METHODS,
+    PBC_CORRECTS as PBC_CORRECTS,
+    TRJ_FORMATS as TRJ_FORMATS,
+    TRJ_TYPES as TRJ_TYPES,
+)
 from .exceptions import GenesisValidationError
 
 
@@ -14,10 +20,8 @@ INTEGRATORS = ["VVER", "LEAP", "VVER_CG"]
 MINIMIZERS = ["SD", "LBFGS"]
 BOUNDARY_TYPES = ["PBC", "NOBC"]
 IMPLICIT_SOLVENTS = ["NONE", "GBSA", "EEF1", "IMM1"]
-FITTING_METHODS = ["NO", "TR+ROT", "TR", "ROT", "XYTR", "XYTR+ROT", "ZROT"]
-TRJ_FORMATS = ["DCD", "TRJ", "DCDVEL", "COOR", "VEL"]
-TRJ_TYPES = ["COOR", "COOR+BOX", "VEL"]
-PBC_CORRECTS = ["NO", "MOLECULE", "RESIDUE"]
+# FITTING_METHODS, TRJ_FORMATS, TRJ_TYPES and PBC_CORRECTS are re-exported from
+# constants, which is the single source of truth shared with the Fortran layer.
 
 
 def validate_enum(

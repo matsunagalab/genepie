@@ -55,13 +55,8 @@ module mbar_c_mod
     call mbar_analysis_main( &
         ctrl_text, ctrl_len, fene_f, n_replica, n_blocks, err)
 
-    if (error_has(err)) then
-      call error_to_c(err, status, msg, msglen)
-      return
-    end if
-
-    status = 0
-    if (msglen > 0) msg(1) = c_null_char
+    call error_finish_to_c(err, status, msg, msglen)
+    if (error_has(err)) return
 
     result_fene = c_loc(fene_f)
   end subroutine mbar_analysis_c

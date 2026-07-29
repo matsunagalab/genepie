@@ -75,13 +75,8 @@ contains
     call c2f_s_molecule(molecule, f_molecule)
     call hb_analysis_main( &
         f_molecule, s_trajes_c, ana_period, ctrl_text, ctrl_len, out_text_f, err)
-    if (error_has(err)) then
-      call error_to_c(err, status, msg, msglen)
-      return
-    end if
-
-    status = 0
-    if (msglen > 0) msg(1) = c_null_char
+    call error_finish_to_c(err, status, msg, msglen)
+    if (error_has(err)) return
 
     call dealloc_molecules_all(f_molecule)
     ! Use module-level save pointer to prevent dangling pointer

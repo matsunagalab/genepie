@@ -28,13 +28,8 @@ contains
     call error_init(err)
     call c2f_s_molecule(molecule, f_molecule)
     call export_pdb_to_string(f_molecule, out_pdb_f, err)
-    if (error_has(err)) then
-      call error_to_c(err, status, msg, msglen)
-      return
-    end if
-
-    status = 0
-    if (msglen > 0) msg(1) = c_null_char
+    call error_finish_to_c(err, status, msg, msglen)
+    if (error_has(err)) return
 
     if (allocated(out_pdb_f)) then
       call f2c_string(out_pdb_f, out_pdb_c)

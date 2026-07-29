@@ -5,46 +5,17 @@ if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, str(pkg_dir.parent.parent))
     __package__ = "genepie.tests"
 # --------------------------------------------
-import os
-from .. import genesis_exe
+import unittest
+from ..custom_test_case import CustomTestCase
+from .test_mbar_1d import MbarUmbrellaMixin
 
 
-def test_mbar_analysis():
-    fene = genesis_exe.mbar_analysis(
-            cvfile = '../../../tests/regression_test/test_analysis/trajectories/umbrella_1d/{}.dat',
-            nreplica           = 61,
-            input_type         = "US",
-            dimension          = 1,
-            temperature        = 300.0,
-            target_temperature = 300.0,
-            nblocks            = 5,
-            tolerance          = 1E-08,
-            rest_function      = (1, ),
-            grids              = ((-1.0, 181.0, 81), ),
-            constant      =  ((0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,
-                               0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,
-                               0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,
-                               0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,
-                               0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,
-                               0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,0.06092,
-                               0.06092,), ),
-            reference     = ((  0.0,  3.0,  6.0,  9.0, 12.0, 15.0, 18.0, 21.0, 24.0, 27.0, 30.0, 33.0,
-                               36.0, 39.0, 42.0, 45.0, 48.0, 51.0, 54.0, 57.0, 60.0, 63.0, 66.0, 69.0,
-                               72.0, 75.0, 78.0, 81.0, 84.0, 87.0, 90.0, 93.0, 96.0, 99.0,102.0,105.0,
-                              108.0,111.0,114.0,117.0,120.0,123.0,126.0,129.0,132.0,135.0,138.0,141.0,
-                              144.0,147.0,150.0,153.0,156.0,159.0,162.0,165.0,168.0,171.0,174.0,177.0,
-                              180.0,), ),
-            is_periodic   = (True, ),
-            box_size      = (360.0, ),
-            )
-    print(fene)
+class TestMbarAnalysisBlock(MbarUmbrellaMixin, CustomTestCase):
+    """Same dataset as the 1D case, split into blocks for error estimation."""
 
-
-def main():
-    if os.path.exists("fene.dat"):
-        os.remove("fene.dat")
-    test_mbar_analysis()
+    NBLOCKS = 5
+    REFERENCE_DIR = "umbrella_block"
 
 
 if __name__ == "__main__":
-    main()
+    unittest.main()

@@ -9,7 +9,7 @@ module error_mod
   implicit none
   private
   public :: s_error, error_init, error_clear, error_set, error_has, &
-            fi_msg_len, error_to_c
+            fi_msg_len, error_to_c, error_finish_to_c
 
   ! Legacy error code (kept for backward compatibility)
   integer, public, parameter :: ERROR_CODE = 101
@@ -114,6 +114,25 @@ contains
     ! write(error_unit, '(A,I0,2A)') 'fi_error :', status, ' ',s
     ! flush(error_unit)
   end subroutine 
+
+  !> Report either outcome of err to the C caller in one call.
+  !! Success leaves status at 0 with an empty message, so a bind(C) wrapper
+  !! needs no branch of its own unless it has cleanup to run on failure.
+  subroutine error_finish_to_c(err, status, msg, msglen)
+    implicit none
+    type(s_error),          intent(in)    :: err
+    integer(c_int),         intent(inout) :: status
+    character(kind=c_char), intent(inout) :: msg(*)
+    integer(c_int),         value         :: msglen
+
+    if (error_has(err)) then
+      call error_to_c(err, status, msg, msglen)
+      return
+    end if
+
+    status = 0
+    if (msglen > 0) msg(1) = c_null_char
+  end subroutine
 
 end module error_mod
 

@@ -55,13 +55,9 @@ contains
 
     call wa_analysis_main( &
         ctrl_text, ctrl_len, pmf_f, n_bins, n_bin_x, err)
-    if (error_has(err)) then
-      call error_to_c(err, status, msg, msglen)
-      return
-    end if
 
-    status = 0
-    if (msglen > 0) msg(1) = c_null_char
+    call error_finish_to_c(err, status, msg, msglen)
+    if (error_has(err)) return
 
     result_pmf = c_loc(pmf_f)
   end subroutine wa_analysis_c
