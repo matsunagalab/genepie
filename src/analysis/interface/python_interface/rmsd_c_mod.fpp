@@ -368,6 +368,8 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine rmsd_analysis_lazy_c(dcd_filename, filename_len, trj_type, &
+                                  dcd_natom_expected, source_selection_ptr, &
+                                  n_source_selection, &
                                   mass_ptr, ref_coord_ptr, n_atoms, &
                                   ana_period, &
                                   fitting_idx_ptr, n_fitting, &
@@ -383,6 +385,9 @@ contains
     character(kind=c_char), intent(in) :: dcd_filename(*)
     integer(c_int), value :: filename_len
     integer(c_int), value :: trj_type
+    integer(c_int), value :: dcd_natom_expected
+    type(c_ptr), value :: source_selection_ptr
+    integer(c_int), value :: n_source_selection
     type(c_ptr), value :: mass_ptr
     type(c_ptr), value :: ref_coord_ptr
     integer(c_int), value :: n_atoms
@@ -412,11 +417,11 @@ contains
     real(wp), pointer :: result_f(:)
     integer, pointer :: fitting_idx_f(:)
     integer, pointer :: analysis_idx_f(:)
+    integer, pointer :: source_selection_f(:)
     integer, allocatable :: fitting_idx_copy(:)
     integer, allocatable :: analysis_idx_copy(:)
     logical :: use_mass
-    integer :: nstru, n_fitting_use, fitting_method_use
-    integer :: i
+    integer :: nstru, n_fitting_use, fitting_method_use, init_status
     integer(c_int) :: grc
 
     ! Guard the whole body: init_source_lazy_dcd opens the DCD file, and a
@@ -426,6 +431,10 @@ contains
     if (grc /= 0) then
       call error_from_pending(err)
       call error_to_c(err, status, msg, msglen)
+      call finalize_sink(sink)
+      call finalize_source(source)
+      if (allocated(analysis_idx_copy)) deallocate(analysis_idx_copy)
+      if (allocated(fitting_idx_copy)) deallocate(fitting_idx_copy)
     end if
     return
 
@@ -440,16 +449,20 @@ contains
     dcd_natom_out = 0
 
     ! Convert C string to Fortran string
-    filename_f = ''
-    do i = 1, min(filename_len, MaxFilename)
-      if (dcd_filename(i) == c_null_char) exit
-      filename_f(i:i) = dcd_filename(i)
-    end do
+    call c_filename_to_fortran(dcd_filename, filename_len, filename_f)
 
     ! Validate inputs
     if (n_analysis <= 0) then
       call error_set(err, ERROR_INVALID_PARAM, &
                      "rmsd_analysis_lazy_c: n_analysis must be positive")
+      call error_to_c(err, status, msg, msglen)
+      return
+    end if
+
+    if (n_source_selection /= n_atoms .or. &
+        .not. c_associated(source_selection_ptr)) then
+      call error_set(err, ERROR_INVALID_PARAM, &
+                     "rmsd_analysis_lazy_c: invalid source selection")
       call error_to_c(err, status, msg, msglen)
       return
     end if
@@ -486,6 +499,15 @@ contains
     call C_F_POINTER(mass_ptr, mass_f, [n_atoms])
     call C_F_POINTER(ref_coord_ptr, ref_coord_f, [3, n_atoms])
     call C_F_POINTER(result_ptr, result_f, [result_size])
+    call C_F_POINTER(source_selection_ptr, source_selection_f, &
+                     [n_source_selection])
+    if (any(source_selection_f < 1) .or. &
+        any(source_selection_f > dcd_natom_expected)) then
+      call error_set(err, ERROR_INVALID_PARAM, &
+                     "rmsd_analysis_lazy_c: source selection out of range")
+      call error_to_c(err, status, msg, msglen)
+      return
+    end if
 
     ! Convert analysis indices
     call C_F_POINTER(analysis_idx_ptr, analysis_idx_f, [n_analysis])
@@ -520,14 +542,23 @@ contains
     write(MsgOut,'(A)') '[STEP1] Initialize Lazy DCD Source'
     write(MsgOut,'(A)') ' '
 
-    call init_source_lazy_dcd(source, trim(filename_f), trj_type, ana_period)
+    call init_source_lazy_dcd(source, trim(filename_f), trj_type, ana_period, &
+                              source_selection_f, n_source_selection, init_status)
+    if (init_status /= 0) then
+      call error_set(err, init_status, &
+                     "rmsd_analysis_lazy_c: unable to initialize DCD source")
+      call error_to_c(err, status, msg, msglen)
+      deallocate(analysis_idx_copy)
+      deallocate(fitting_idx_copy)
+      return
+    end if
 
     ! Return DCD info
     dcd_nframe_out = source%dcd_nframe
     dcd_natom_out = source%dcd_natom
 
     ! Check atom count
-    if (source%dcd_natom /= n_atoms) then
+    if (source%dcd_natom /= dcd_natom_expected) then
       call error_set(err, ERROR_ATOM_COUNT, &
                      "rmsd_analysis_lazy_c: atom count mismatch")
       call error_to_c(err, status, msg, msglen)

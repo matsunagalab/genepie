@@ -14,8 +14,9 @@ from genepie.analysis import rmsd_analysis, crd_convert
 In the tables below:
 
 - **Zerocopy** — results/coordinates share memory with the NumPy array (no copy).
-- **Lazy** — accepts a lazy trajectory from `crd_convert(..., lazy=True)` (or, for
-  RMSD, the dedicated `rmsd_analysis_lazy`) to stream frames from disk.
+- **Lazy** — accepts a selected, strided lazy trajectory from
+  `crd_convert(..., lazy=True)` and streams frames from disk. The dedicated
+  `rmsd_analysis_lazy` remains as a compatibility wrapper.
 
 ## Trajectory loading & selection
 
@@ -24,6 +25,13 @@ In the tables below:
 | `crd_convert(mol, trj_files, ...)` | Read/convert a trajectory. Returns `(list[STrajectories], SMolecule)`. Supports `selection`, `fitting_selection`/`fitting_method`, `centering`, `pbc_correct`, `ana_period`, `rename_res`, and `lazy=True`. | ✓ | ✓ |
 | `crd_convert_info(mol, trj_files, ...)` | Read only the frame counts (used internally to pre-allocate). | – | – |
 | `selection(mol, "an:CA")` | Evaluate a GENESIS selection string; returns 1-indexed atom indices. | – | – |
+
+In lazy mode, `selection` and `ana_period` define the same logical trajectory
+view as eager loading: the returned trajectory and subset molecule have matching
+atom counts, and an analysis-level `ana_period` applies a second stride to that
+view. Lazy conversion supports one DCD file and does not perform conversion-time
+fitting, centering, or PBC coordinate correction. RMSD fitting and DRMS PBC
+handling remain available at analysis time.
 
 ```{admonition} crd_convert returns a tuple
 :class: important

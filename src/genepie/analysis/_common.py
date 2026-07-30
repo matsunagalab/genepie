@@ -1,6 +1,7 @@
 """Helpers shared by more than one analysis wrapper."""
 
 import os
+import numpy as np
 from typing import (
     List,
     Optional,
@@ -30,6 +31,41 @@ def _resolve_enum(value: str, mapping: dict, label: str) -> int:
             f"Invalid {label}: {value}. Valid values: {list(mapping)}"
         )
     return mapping[key]
+
+
+def _prepare_lazy_trajectory(trajs, ana_period: int):
+    """Validate lazy metadata and prepare common C-call inputs."""
+    if ana_period <= 0:
+        raise GenesisValidationError(
+            f"ana_period must be positive, got {ana_period}"
+        )
+    if not trajs.is_lazy or not trajs.lazy_dcd_file:
+        raise GenesisValidationError("A lazy DCD trajectory is required")
+    if not os.path.exists(trajs.lazy_dcd_file):
+        raise GenesisValidationError(
+            f"DCD file not found: {trajs.lazy_dcd_file}"
+        )
+
+    selection_indices = np.ascontiguousarray(
+        trajs.selection_indices, dtype=np.int32
+    )
+    if selection_indices.ndim != 1 or selection_indices.size != trajs.natom:
+        raise GenesisValidationError(
+            "Lazy trajectory selection metadata is inconsistent"
+        )
+
+    result_frames = trajs.nframe // ana_period
+    if result_frames <= 0:
+        raise GenesisValidationError(
+            f"ana_period={ana_period} selects no trajectory frames"
+        )
+
+    return (
+        trajs.lazy_dcd_file.encode("utf-8"),
+        selection_indices,
+        trajs.lazy_ana_period * ana_period,
+        result_frames,
+    )
 
 
 def _pack_filenames(filenames: List[str]) -> Tuple[bytes, int, int]:

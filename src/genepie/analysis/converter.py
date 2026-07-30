@@ -225,7 +225,8 @@ def crd_convert(
         lazy: If True, create lazy STrajectories without loading data.
               Lazy mode has restrictions: single DCD file, no fitting,
               no centering, no PBC correction. Analysis functions read
-              directly from the file.
+              directly from the file. ``selection`` and ``ana_period`` define
+              the logical lazy view exactly as in memory mode.
 
     Returns:
         Tuple of (List[STrajectories], SMolecule) where:
@@ -272,6 +273,10 @@ def crd_convert(
         fitting_method, _FITTING_METHOD_MAP, "fitting method")
     pbcc_mode_c = _resolve_enum(
         pbc_correct, _PBCC_MODE_MAP, "PBC correction mode")
+    if ana_period <= 0:
+        raise GenesisValidationError(
+            f"ana_period must be positive, got {ana_period}"
+        )
 
     # Handle lazy mode: create STrajectories without loading data
     if lazy:
@@ -307,6 +312,10 @@ def crd_convert(
             raise GenesisValidationError("No frames found in trajectory file")
 
         nframe = info.frame_counts[0]
+        if nframe // ana_period == 0:
+            raise GenesisValidationError(
+                f"ana_period={ana_period} selects no frames from {nframe} frames"
+            )
 
         # Get selected atom indices (1-indexed for Fortran)
         selected_indices = selection_func(molecule, selection)
@@ -329,6 +338,7 @@ def crd_convert(
             nframe=nframe,
             natom=molecule.num_atoms,  # Full atom count from DCD
             selection_indices=selected_indices,
+            ana_period=ana_period,
         )
 
         # Create subset molecule
@@ -376,9 +386,12 @@ def crd_convert(
     n_trajs = len(frame_counts)
 
     # Calculate actual frame counts after applying ana_period
-    actual_frame_counts = [
-        (fc + ana_period - 1) // ana_period for fc in frame_counts
-    ]
+    actual_frame_counts = [fc // ana_period for fc in frame_counts]
+    if any(fc == 0 for fc in actual_frame_counts):
+        raise GenesisValidationError(
+            f"ana_period={ana_period} selects no frames from at least one "
+            "trajectory"
+        )
 
     # Allocate coordinate arrays in Fortran order (column-major)
     # Fortran expects shape (3, n_selected, n_frames) with column-major layout

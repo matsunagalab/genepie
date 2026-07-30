@@ -25,6 +25,8 @@ class STrajectories:
     is_lazy: bool
     lazy_dcd_file: Optional[str]
     lazy_trj_type: int
+    lazy_dcd_natom: int
+    lazy_ana_period: int
     selection_indices: Optional[npt.NDArray[np.int32]]  # 1-indexed atom indices
 
     def __init__(self, natom: int = 0, nframe: int = 0,
@@ -84,6 +86,8 @@ class STrajectories:
         self.is_lazy = False
         self.lazy_dcd_file = None
         self.lazy_trj_type = TRJ_TYPE_COOR_BOX
+        self.lazy_dcd_natom = self.natom
+        self.lazy_ana_period = 1
         self.selection_indices = None
 
     def __del__(self) -> None:
@@ -249,13 +253,16 @@ class STrajectories:
         obj.is_lazy = False
         obj.lazy_dcd_file = None
         obj.lazy_trj_type = TRJ_TYPE_COOR_BOX
+        obj.lazy_dcd_natom = natom
+        obj.lazy_ana_period = 1
         obj.selection_indices = None
 
         return obj
 
     @classmethod
     def from_lazy(cls, dcd_file: str, trj_type: int, nframe: int, natom: int,
-                  selection_indices: Optional[npt.NDArray[np.int32]] = None) -> Self:
+                  selection_indices: Optional[npt.NDArray[np.int32]] = None,
+                  ana_period: int = 1) -> Self:
         """Create a lazy STrajectories that reads from DCD file on demand.
 
         This creates an STrajectories that doesn't load coordinate data into
@@ -269,19 +276,49 @@ class STrajectories:
             natom: Number of atoms in DCD file (from DCD header)
             selection_indices: Optional pre-computed atom indices (1-indexed).
                               If None, all atoms are used.
+            ana_period: Frame stride applied by ``crd_convert``.
 
         Returns:
             STrajectories instance with is_lazy=True
 
         Note:
             Lazy trajectories have restrictions:
-            - No fitting (requires all coordinates in memory)
             - Single DCD file only (no concatenation)
-            - Sequential frame access only
+            - Conversion-time fitting, centering, and PBC correction are not
+              available. Per-frame analysis operations such as RMSD fitting
+              remain supported.
         """
+        if ana_period <= 0:
+            raise GenesisValidationError(
+                f"ana_period must be positive, got {ana_period}"
+            )
+        if nframe <= 0 or natom <= 0:
+            raise GenesisValidationError(
+                f"nframe and natom must be positive, got {nframe} and {natom}"
+            )
+        if nframe // ana_period == 0:
+            raise GenesisValidationError(
+                f"ana_period={ana_period} selects no frames from {nframe} frames"
+            )
+
+        if selection_indices is None:
+            selection_indices = np.arange(1, natom + 1, dtype=np.int32)
+        else:
+            selection_indices = np.ascontiguousarray(
+                selection_indices, dtype=np.int32
+            )
+        if selection_indices.ndim != 1 or selection_indices.size == 0:
+            raise GenesisValidationError(
+                "selection_indices must be a non-empty one-dimensional array"
+            )
+        if np.any(selection_indices < 1) or np.any(selection_indices > natom):
+            raise GenesisValidationError(
+                "selection_indices contains an atom outside the DCD atom range"
+            )
+
         obj = object.__new__(cls)
-        obj.natom = natom
-        obj.nframe = nframe
+        obj.natom = int(selection_indices.size)
+        obj.nframe = nframe // ana_period
         obj.coords = None  # No data loaded
         obj.pbc_boxes = None  # No data loaded
         obj.c_obj = None  # No C structure needed
@@ -291,6 +328,8 @@ class STrajectories:
         obj.is_lazy = True
         obj.lazy_dcd_file = dcd_file
         obj.lazy_trj_type = trj_type
+        obj.lazy_dcd_natom = natom
+        obj.lazy_ana_period = ana_period
         obj.selection_indices = selection_indices
 
         return obj

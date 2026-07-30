@@ -43,6 +43,7 @@ jobs:
           python -m genepie.tests.test_rg
           python -m genepie.tests.test_drms
           python -m genepie.tests.test_crd_convert
+          python -m genepie.tests.test_crd_convert_lazy
           python -m genepie.tests.test_avecrd
 
       - name: Run regression tests
@@ -114,6 +115,7 @@ jobs:
           python -m genepie.tests.test_rg
           python -m genepie.tests.test_drms
           python -m genepie.tests.test_crd_convert
+          python -m genepie.tests.test_crd_convert_lazy
           python -m genepie.tests.test_avecrd
 
       - name: Run regression tests

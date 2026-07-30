@@ -1,7 +1,6 @@
 """Radius of gyration."""
 
 import ctypes
-import os
 from collections import namedtuple
 import numpy as np
 
@@ -11,6 +10,7 @@ from ..s_trajectories import STrajectories
 from ..exceptions import GenesisValidationError
 from .._fortran import fortran_status
 from .converter import selection
+from ._common import _prepare_lazy_trajectory
 
 
 RgAnalysisResult = namedtuple(
@@ -32,13 +32,13 @@ def _rg_analysis_lazy(
     """
     lib = LibGenesis().lib
 
-    # Extract lazy DCD info from STrajectories
-    dcd_file = trajs.lazy_dcd_file
-    trj_type = trajs.lazy_trj_type  # 1=COOR, 2=COOR+BOX
-
-    # Validate DCD file exists
-    if not os.path.exists(dcd_file):
-        raise GenesisValidationError(f"DCD file not found: {dcd_file}")
+    dcd_filename_bytes, source_selection, effective_period, n_result = \
+        _prepare_lazy_trajectory(trajs, ana_period)
+    trj_type = trajs.lazy_trj_type
+    if molecule.num_atoms != trajs.natom:
+        raise GenesisValidationError(
+            "Lazy trajectory and molecule must contain the same selected atoms"
+        )
 
     # Get atom indices using GENESIS selection
     analysis_indices = selection(molecule, analysis_selection)
@@ -50,13 +50,10 @@ def _rg_analysis_lazy(
     # Get pointer to mass array (zero-copy)
     mass_ptr = mass.ctypes.data_as(ctypes.c_void_p)
 
-    # Pre-allocate result array using nframe from lazy STrajectories
-    max_frames = trajs.nframe
-    result_rg = np.zeros(max_frames, dtype=np.float64)
+    # Pre-allocate exactly the number of analyzed frames.
+    result_rg = np.zeros(n_result, dtype=np.float64)
     result_ptr = result_rg.ctypes.data_as(ctypes.c_void_p)
 
-    # Convert filename to C string
-    dcd_filename_bytes = dcd_file.encode('utf-8')
     filename_len = len(dcd_filename_bytes)
 
     # Output variables
@@ -69,14 +66,17 @@ def _rg_analysis_lazy(
             dcd_filename_bytes,
             ctypes.c_int(filename_len),
             ctypes.c_int(trj_type),
+            ctypes.c_int(trajs.lazy_dcd_natom),
+            source_selection.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(trajs.natom),
             mass_ptr,
             ctypes.c_int(molecule.num_atoms),
-            ctypes.c_int(ana_period),
+            ctypes.c_int(effective_period),
             analysis_indices.ctypes.data_as(ctypes.c_void_p),
             ctypes.c_int(n_analysis),
             ctypes.c_int(1 if mass_weighted else 0),
             result_ptr,
-            ctypes.c_int(max_frames),
+            ctypes.c_int(n_result),
             ctypes.byref(nstru_out),
             ctypes.byref(dcd_nframe_out),
             ctypes.byref(dcd_natom_out),

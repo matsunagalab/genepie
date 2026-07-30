@@ -57,6 +57,9 @@ module trj_source_mod
     logical                :: dcd_has_box = .false.
     logical                :: dcd_open = .false.
     integer                :: lazy_current = 0
+    integer                :: dcd_selected_natom = 0
+    integer, allocatable   :: dcd_selection(:)
+    real(4), allocatable   :: dcd_x(:), dcd_y(:), dcd_z(:)
 
     ! Common
     integer :: ana_period = 1
@@ -75,8 +78,24 @@ module trj_source_mod
   public :: has_more_frames
   public :: reset_source
   public :: finalize_source
+  public :: c_filename_to_fortran
 
 contains
+
+  subroutine c_filename_to_fortran(c_filename, filename_len, filename)
+
+    character(kind=c_char), intent(in)  :: c_filename(*)
+    integer,                intent(in)  :: filename_len
+    character(*),           intent(out) :: filename
+    integer :: i
+
+    filename = ''
+    do i = 1, min(filename_len, len(filename))
+      if (c_filename(i) == c_null_char) exit
+      filename(i:i) = c_filename(i)
+    end do
+
+  end subroutine c_filename_to_fortran
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -167,13 +186,17 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine init_source_lazy_dcd(source, filename, trj_type, ana_period)
+  subroutine init_source_lazy_dcd(source, filename, trj_type, ana_period, &
+                                  selection_idx, n_selected, status)
 
     ! formal arguments
     type(s_trj_source), intent(inout) :: source
     character(*),       intent(in)    :: filename
     integer,            intent(in)    :: trj_type
     integer,            intent(in)    :: ana_period
+    integer,            intent(in)    :: selection_idx(:)
+    integer,            intent(in)    :: n_selected
+    integer,            intent(out)   :: status
 
     ! local variables
     integer :: unit_no, iostat
@@ -182,10 +205,18 @@ contains
     character(80) :: title
     character(4) :: signature
     integer :: i
-    logical :: byte_swap
-    character(4) :: swap_chars
+    integer(8) :: file_size, payload_size
+    integer(8) :: coor_frame_size, box_frame_size
+    integer :: nframe_coor, nframe_box
+    logical :: valid_coor, valid_box
 
     source%source_type = TRJ_SOURCE_LAZY_DCD
+    status = 0
+    if (ana_period <= 0 .or. n_selected <= 0 .or. &
+        size(selection_idx) < n_selected) then
+      status = 301
+      return
+    end if
     source%ana_period = ana_period
     source%lazy_current = 0
     source%analyzed_count = 0
@@ -194,57 +225,81 @@ contains
     ! Open DCD file with stream access for fseek
     unit_no = get_unit_no()
     open(unit_no, file=trim(filename), status='old', &
-         form='unformatted', access='stream', iostat=iostat)
+         form='unformatted', access='stream', convert='little_endian', &
+         iostat=iostat)
     if (iostat /= 0) then
-      call error_msg('init_source_lazy_dcd> Cannot open DCD file', code=201)   ! ERROR_FILE_NOT_FOUND
+      call free_unit_no(unit_no)
+      status = 201
+      return
     end if
     source%dcd_unit = unit_no
     source%dcd_open = .true.
 
-    ! Read first record marker to check byte swap
-    read(unit_no) rec_size
-    byte_swap = .false.
+    ! Read first record marker and reopen with the correct endian conversion.
+    read(unit_no, iostat=iostat) rec_size
+    if (iostat /= 0) then
+      call close_file(unit_no)
+      source%dcd_open = .false.
+      status = 202
+      return
+    end if
     if (rec_size /= 84) then
-      ! Try byte swap
-      swap_chars = transfer(rec_size, swap_chars)
-      swap_chars = swap_chars(4:4) // swap_chars(3:3) // &
-                   swap_chars(2:2) // swap_chars(1:1)
-      rec_size = transfer(swap_chars, rec_size)
-      if (rec_size == 84) then
-        byte_swap = .true.
-      else
-        call error_msg('init_source_lazy_dcd> Invalid DCD header', code=202)   ! ERROR_FILE_FORMAT
+      close(unit_no)
+      open(unit_no, file=trim(filename), status='old', &
+           form='unformatted', access='stream', convert='big_endian', &
+           iostat=iostat)
+      if (iostat /= 0) then
+        call free_unit_no(unit_no)
+        source%dcd_open = .false.
+        status = 202
+        return
+      end if
+      read(unit_no, iostat=iostat) rec_size
+      if (iostat /= 0 .or. rec_size /= 84) then
+        call close_file(unit_no)
+        source%dcd_open = .false.
+        status = 202
+        return
       end if
     end if
 
     ! Read signature 'CORD' (4 bytes)
-    read(unit_no) signature
+    read(unit_no, iostat=iostat) signature
+    if (iostat /= 0 .or. &
+        (signature /= 'CORD' .and. signature /= 'VELD')) then
+      call close_file(unit_no)
+      source%dcd_open = .false.
+      status = 202
+      return
+    end if
 
     ! Read header integers (20 ints = 80 bytes)
-    read(unit_no) header_int(1:20)
-    if (byte_swap) then
-      do i = 1, 20
-        call swap_bytes_int4(header_int(i))
-      end do
-    end if
-    read(unit_no) rec_size  ! end marker
+    read(unit_no, iostat=iostat) header_int(1:20)
+    if (iostat /= 0) goto 900
+    read(unit_no, iostat=iostat) rec_size  ! end marker
+    if (iostat /= 0 .or. rec_size /= 84) goto 900
 
     source%dcd_nframe = header_int(1)
 
     ! Read title section
-    read(unit_no) rec_size  ! title block start marker
-    read(unit_no) ntitle    ! number of titles
-    if (byte_swap) call swap_bytes_int4(ntitle)
+    read(unit_no, iostat=iostat) rec_size  ! title block start marker
+    if (iostat /= 0) goto 900
+    read(unit_no, iostat=iostat) ntitle    ! number of titles
+    if (iostat /= 0 .or. ntitle < 0) goto 900
     do i = 1, ntitle
-      read(unit_no) title
+      read(unit_no, iostat=iostat) title
+      if (iostat /= 0) goto 900
     end do
-    read(unit_no) rec_size  ! title block end marker
+    read(unit_no, iostat=iostat) rec_size  ! title block end marker
+    if (iostat /= 0 .or. rec_size /= 4 + 80*ntitle) goto 900
 
     ! Read atom count
-    read(unit_no) rec_size
-    read(unit_no) source%dcd_natom
-    if (byte_swap) call swap_bytes_int4(source%dcd_natom)
-    read(unit_no) rec_size
+    read(unit_no, iostat=iostat) rec_size
+    if (iostat /= 0 .or. rec_size /= 4) goto 900
+    read(unit_no, iostat=iostat) source%dcd_natom
+    if (iostat /= 0 .or. source%dcd_natom <= 0) goto 900
+    read(unit_no, iostat=iostat) rec_size
+    if (iostat /= 0 .or. rec_size /= 4) goto 900
 
     ! Calculate header size (bytes)
     ! First block: 4 + 4 + 80 + 4 = 92 (marker + signature + 20 ints + marker)
@@ -255,16 +310,52 @@ contains
     ! Calculate frame size (bytes)
     ! Each coordinate block: 4 + 4*natom + 4 = 8 + 4*natom
     ! Three coordinate blocks (x, y, z): 3 * (8 + 4*natom)
-    source%dcd_frame_size = int(3 * (8 + 4*source%dcd_natom), 8)
+    coor_frame_size = int(3 * (8 + 4*source%dcd_natom), 8)
+    box_frame_size = coor_frame_size + 56_8
 
-    ! Add box size if present
-    if (source%dcd_has_box) then
-      ! Box block: 4 + 8*6 + 4 = 56 bytes
-      source%dcd_frame_size = source%dcd_frame_size + 56
+    inquire(unit_no, size=file_size, iostat=iostat)
+    if (iostat /= 0 .or. file_size < source%dcd_header_size) goto 900
+    payload_size = file_size - source%dcd_header_size
+    valid_coor = (mod(payload_size, coor_frame_size) == 0)
+    valid_box = (mod(payload_size, box_frame_size) == 0)
+    nframe_coor = int(payload_size / coor_frame_size)
+    nframe_box = int(payload_size / box_frame_size)
+
+    if (valid_coor .and. valid_box .and. header_int(1) > 0) then
+      if (nframe_box == header_int(1)) then
+        valid_coor = .false.
+      else if (nframe_coor == header_int(1)) then
+        valid_box = .false.
+      end if
     end if
+    if (.not. valid_coor .and. .not. valid_box) goto 900
+    if (valid_coor .neqv. valid_box) then
+      source%dcd_has_box = valid_box
+    end if
+    if (source%dcd_has_box) then
+      if (.not. valid_box) goto 900
+      source%dcd_frame_size = box_frame_size
+      source%dcd_nframe = nframe_box
+    else
+      if (.not. valid_coor) goto 900
+      source%dcd_frame_size = coor_frame_size
+      source%dcd_nframe = nframe_coor
+    end if
+    if (header_int(1) > 0 .and. source%dcd_nframe /= header_int(1)) goto 900
+
+    source%dcd_selected_natom = n_selected
+    allocate(source%dcd_selection(n_selected))
+    source%dcd_selection(:) = selection_idx(1:n_selected)
+    allocate(source%dcd_x(source%dcd_natom), source%dcd_y(source%dcd_natom), &
+             source%dcd_z(source%dcd_natom))
 
     source%total_frames = source%dcd_nframe / ana_period
 
+    return
+
+900 continue
+    call finalize_source(source)
+    status = 202
     return
 
   end subroutine init_source_lazy_dcd
@@ -493,10 +584,9 @@ contains
     ! local variables
     real(C_double), pointer :: coords(:,:,:), boxes(:,:,:)
     integer(8) :: byte_offset
-    real(8)    :: box_data(6)
-    real(4), allocatable :: x(:), y(:), z(:)
+    real(8)    :: box_data(6), pbcbox(6)
     integer(4) :: rec_size
-    integer    :: i, natom
+    integer    :: i, natom, selected_natom, iostat
 
     status = 1
 
@@ -527,61 +617,74 @@ contains
       if (.not. source%dcd_open) return
 
       natom = source%dcd_natom
+      selected_natom = source%dcd_selected_natom
 
       ! Allocate trajectory if needed
       if (.not. allocated(trajectory%coord)) then
-        allocate(trajectory%coord(3, natom))
-      else if (size(trajectory%coord, 2) /= natom) then
+        allocate(trajectory%coord(3, selected_natom))
+      else if (size(trajectory%coord, 2) /= selected_natom) then
         deallocate(trajectory%coord)
-        allocate(trajectory%coord(3, natom))
+        allocate(trajectory%coord(3, selected_natom))
       end if
-
-      allocate(x(natom), y(natom), z(natom))
 
       ! Calculate byte offset for frame (1-indexed position for stream access)
       byte_offset = source%dcd_header_size + &
                     int(frame_idx - 1, 8) * source%dcd_frame_size + 1
 
-      ! Seek to frame position using stream access positioning
-      read(source%dcd_unit, pos=byte_offset)
-
       ! Read box if present
       if (source%dcd_has_box) then
-        read(source%dcd_unit) rec_size
-        read(source%dcd_unit) box_data(1:6)
-        read(source%dcd_unit) rec_size
-        ! Convert box data to matrix (simplified - assumes orthorhombic)
+        read(source%dcd_unit, pos=byte_offset, iostat=iostat) rec_size
+        if (iostat /= 0 .or. rec_size /= 48) goto 910
+        read(source%dcd_unit, iostat=iostat) box_data(1:6)
+        if (iostat /= 0) goto 910
+        read(source%dcd_unit, iostat=iostat) rec_size
+        if (iostat /= 0 .or. rec_size /= 48) goto 910
+        call to_pbcbox(box_data, pbcbox)
         trajectory%pbc_box(:,:) = 0.0_wp
-        trajectory%pbc_box(1,1) = box_data(1)
-        trajectory%pbc_box(2,2) = box_data(3)
-        trajectory%pbc_box(3,3) = box_data(6)
+        trajectory%pbc_box(1,1) = pbcbox(1)
+        trajectory%pbc_box(2,2) = pbcbox(2)
+        trajectory%pbc_box(3,3) = pbcbox(3)
+        read(source%dcd_unit, iostat=iostat) rec_size
+        if (iostat /= 0) goto 910
       else
+        read(source%dcd_unit, pos=byte_offset, iostat=iostat) rec_size
+        if (iostat /= 0) goto 910
         trajectory%pbc_box(:,:) = 0.0_wp
       end if
 
       ! Read X coordinates
-      read(source%dcd_unit) rec_size
-      read(source%dcd_unit) x(1:natom)
-      read(source%dcd_unit) rec_size
+      if (rec_size /= 4*natom) goto 910
+      read(source%dcd_unit, iostat=iostat) source%dcd_x(1:natom)
+      if (iostat /= 0) goto 910
+      read(source%dcd_unit, iostat=iostat) rec_size
+      if (iostat /= 0 .or. rec_size /= 4*natom) goto 910
 
       ! Read Y coordinates
-      read(source%dcd_unit) rec_size
-      read(source%dcd_unit) y(1:natom)
-      read(source%dcd_unit) rec_size
+      read(source%dcd_unit, iostat=iostat) rec_size
+      if (iostat /= 0 .or. rec_size /= 4*natom) goto 910
+      read(source%dcd_unit, iostat=iostat) source%dcd_y(1:natom)
+      if (iostat /= 0) goto 910
+      read(source%dcd_unit, iostat=iostat) rec_size
+      if (iostat /= 0 .or. rec_size /= 4*natom) goto 910
 
       ! Read Z coordinates
-      read(source%dcd_unit) rec_size
-      read(source%dcd_unit) z(1:natom)
-      read(source%dcd_unit) rec_size
+      read(source%dcd_unit, iostat=iostat) rec_size
+      if (iostat /= 0 .or. rec_size /= 4*natom) goto 910
+      read(source%dcd_unit, iostat=iostat) source%dcd_z(1:natom)
+      if (iostat /= 0) goto 910
+      read(source%dcd_unit, iostat=iostat) rec_size
+      if (iostat /= 0 .or. rec_size /= 4*natom) goto 910
 
-      ! Copy to trajectory
-      do i = 1, natom
-        trajectory%coord(1, i) = real(x(i), wp)
-        trajectory%coord(2, i) = real(y(i), wp)
-        trajectory%coord(3, i) = real(z(i), wp)
+      ! Copy the selected atoms to the logical trajectory view.
+      do i = 1, selected_natom
+        trajectory%coord(1, i) = real( &
+          source%dcd_x(source%dcd_selection(i)), wp)
+        trajectory%coord(2, i) = real( &
+          source%dcd_y(source%dcd_selection(i)), wp)
+        trajectory%coord(3, i) = real( &
+          source%dcd_z(source%dcd_selection(i)), wp)
       end do
 
-      deallocate(x, y, z)
       status = 0
 
     case default
@@ -590,6 +693,12 @@ contains
 
     end select
 
+    return
+
+910 continue
+    call finalize_source(source)
+    call error_msg('get_frame_by_index> Invalid or truncated DCD frame', code=202)
+    status = 1
     return
 
   end subroutine get_frame_by_index
@@ -741,6 +850,11 @@ contains
       source%dcd_unit = -1
       source%dcd_nframe = 0
       source%dcd_natom = 0
+      source%dcd_selected_natom = 0
+      if (allocated(source%dcd_selection)) deallocate(source%dcd_selection)
+      if (allocated(source%dcd_x)) deallocate(source%dcd_x)
+      if (allocated(source%dcd_y)) deallocate(source%dcd_y)
+      if (allocated(source%dcd_z)) deallocate(source%dcd_z)
 
     end select
 
@@ -749,29 +863,5 @@ contains
     return
 
   end subroutine finalize_source
-
-  !======1=========2=========3=========4=========5=========6=========7=========8
-  !
-  !  Subroutine    swap_bytes_int4
-  !> @brief        Swap bytes of 4-byte integer (for byte swap detection)
-  !! @authors      Claude Code
-  !
-  !======1=========2=========3=========4=========5=========6=========7=========8
-
-  subroutine swap_bytes_int4(val)
-
-    ! formal arguments
-    integer(4), intent(inout) :: val
-
-    ! local variables
-    character(4) :: c
-
-    c = transfer(val, c)
-    c = c(4:4) // c(3:3) // c(2:2) // c(1:1)
-    val = transfer(c, val)
-
-    return
-
-  end subroutine swap_bytes_int4
 
 end module trj_source_mod

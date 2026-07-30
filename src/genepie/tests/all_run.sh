@@ -8,6 +8,7 @@ cd "$SCRIPT_DIR"
 export PYTHONPATH="${SCRIPT_DIR}/../..:${PYTHONPATH}"
 
 python -m genepie.tests.test_crd_convert "$@"
+python -m genepie.tests.test_crd_convert_lazy "$@"
 python -m genepie.tests.test_trj "$@"
 python -m genepie.tests.test_wham "$@"
 python -m genepie.tests.test_mbar_1d "$@"

@@ -8,10 +8,13 @@ if __name__ == "__main__" and __package__ is None:
 import os
 import subprocess
 import sys
+import tempfile
+from pathlib import Path
 import numpy as np
 from .conftest import BPTI_PDB, BPTI_PSF, BPTI_DCD
 from ..s_molecule import SMolecule
 from .. import genesis_exe
+from ._dcd_test_utils import rewrite_dcd
 
 
 def compute_contact_list_from_refcoord(mol, selection_indices, min_dist=1.0, max_dist=6.0, exclude_residues=4):
@@ -199,6 +202,82 @@ def test_drms_lazy_vs_memory():
     print(f"  Lazy:   min={min(result_lazy.drms):.5f}, max={max(result_lazy.drms):.5f}")
 
 
+def test_drms_lazy_selected_view():
+    """DRMS contact indices use the selected lazy trajectory index space."""
+    mol = SMolecule.from_file(
+        pdb=BPTI_PDB, psf=BPTI_PSF, ref=BPTI_PDB
+    )
+    common = dict(
+        trj_files=[str(BPTI_DCD)],
+        trj_format="DCD",
+        trj_type="COOR+BOX",
+        selection="an:CA",
+        ana_period=2,
+    )
+    mem_trajs, mem_mol = genesis_exe.crd_convert(
+        mol, lazy=False, **common
+    )
+    lazy_trajs, lazy_mol = genesis_exe.crd_convert(
+        mol, lazy=True, **common
+    )
+    assert lazy_trajs[0].natom == lazy_mol.num_atoms == mem_mol.num_atoms
+
+    selected_indices = np.arange(1, lazy_mol.num_atoms + 1, dtype=np.int32)
+    contact_list, contact_dist = compute_contact_list_from_refcoord(
+        lazy_mol, selected_indices,
+        min_dist=1.0, max_dist=8.0, exclude_residues=4,
+    )
+    assert contact_list.shape[1] > 0
+
+    mem_result = genesis_exe.drms_analysis(
+        mem_trajs[0], contact_list, contact_dist, ana_period=2
+    ).drms
+    lazy_result = genesis_exe.drms_analysis(
+        lazy_trajs[0], contact_list, contact_dist, ana_period=2
+    ).drms
+    np.testing.assert_allclose(
+        lazy_result, mem_result, rtol=1e-4, atol=1e-6
+    )
+
+
+def test_drms_lazy_triclinic_box_matches_memory():
+    """Lazy DCD unit-cell conversion must match the standard reader."""
+    mol = SMolecule.from_file(
+        pdb=BPTI_PDB, psf=BPTI_PSF, ref=BPTI_PDB
+    )
+    ca_indices = genesis_exe.selection(mol, "an:CA")
+    contact_list, contact_dist = compute_contact_list_from_refcoord(
+        mol, ca_indices, min_dist=1.0, max_dist=6.0, exclude_residues=4
+    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        triclinic_dcd = Path(tmpdir) / "triclinic.dcd"
+        rewrite_dcd(
+            BPTI_DCD,
+            triclinic_dcd,
+            box_values=(35.0, 2.0, 36.0, 1.0, 3.0, 37.0),
+        )
+        common = dict(
+            trj_files=[str(triclinic_dcd)],
+            trj_type="COOR+BOX",
+            selection="all",
+        )
+        mem_trajs, _ = genesis_exe.crd_convert(
+            mol, lazy=False, **common
+        )
+        lazy_trajs, _ = genesis_exe.crd_convert(
+            mol, lazy=True, **common
+        )
+        mem_result = genesis_exe.drms_analysis(
+            mem_trajs[0], contact_list, contact_dist, pbc_correct=True
+        ).drms
+        lazy_result = genesis_exe.drms_analysis(
+            lazy_trajs[0], contact_list, contact_dist, pbc_correct=True
+        ).drms
+        np.testing.assert_allclose(
+            lazy_result, mem_result, rtol=1e-4, atol=1e-6
+        )
+
+
 def _run_test_in_subprocess(test_name: str) -> bool:
     """Run a single test function in isolated subprocess to avoid Fortran state issues."""
     code = f'''
@@ -236,6 +315,8 @@ def main():
         "test_drms_analysis",
         "test_drms_lazy",
         "test_drms_lazy_vs_memory",
+        "test_drms_lazy_selected_view",
+        "test_drms_lazy_triclinic_box_matches_memory",
     ]
 
     failed = []

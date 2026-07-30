@@ -63,7 +63,7 @@ module fileio_trj_mod
   private :: write_gromacs_trj_sel
   private :: write_gromacs_trj
 
-  private :: to_pbcbox
+  public  :: to_pbcbox
   private :: to_symmat
   private :: to_deg
 

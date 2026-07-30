@@ -8,10 +8,14 @@ if __name__ == "__main__" and __package__ is None:
 import os
 import subprocess
 import sys
+import tempfile
+from pathlib import Path
 import numpy as np
 from .conftest import BPTI_PDB, BPTI_PSF, BPTI_DCD
 from ..s_molecule import SMolecule
+from ..s_trajectories import STrajectories, TRJ_TYPE_COOR_BOX
 from .. import genesis_exe
+from ._dcd_test_utils import rewrite_dcd
 
 
 def test_rmsd_lazy_no_fitting():
@@ -260,37 +264,159 @@ def test_rmsd_lazy_ana_period():
     print(f"  ana_period=2: {len(result_p2.rmsd)} frames")
 
 
+def test_rmsd_lazy_big_endian():
+    """Lazy coordinates must honor the DCD endian for every frame."""
+    mol = SMolecule.from_file(
+        pdb=BPTI_PDB, psf=BPTI_PSF, ref=BPTI_PDB
+    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        big_endian_dcd = Path(tmpdir) / "bpti_big_endian.dcd"
+        rewrite_dcd(BPTI_DCD, big_endian_dcd, output_endian=">")
+
+        little_trajs, little_mol = genesis_exe.crd_convert(
+            mol, [str(BPTI_DCD)], trj_type="COOR+BOX", lazy=True
+        )
+        big_trajs, big_mol = genesis_exe.crd_convert(
+            mol, [str(big_endian_dcd)], trj_type="COOR+BOX", lazy=True
+        )
+        little = genesis_exe.rmsd_analysis(
+            little_mol, little_trajs[0], analysis_selection="an:CA"
+        ).rmsd
+        big = genesis_exe.rmsd_analysis(
+            big_mol, big_trajs[0], analysis_selection="an:CA"
+        ).rmsd
+        np.testing.assert_allclose(big, little, rtol=1e-5, atol=1e-6)
+
+
+def test_rmsd_lazy_compatibility_wrapper():
+    """The legacy one-shot API delegates to the canonical lazy path."""
+    mol = SMolecule.from_file(
+        pdb=BPTI_PDB, psf=BPTI_PSF, ref=BPTI_PDB
+    )
+    lazy_trajs, subset_mol = genesis_exe.crd_convert(
+        mol, [str(BPTI_DCD)], trj_type="COOR+BOX", lazy=True
+    )
+    canonical = genesis_exe.rmsd_analysis(
+        subset_mol,
+        lazy_trajs[0],
+        analysis_selection="an:CA",
+        fitting_selection="an:CA",
+    ).rmsd
+    compatibility = genesis_exe.rmsd_analysis_lazy(
+        mol,
+        str(BPTI_DCD),
+        analysis_selection="an:CA",
+        fitting_selection="an:CA",
+        has_box=True,
+    )
+    assert compatibility.dcd_nframe == lazy_trajs[0].nframe
+    assert compatibility.dcd_natom == mol.num_atoms
+    np.testing.assert_allclose(
+        compatibility.rmsd, canonical, rtol=1e-5, atol=1e-6
+    )
+
+
+def test_rmsd_lazy_truncated_dcd():
+    """A truncated frame must raise a catchable file-format exception."""
+    from ..exceptions import GenesisFortranFileError
+
+    mol = SMolecule.from_file(
+        pdb=BPTI_PDB, psf=BPTI_PSF, ref=BPTI_PDB
+    )
+    source = Path(BPTI_DCD).read_bytes()
+
+    def assert_rejected(path):
+        lazy_traj = STrajectories.from_lazy(
+            str(path),
+            TRJ_TYPE_COOR_BOX,
+            nframe=10,
+            natom=mol.num_atoms,
+        )
+        try:
+            genesis_exe.rmsd_analysis(
+                mol, lazy_traj, analysis_selection="an:CA"
+            )
+        except GenesisFortranFileError as exc:
+            assert exc.code == 202
+        else:
+            raise AssertionError("Truncated DCD should raise a file error")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        truncated = Path(tmpdir) / "truncated.dcd"
+        truncated.write_bytes(source[:-17])
+        assert_rejected(truncated)
+
+        whole_frame = 3 * (8 + 4 * mol.num_atoms) + 56
+        frame_truncated = Path(tmpdir) / "frame_truncated.dcd"
+        frame_truncated.write_bytes(source[:-whole_frame])
+        assert_rejected(frame_truncated)
+
+
 def test_rmsd_lazy_missing_dcd_fortran_catch():
     """A missing DCD must surface as a catchable error, never crash the process.
 
     The Python wrapper normally guards with os.path.exists, but the real
-    protection lives in Fortran: init_source_lazy_dcd -> error_msg used to call
-    exit(1). With the library-mode error guard, that path now longjmps back and
-    is reported to Python as a GenesisFortranFileError. Here we deliberately
-    bypass the Python guard to exercise the Fortran layer directly.
+    protection also lives in Fortran. Here we deliberately bypass the Python
+    existence check on the canonical lazy-trajectory path.
     """
-    from ..analysis import rmsd as rmsd_mod
+    from ..analysis import _common
     from ..exceptions import GenesisError, GenesisFortranFileError
 
     mol = SMolecule.from_file(pdb=BPTI_PDB, psf=BPTI_PSF, ref=BPTI_PDB)
+    missing = "/no/such/dir/missing.dcd"
+    lazy_traj = STrajectories.from_lazy(
+        missing,
+        TRJ_TYPE_COOR_BOX,
+        nframe=1,
+        natom=mol.num_atoms,
+    )
 
-    real_exists = rmsd_mod.os.path.exists
-    rmsd_mod.os.path.exists = lambda p: True if str(p).endswith(".dcd") else real_exists(p)
+    real_exists = _common.os.path.exists
+    _common.os.path.exists = \
+        lambda p: True if str(p) == missing else real_exists(p)
     try:
         raised = None
         try:
-            genesis_exe.rmsd_analysis_lazy(
-                mol, "/no/such/dir/missing.dcd", analysis_selection="an:CA")
+            genesis_exe.rmsd_analysis(
+                mol, lazy_traj, analysis_selection="an:CA"
+            )
         except GenesisError as e:
             raised = e
     finally:
-        rmsd_mod.os.path.exists = real_exists
+        _common.os.path.exists = real_exists
 
     assert raised is not None, "missing DCD must raise (not silently pass)"
     assert isinstance(raised, GenesisFortranFileError), \
         f"expected GenesisFortranFileError, got {type(raised).__name__}: {raised}"
     assert raised.code == 201, f"expected ERROR_FILE_NOT_FOUND (201), got {raised.code}"
     print(f"Fortran-level catch OK: {type(raised).__name__} code={raised.code}: {raised}")
+
+
+def test_rmsd_lazy_dcd_atom_count_error():
+    """A topology/DCD mismatch keeps the dedicated atom-count error code."""
+    from ..exceptions import GenesisFortranValidationError
+
+    mol = SMolecule.from_file(
+        pdb=BPTI_PDB, psf=BPTI_PSF, ref=BPTI_PDB
+    )
+    selection_indices = np.arange(
+        1, mol.num_atoms + 1, dtype=np.int32
+    )
+    lazy_traj = STrajectories.from_lazy(
+        str(BPTI_DCD),
+        TRJ_TYPE_COOR_BOX,
+        nframe=10,
+        natom=mol.num_atoms + 1,
+        selection_indices=selection_indices,
+    )
+    try:
+        genesis_exe.rmsd_analysis(
+            mol, lazy_traj, analysis_selection="an:CA"
+        )
+    except GenesisFortranValidationError as exc:
+        assert exc.code == 304
+    else:
+        raise AssertionError("DCD atom-count mismatch should raise code 304")
 
 
 def _run_test_in_subprocess(test_name: str) -> bool:
@@ -331,7 +457,11 @@ def main():
         "test_rmsd_lazy_with_fitting",
         "test_rmsd_lazy_vs_memory",
         "test_rmsd_lazy_ana_period",
+        "test_rmsd_lazy_big_endian",
+        "test_rmsd_lazy_compatibility_wrapper",
+        "test_rmsd_lazy_truncated_dcd",
         "test_rmsd_lazy_missing_dcd_fortran_catch",
+        "test_rmsd_lazy_dcd_atom_count_error",
     ]
 
     failed = []

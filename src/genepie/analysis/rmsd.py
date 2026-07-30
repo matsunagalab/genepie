@@ -14,8 +14,9 @@ from .._fortran import fortran_status
 from ._common import (
     _resolve_enum,
     _FITTING_METHOD_MAP,
+    _prepare_lazy_trajectory,
 )
-from .converter import selection
+from .converter import selection, crd_convert_info
 
 
 RmsdAnalysisResult = namedtuple(
@@ -40,13 +41,13 @@ def _rmsd_analysis_lazy(
     """
     lib = LibGenesis().lib
 
-    # Extract lazy DCD info from STrajectories
-    dcd_file = trajs.lazy_dcd_file
-    trj_type = trajs.lazy_trj_type  # 1=COOR, 2=COOR+BOX
-
-    # Validate DCD file exists
-    if not os.path.exists(dcd_file):
-        raise GenesisValidationError(f"DCD file not found: {dcd_file}")
+    dcd_filename_bytes, source_selection, effective_period, n_result = \
+        _prepare_lazy_trajectory(trajs, ana_period)
+    trj_type = trajs.lazy_trj_type
+    if molecule.num_atoms != trajs.natom:
+        raise GenesisValidationError(
+            "Lazy trajectory and molecule must contain the same selected atoms"
+        )
 
     # Get atom indices using GENESIS selection
     analysis_indices = selection(molecule, analysis_selection)
@@ -66,13 +67,9 @@ def _rmsd_analysis_lazy(
     mass_ptr = mass.ctypes.data_as(ctypes.c_void_p)
     ref_coord_ptr = ref_coord_f.ctypes.data_as(ctypes.c_void_p)
 
-    # Pre-allocate result array using nframe from lazy STrajectories
-    max_frames = trajs.nframe
-    result_rmsd = np.zeros(max_frames, dtype=np.float64)
+    # Pre-allocate exactly the number of analyzed frames.
+    result_rmsd = np.zeros(n_result, dtype=np.float64)
     result_ptr = result_rmsd.ctypes.data_as(ctypes.c_void_p)
-
-    # Convert filename to C string
-    dcd_filename_bytes = dcd_file.encode('utf-8')
     filename_len = len(dcd_filename_bytes)
 
     # Output variables
@@ -99,10 +96,13 @@ def _rmsd_analysis_lazy(
             dcd_filename_bytes,
             ctypes.c_int(filename_len),
             ctypes.c_int(trj_type),
+            ctypes.c_int(trajs.lazy_dcd_natom),
+            source_selection.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(trajs.natom),
             mass_ptr,
             ref_coord_ptr,
             ctypes.c_int(molecule.num_atoms),
-            ctypes.c_int(ana_period),
+            ctypes.c_int(effective_period),
             fitting_idx_ptr,
             ctypes.c_int(n_fitting),
             analysis_indices.ctypes.data_as(ctypes.c_void_p),
@@ -110,7 +110,7 @@ def _rmsd_analysis_lazy(
             ctypes.c_int(method_int),
             ctypes.c_int(1 if mass_weighted else 0),
             result_ptr,
-            ctypes.c_int(max_frames),
+            ctypes.c_int(n_result),
             ctypes.byref(nstru_out),
             ctypes.byref(dcd_nframe_out),
             ctypes.byref(dcd_natom_out),
@@ -325,7 +325,9 @@ def rmsd_analysis_lazy(
         ref_coord: Reference coordinates (default: molecule.atom_coord).
                    Shape should be (n_atoms, 3).
         has_box: Whether DCD file contains box information (default: False)
-        max_frames: Maximum expected frames (for result array allocation, default: 100000)
+        max_frames: Compatibility safety limit for analyzed frames. The result
+            size is determined from the DCD header; an explicit smaller limit
+            raises GenesisValidationError (default: 100000).
 
     Returns:
         RmsdLazyAnalysisResult containing:
@@ -348,89 +350,48 @@ def rmsd_analysis_lazy(
         ...     fitting_method="TR+ROT"
         ... )
     """
-    lib = LibGenesis().lib
-
-    # Validate DCD file exists
+    # Keep this legacy entry point as a thin wrapper around the canonical
+    # lazy-trajectory API.
+    if ana_period <= 0:
+        raise GenesisValidationError(
+            f"ana_period must be positive, got {ana_period}"
+        )
     if not os.path.exists(dcd_file):
         raise GenesisValidationError(f"DCD file not found: {dcd_file}")
-
-    # Get atom indices using GENESIS selection
-    analysis_indices = selection(molecule, analysis_selection)
-    n_analysis = len(analysis_indices)
-
-    # Ensure arrays are contiguous and correct dtype
-    mass = np.ascontiguousarray(molecule.mass, dtype=np.float64)
-
-    # Reference coordinates: Fortran expects (3, n_atoms)
-    if ref_coord is None:
-        ref_coord_arr = molecule.atom_coord
-    else:
-        ref_coord_arr = ref_coord
-    ref_coord_f = np.asfortranarray(ref_coord_arr.T, dtype=np.float64)
-
-    # Get pointers (zero-copy)
-    mass_ptr = mass.ctypes.data_as(ctypes.c_void_p)
-    ref_coord_ptr = ref_coord_f.ctypes.data_as(ctypes.c_void_p)
-
-    # Pre-allocate result array (will be trimmed later)
-    result_rmsd = np.zeros(max_frames, dtype=np.float64)
-    result_ptr = result_rmsd.ctypes.data_as(ctypes.c_void_p)
-
-    # Convert filename to C string
-    dcd_filename_bytes = dcd_file.encode('utf-8')
-    filename_len = len(dcd_filename_bytes)
-
-    # Trajectory type: 1=COOR, 2=COOR+BOX (matches TrjTypeCoor=1, TrjTypeCoorBox=2)
     trj_type = 2 if has_box else 1
-
-    # Output variables
-    nstru_out = ctypes.c_int()
-    dcd_nframe_out = ctypes.c_int()
-    dcd_natom_out = ctypes.c_int()
-
-    # Fitting parameters
-    fitting_idx_ptr = ctypes.c_void_p(0)
-    n_fitting = 0
-    method_int = 0
-
-    if fitting_selection is not None:
-        method_int = _resolve_enum(
-            fitting_method, _FITTING_METHOD_MAP, "fitting_method")
-
-        # Get fitting indices
-        fitting_indices = selection(molecule, fitting_selection)
-        n_fitting = len(fitting_indices)
-        fitting_idx_ptr = fitting_indices.ctypes.data_as(ctypes.c_void_p)
-
-    with fortran_status() as (status, msg, msglen):
-        lib.rmsd_analysis_lazy_c(
-            dcd_filename_bytes,
-            ctypes.c_int(filename_len),
-            ctypes.c_int(trj_type),
-            mass_ptr,
-            ref_coord_ptr,
-            ctypes.c_int(molecule.num_atoms),
-            ctypes.c_int(ana_period),
-            fitting_idx_ptr,
-            ctypes.c_int(n_fitting),
-            analysis_indices.ctypes.data_as(ctypes.c_void_p),
-            ctypes.c_int(n_analysis),
-            ctypes.c_int(method_int),
-            ctypes.c_int(1 if mass_weighted else 0),
-            result_ptr,
-            ctypes.c_int(max_frames),
-            ctypes.byref(nstru_out),
-            ctypes.byref(dcd_nframe_out),
-            ctypes.byref(dcd_natom_out),
-            ctypes.byref(status),
-            msg,
-            ctypes.c_int(msglen),
+    trj_type_name = "COOR+BOX" if has_box else "COOR"
+    info = crd_convert_info(
+        molecule, [dcd_file], trj_format="DCD", trj_type=trj_type_name
+    )
+    if not info.frame_counts or info.frame_counts[0] <= 0:
+        raise GenesisValidationError("No frames found in DCD file")
+    dcd_nframe = info.frame_counts[0]
+    required_frames = dcd_nframe // ana_period
+    if max_frames is not None and max_frames < required_frames:
+        raise GenesisValidationError(
+            f"max_frames={max_frames} is smaller than the required "
+            f"{required_frames} frames"
         )
 
-
-    # Return the result trimmed to actual size
+    lazy_traj = STrajectories.from_lazy(
+        dcd_file=dcd_file,
+        trj_type=trj_type,
+        nframe=dcd_nframe,
+        natom=molecule.num_atoms,
+        ana_period=1,
+    )
+    result = rmsd_analysis(
+        molecule=molecule,
+        trajs=lazy_traj,
+        analysis_selection=analysis_selection,
+        fitting_selection=fitting_selection,
+        fitting_method=fitting_method,
+        ana_period=ana_period,
+        mass_weighted=mass_weighted,
+        ref_coord=ref_coord,
+    )
     return RmsdLazyAnalysisResult(
-        result_rmsd[:nstru_out.value],
-        dcd_nframe_out.value,
-        dcd_natom_out.value
+        result.rmsd,
+        dcd_nframe,
+        molecule.num_atoms,
     )

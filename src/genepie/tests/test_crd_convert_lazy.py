@@ -68,12 +68,57 @@ def test_crd_convert_lazy_with_selection():
     n_ca = len(lazy_traj.selection_indices)
     assert n_ca > 0, "Should have CA atoms"
     assert n_ca < mol.num_atoms, "CA atoms should be subset of all atoms"
+    assert lazy_traj.natom == n_ca, "Lazy trajectory should expose selected atoms"
+    assert lazy_traj.lazy_dcd_natom == mol.num_atoms, \
+        "Lazy trajectory should retain the physical DCD atom count"
 
     # Check subset molecule
     assert subset_mol.num_atoms == n_ca, f"Subset molecule should have {n_ca} atoms"
 
     print(f"Lazy trajectory with selection: natom={lazy_traj.natom}, selected={n_ca}")
     print(f"  selection_indices (first 5): {lazy_traj.selection_indices[:5]}")
+
+
+def test_crd_convert_lazy_selection_and_period_parity():
+    """Selected lazy views and two-stage periods must match memory mode."""
+    mol = SMolecule.from_file(
+        pdb=BPTI_PDB, psf=BPTI_PSF, ref=BPTI_PDB
+    )
+    common = dict(
+        trj_files=[str(BPTI_DCD)],
+        trj_format="DCD",
+        trj_type="COOR+BOX",
+        selection="an:CA",
+        ana_period=2,
+    )
+    mem_trajs, mem_mol = genesis_exe.crd_convert(
+        mol, lazy=False, **common
+    )
+    lazy_trajs, lazy_mol = genesis_exe.crd_convert(
+        mol, lazy=True, **common
+    )
+
+    mem_traj = mem_trajs[0]
+    lazy_traj = lazy_trajs[0]
+    assert lazy_traj.natom == lazy_mol.num_atoms == mem_traj.natom
+    assert lazy_traj.nframe == mem_traj.nframe
+    assert lazy_traj.lazy_ana_period == 2
+
+    mem_rmsd = genesis_exe.rmsd_analysis(
+        mem_mol, mem_traj, analysis_selection="all", ana_period=2
+    ).rmsd
+    lazy_rmsd = genesis_exe.rmsd_analysis(
+        lazy_mol, lazy_traj, analysis_selection="all", ana_period=2
+    ).rmsd
+    np.testing.assert_allclose(lazy_rmsd, mem_rmsd, rtol=1e-4, atol=1e-6)
+
+    mem_rg = genesis_exe.rg_analysis(
+        mem_mol, mem_traj, analysis_selection="all", ana_period=2
+    ).rg
+    lazy_rg = genesis_exe.rg_analysis(
+        lazy_mol, lazy_traj, analysis_selection="all", ana_period=2
+    ).rg
+    np.testing.assert_allclose(lazy_rg, mem_rg, rtol=1e-4, atol=1e-6)
 
 
 def test_crd_convert_lazy_vs_memory_nframe():
@@ -186,6 +231,7 @@ def main():
     tests = [
         "test_crd_convert_lazy_basic",
         "test_crd_convert_lazy_with_selection",
+        "test_crd_convert_lazy_selection_and_period_parity",
         "test_crd_convert_lazy_vs_memory_nframe",
         "test_crd_convert_lazy_single_file_required",
         "test_crd_convert_lazy_trj_type_coor",

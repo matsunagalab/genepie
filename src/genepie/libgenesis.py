@@ -249,6 +249,9 @@ class LibGenesis:
                 ctypes.c_char_p,                  # dcd_filename
                 ctypes.c_int,                     # filename_len
                 ctypes.c_int,                     # trj_type
+                ctypes.c_int,                     # physical DCD atom count
+                ctypes.c_void_p,                  # source selection
+                ctypes.c_int,                     # selected atom count
                 ctypes.c_void_p,                  # mass_ptr
                 ctypes.c_int,                     # n_atoms
                 ctypes.c_int,                     # ana_period
@@ -312,6 +315,9 @@ class LibGenesis:
                 ctypes.c_char_p,                  # dcd_filename
                 ctypes.c_int,                     # filename_len
                 ctypes.c_int,                     # trj_type
+                ctypes.c_int,                     # physical DCD atom count
+                ctypes.c_void_p,                  # source selection
+                ctypes.c_int,                     # selected atom count
                 ctypes.c_void_p,                  # mass_ptr
                 ctypes.c_void_p,                  # ref_coord_ptr
                 ctypes.c_int,                     # n_atoms
@@ -355,6 +361,9 @@ class LibGenesis:
                 ctypes.c_char_p,                  # dcd_filename
                 ctypes.c_int,                     # filename_len
                 ctypes.c_int,                     # trj_type
+                ctypes.c_int,                     # physical DCD atom count
+                ctypes.c_void_p,                  # source selection
+                ctypes.c_int,                     # selected atom count
                 ctypes.c_void_p,                  # contact_list_ptr
                 ctypes.c_void_p,                  # contact_dist_ptr
                 ctypes.c_int,                     # n_contact

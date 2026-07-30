@@ -1,7 +1,6 @@
 """Distance root mean square deviation."""
 
 import ctypes
-import os
 from collections import namedtuple
 import numpy as np
 
@@ -9,6 +8,7 @@ from ..libgenesis import LibGenesis
 from ..s_trajectories import STrajectories
 from ..exceptions import GenesisValidationError
 from .._fortran import fortran_status
+from ._common import _prepare_lazy_trajectory
 
 
 DrmsAnalysisResult = namedtuple(
@@ -30,14 +30,10 @@ def _drms_analysis_lazy(
     """
     lib = LibGenesis().lib
 
-    # Extract lazy DCD info from STrajectories
-    dcd_file = trajs.lazy_dcd_file
-    trj_type = trajs.lazy_trj_type  # 1=COOR, 2=COOR+BOX
+    dcd_filename_bytes, source_selection, effective_period, n_result = \
+        _prepare_lazy_trajectory(trajs, ana_period)
+    trj_type = trajs.lazy_trj_type
     n_atoms = trajs.natom
-
-    # Validate DCD file exists
-    if not os.path.exists(dcd_file):
-        raise GenesisValidationError(f"DCD file not found: {dcd_file}")
 
     # Ensure arrays are contiguous and correct dtype
     contact_list_f = np.asfortranarray(contact_list, dtype=np.int32)
@@ -53,18 +49,19 @@ def _drms_analysis_lazy(
         raise GenesisValidationError(
             f"contact_dist must have {n_contact} elements, got {contact_dist.shape[0]}"
         )
+    if np.any(contact_list_f < 1) or np.any(contact_list_f > n_atoms):
+        raise GenesisValidationError(
+            f"contact_list indices must be between 1 and {n_atoms}"
+        )
 
     # Get pointers (zero-copy input)
     contact_list_ptr = contact_list_f.ctypes.data_as(ctypes.c_void_p)
     contact_dist_ptr = contact_dist_f.ctypes.data_as(ctypes.c_void_p)
 
-    # Pre-allocate result array using nframe from lazy STrajectories
-    max_frames = trajs.nframe
-    result_drms = np.zeros(max_frames, dtype=np.float64)
+    # Pre-allocate exactly the number of analyzed frames.
+    result_drms = np.zeros(n_result, dtype=np.float64)
     result_ptr = result_drms.ctypes.data_as(ctypes.c_void_p)
 
-    # Convert filename to C string
-    dcd_filename_bytes = dcd_file.encode('utf-8')
     filename_len = len(dcd_filename_bytes)
 
     # Output variables
@@ -77,14 +74,17 @@ def _drms_analysis_lazy(
             dcd_filename_bytes,
             ctypes.c_int(filename_len),
             ctypes.c_int(trj_type),
+            ctypes.c_int(trajs.lazy_dcd_natom),
+            source_selection.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(trajs.natom),
             contact_list_ptr,
             contact_dist_ptr,
             ctypes.c_int(n_contact),
             ctypes.c_int(n_atoms),
-            ctypes.c_int(ana_period),
+            ctypes.c_int(effective_period),
             ctypes.c_int(1 if pbc_correct else 0),
             result_ptr,
-            ctypes.c_int(max_frames),
+            ctypes.c_int(n_result),
             ctypes.byref(nstru_out),
             ctypes.byref(dcd_nframe_out),
             ctypes.byref(dcd_natom_out),
