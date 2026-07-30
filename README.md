@@ -166,6 +166,40 @@ tools currently wrapped as native Python functions.
 | GROMACS | `grotopfile` | `grocrdfile` | (in grotop) |
 | CHARMM | `psffile` | `pdbfile`/`crdfile` | `parfile`, `strfile` |
 
+### Tutorials
+
+The best way to learn genepie is the **hands-on tutorial series** in [`docs/`](docs/).
+It is a [Jupyter Book](https://jupyterbook.org): every chapter is a runnable notebook,
+and (except for the ML chapter) they all run on the small trajectories bundled with
+the package — **no downloads required**. New to genepie? Start with
+**[Getting Started](docs/getting-started.ipynb)**: a complete load → analyze → plot
+workflow on the BPTI system in about ten lines.
+
+| # | Chapter | What you will do |
+|---|---------|------------------|
+| — | [Getting Started](docs/getting-started.ipynb) | Full RMSD workflow on BPTI, end to end |
+| 1 | [Molecules](docs/tutorials/01_molecule.ipynb) | Load and visualize a structure with `SMolecule` |
+| 2 | [Trajectories](docs/tutorials/02_trajectory.ipynb) | Load DCDs, apply selections, fitting, centering |
+| 2b | [Lazy Loading](docs/tutorials/02b_lazy_loading.ipynb) | Analyze trajectories too big for RAM |
+| 3 | [Structural Analysis](docs/tutorials/03_structure.ipynb) | RMSD, Rg, DRMS, distances/angles, average structure |
+| 4 | [Dynamics](docs/tutorials/04_dynamics.ipynb) | Mean squared displacement and diffusion |
+| 5 | [Free Energy](docs/tutorials/05_free_energy.ipynb) | Recover a PMF with WHAM & MBAR |
+| 6 | [Clustering](docs/tutorials/06_clustering.ipynb) | k-means conformational clustering (GENESIS + scikit-learn) |
+| 7 | [MD Engine](docs/tutorials/07_md_engine.ipynb) | Run minimization and MD with ATDYN |
+| 8 | [ML Integration](docs/tutorials/08_ml_integration.ipynb) | Feed results into MDTraj, scikit-learn, PyTorch |
+
+**Run them locally:**
+
+```bash
+# Open any chapter interactively
+jupyter lab docs/getting-started.ipynb
+
+# ...or build the whole book into a browsable HTML site
+uv pip install -r docs/requirements.txt
+jupyter-book build docs
+open docs/_build/html/index.html          # macOS (use xdg-open on Linux)
+```
+
 ---
 
 ## For Developers
@@ -415,6 +449,8 @@ See [CLAUDE.md](CLAUDE.md) for detailed instructions.
 
 ## Documentation
 
+- **[Tutorials & docs site](docs/)** — runnable Jupyter Book (see [Tutorials](#tutorials) above)
+- [Getting Started](docs/getting-started.ipynb) — a complete workflow in ~10 lines
 - [GENESIS Website](https://www.r-ccs.riken.jp/labs/cbrt/)
 - [CLAUDE.md](CLAUDE.md) - Developer guide
 
