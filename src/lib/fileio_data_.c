@@ -1,6 +1,66 @@
 
 #include <stdio.h>
+#include <setjmp.h>
+#include <string.h>
 #include "../config.h"
+
+/*==========================================================================
+ *  Library-mode error guard (setjmp/longjmp)
+ *
+ *  GENESIS' error_msg() aborts the whole process with exit(1). That is fine
+ *  for the CLI tools and the MD engines, but it is fatal for the Python
+ *  interface: a bad input file would tear down the host Python process
+ *  instead of raising a catchable exception.
+ *
+ *  These helpers let a bind(C) wrapper run its body under a setjmp guard.
+ *  While a guard is armed, error_msg() records the pending message/code
+ *  (in messages_mod) and calls fi_error_signal(), which longjmps back to
+ *  fi_error_guard_run() instead of exiting. Outside a guard (armed == 0)
+ *  error_msg() keeps its original exit(1) behaviour, so the CLI/atdyn/spdyn
+ *  binaries are completely unaffected.
+ *
+ *  These functions live here (rather than in a dedicated file) so that they
+ *  are compiled into lib.a and therefore visible to every binary that links
+ *  it, without touching the autotools-generated build files.
+ *========================================================================*/
+
+static jmp_buf      fi_guard_buf;
+static volatile int fi_guard_armed = 0;
+
+/* Is a guard currently armed on this call stack? (queried by error_msg) */
+int fi_error_is_armed(void)
+{
+  return fi_guard_armed;
+}
+
+/* Abort the current guarded region. Does nothing (returns) when no guard is
+ * armed, letting the caller fall through to its normal exit(1) path. */
+void fi_error_signal(void)
+{
+  if (!fi_guard_armed)
+    return;
+  fi_guard_armed = 0;
+  longjmp(fi_guard_buf, 1);
+}
+
+/* Run body() under a setjmp guard. Returns 0 when body() completes normally
+ * and 1 when body() triggered fi_error_signal(). Nested guards are supported
+ * (the previous armed state is restored on the way out). */
+int fi_error_guard_run(void (*body)(void))
+{
+  int prev = fi_guard_armed;
+  int rc;
+
+  fi_guard_armed = 1;
+  if (setjmp(fi_guard_buf) == 0) {
+    body();
+    rc = 0;
+  } else {
+    rc = 1;
+  }
+  fi_guard_armed = prev;
+  return rc;
+}
 
 #define MaxFile  10
 

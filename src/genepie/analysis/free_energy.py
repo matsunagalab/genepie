@@ -5,10 +5,14 @@ import io
 import os
 import re
 import tempfile
+from collections import namedtuple
 from typing import (
     Iterable,
     Optional,
+    Union,
 )
+
+import numpy as np
 
 from ..libgenesis import LibGenesis
 from .. import ctrl_files
@@ -23,6 +27,22 @@ from .._fortran import (
     fortran_status,
 )
 from ._common import run_analysis_isolated
+
+
+# Result bundle returned by ``mbar_analysis(..., return_weights=True)``.
+#   fene:      relative free energies, shape (n_replica, n_blocks)
+#   weights:   per-sample MBAR weights at the target temperature,
+#              shape (n_replica, n_step); each row sums with the others to 1.
+#   n_replica: number of states (replicas)
+#   n_step:    number of samples per state
+MbarResult = namedtuple(
+    "MbarResult", ["fene", "weights", "n_replica", "n_step"])
+
+
+# MBAR input_type keywords accepted by the Fortran reader (mbar_option_str.fpp).
+MBAR_INPUT_TYPES = (
+    "CV", "US", "ENESINGLE", "REMD", "ENEPAIR", "FEP", "ENEALL", "REST", "MBGO",
+)
 
 
 def _check_free_energy_input(tool_name: str,
@@ -251,10 +271,12 @@ def mbar_analysis(
         nreplica: Optional[int] = None,
         input_type: Optional[str] = None,
         dimension: Optional[int] = None,
-        temperature: Optional[float] = None,
+        temperature: Optional[Union[float, Iterable[float]]] = None,
         target_temperature: Optional[float] = None,
         nblocks: Optional[int] = None,
         tolerance: Optional[float] = None,
+        self_iteration: Optional[int] = None,
+        newton_iteration: Optional[int] = None,
         rest_function: Optional[Iterable[int]] = None,
         grids: Optional[Iterable[tuple[float, float, int]]] = None,
         selection_group: Optional[Iterable[str]] = None,
@@ -263,6 +285,7 @@ def mbar_analysis(
         reference: Iterable[Iterable[float]] = None,
         is_periodic: Iterable[bool] = None,
         box_size: Iterable[float] = None,
+        return_weights: bool = False,
         ):
     """
     Computes relative free energies with MBAR from multi-state sampling data.
@@ -272,27 +295,44 @@ def mbar_analysis(
 
     Args:
         cvfile: Filename pattern for the CV files, where the placeholder
-            expands to the replica index (e.g. ``"run{}.dat"``).
+            expands to the replica index (e.g. ``"run{}.dat"``). For
+            ``input_type="EneSingle"``/``"REMD"`` this is the per-state
+            potential-energy time series (one ``time value`` pair per line).
         nreplica: Number of replicas (states).
-        input_type: Sampling type, e.g. ``"US"`` for umbrella sampling.
+        input_type: Sampling type. ``"US"``/``"CV"`` for umbrella sampling,
+            ``"EneSingle"`` (equivalently ``"REMD"``) for temperature REMD.
         dimension: Number of reaction coordinates (1 or 2).
-        temperature: Simulation temperature in K.
+        temperature: Simulation temperature in K. May be a single value (used
+            for every state) or one value per state, e.g. the T-REMD ladder.
         target_temperature: Temperature at which the result is reported.
-        nblocks: Number of blocks for block averaging.
+        nblocks: Number of blocks for block averaging. Weight output requires
+            ``nblocks == 1`` (the default).
         tolerance: Convergence threshold of the MBAR iteration.
+        self_iteration: Number of self-consistent iterations.
+        newton_iteration: Number of Newton-Raphson iterations.
         rest_function: Restraint function indices used as reaction coordinates.
         grids: ``(min, max, num_grids)`` per dimension.
         constant: Restraint force constants per replica.
         reference: Restraint centers per replica.
         is_periodic: Whether each reaction coordinate is periodic.
         box_size: Period of each periodic reaction coordinate.
+        return_weights: When True, also compute the per-sample MBAR weights at
+            ``target_temperature`` and return an :class:`MbarResult` instead of
+            just the free-energy array. Requires ``nreplica`` and
+            ``nblocks == 1``. Weights are returned directly from Fortran memory;
+            no weight files are created.
 
     Returns:
-        Relative free energies as an array of shape ``(n_replica, n_blocks)``.
+        By default, relative free energies as an array of shape
+        ``(n_replica, n_blocks)``. When ``return_weights=True``, an
+        :class:`MbarResult` namedtuple ``(fene, weights, n_replica, n_step)``
+        where ``weights`` has shape ``(n_replica, n_step)`` and the whole set of
+        weights sums to 1 (they are the unbiased ensemble weights at the target
+        temperature, ready for resampling).
     """
     # === INPUT VALIDATION ===
     from ..file_validators import validate_file_exists, validate_file_pattern
-    from ..param_validators import validate_positive, validate_range
+    from ..param_validators import validate_enum, validate_positive, validate_range
 
     _check_free_energy_input("mbar_analysis", cvfile, dcdfile)
 
@@ -304,19 +344,46 @@ def mbar_analysis(
     _validate_cvfiles_exist("mbar_analysis", cvfile, nreplica)
 
     # Validate parameters
+    validate_enum(input_type, MBAR_INPUT_TYPES, "input_type")
     if dimension is not None:
         validate_range(dimension, 1, 2, "dimension")
     if temperature is not None:
-        validate_positive(temperature, "temperature")
+        if isinstance(temperature, (list, tuple)):
+            for t in temperature:
+                validate_positive(t, "temperature")
+        else:
+            validate_positive(temperature, "temperature")
     if nreplica is not None:
         validate_positive(nreplica, "nreplica")
     if nblocks is not None:
         validate_positive(nblocks, "nblocks")
+
+    if return_weights:
+        if nreplica is None:
+            raise GenesisValidationError(
+                "mbar_analysis: return_weights=True requires nreplica so the "
+                "returned weight array dimensions can be validated."
+            )
+        if nblocks not in (None, 1):
+            raise GenesisValidationError(
+                "mbar_analysis: return_weights=True requires nblocks == 1 "
+                f"(got nblocks={nblocks}). Per-sample weights are only defined "
+                "for a single block."
+            )
+        if input_type is not None and input_type.upper() in ("ENEPAIR", "FEP"):
+            raise GenesisFortranNotSupportedError(
+                "mbar_analysis: per-sample target-ensemble weights are not "
+                f"available for input_type={input_type}.",
+                code=ErrorCode.ERROR_NOT_SUPPORTED,
+            )
     # === END VALIDATION ===
 
     result_fene_c = ctypes.c_void_p(None)
     n_replica = ctypes.c_int(0)
     n_blocks = ctypes.c_int(0)
+    result_weights_c = ctypes.c_void_p(None)
+    n_weight_replica = ctypes.c_int(0)
+    n_weight_step = ctypes.c_int(0)
     # The Fortran writer fills the returned array only when fenefile is set, so
     # it cannot be left empty. Point it at a scratch directory so that repeated
     # calls neither pollute the cwd nor collide with an existing fene.dat.
@@ -349,6 +416,8 @@ def mbar_analysis(
                 target_temperature=target_temperature,
                 nblocks=nblocks,
                 tolerance=tolerance,
+                self_iteration=self_iteration,
+                newton_iteration=newton_iteration,
                 rest_function=ctrl_files.NumberingData(rest_function),
                 grids=ctrl_files.NumberingData(grids),
                 )
@@ -368,9 +437,13 @@ def mbar_analysis(
             LibGenesis().lib.mbar_analysis_c(
                     ctrl_bytes,
                     ctrl_len,
+                    ctypes.c_int(int(return_weights)),
                     ctypes.byref(result_fene_c),
                     ctypes.byref(n_replica),
                     ctypes.byref(n_blocks),
+                    ctypes.byref(result_weights_c),
+                    ctypes.byref(n_weight_replica),
+                    ctypes.byref(n_weight_step),
                     ctypes.byref(status),
                     msgbuf,
                     ctypes.c_int(msglen),
@@ -378,13 +451,30 @@ def mbar_analysis(
 
         result_fene = c2py_util.conv_double_ndarray(
                 result_fene_c, [n_replica.value, n_blocks.value])
-        return result_fene
+
+        if not return_weights:
+            return result_fene
+
+        weights = c2py_util.conv_double_ndarray(
+                result_weights_c,
+                [n_weight_replica.value, n_weight_step.value])
+        return MbarResult(
+            fene=result_fene,
+            weights=weights,
+            n_replica=n_weight_replica.value,
+            n_step=n_weight_step.value,
+        )
     finally:
         scratch.cleanup()
         if result_fene_c:
             LibGenesis().lib.deallocate_double2(
                     ctypes.byref(result_fene_c),
                     ctypes.byref(n_replica), ctypes.byref(n_blocks))
+        if result_weights_c:
+            LibGenesis().lib.deallocate_double2(
+                    ctypes.byref(result_weights_c),
+                    ctypes.byref(n_weight_replica),
+                    ctypes.byref(n_weight_step))
 
 
 def wham_analysis_isolated(timeout: Optional[float] = None, **kwargs):

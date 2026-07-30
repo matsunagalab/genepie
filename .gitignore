@@ -1,4 +1,7 @@
 .DS_Store
+# Tutorial dataset build artifacts (uploaded to Google Drive, not committed)
+dist/
+remd_alat_tutorial.zip
 # Jupyter Book documentation build output
 docs/_build/
 *.o
@@ -169,6 +172,8 @@ __pycache__/
 
 # Test data (downloaded from Google Drive)
 src/genepie/tests/data/chignolin/
+src/genepie/tests/data/remd_alat_tutorial/
+src/genepie/tests/data/remd_alat_tutorial.zip
 
 # Autotools generated files
 config.guess

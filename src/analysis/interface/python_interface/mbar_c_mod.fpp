@@ -32,43 +32,79 @@ module mbar_c_mod
   implicit none
 
  contains
-  subroutine mbar_analysis_c(ctrl_text, ctrl_len, result_fene, &
-                             n_replica, n_blocks, status, msg, msglen  ) &
+  subroutine mbar_analysis_c(ctrl_text, ctrl_len, return_weights, result_fene, &
+                             n_replica, n_blocks, result_weights, &
+                             n_weight_replica, n_weight_step, &
+                             status, msg, msglen) &
         bind(C, name="mbar_analysis_c")
     use conv_f_c_util
     implicit none
     character(kind=c_char), intent(in) :: ctrl_text(*)
     integer(c_int), value :: ctrl_len
+    integer(c_int), value :: return_weights
     type(c_ptr), intent(out) :: result_fene
     integer(c_int), intent(out) :: n_replica
     integer(c_int), intent(out) :: n_blocks
+    type(c_ptr), intent(out) :: result_weights
+    integer(c_int), intent(out) :: n_weight_replica
+    integer(c_int), intent(out) :: n_weight_step
     integer(c_int),          intent(out) :: status
     character(kind=c_char),  intent(out) :: msg(*)
     integer(c_int),          value       :: msglen
 
 
     real(wp), pointer :: fene_f(:,:) => null()
+    real(wp), pointer :: weights_f(:,:) => null()
 
     type(s_error) :: err
+    integer(c_int) :: grc
+
+    result_fene = c_null_ptr
+    result_weights = c_null_ptr
+    n_replica = 0
+    n_blocks = 0
+    n_weight_replica = 0
+    n_weight_step = 0
 
     call error_init(err)
-    call mbar_analysis_main( &
-        ctrl_text, ctrl_len, fene_f, n_replica, n_blocks, err)
+
+    ! Run under the library-mode error guard (see error_mod / fileio_data_.c)
+    ! so a fatal error_msg becomes a catchable error rather than exit(1).
+    grc = fi_error_guard_run(c_funloc(run_body))
+    if (grc /= 0) then
+      call error_from_pending(err)
+      call error_finish_to_c(err, status, msg, msglen)
+      return
+    end if
 
     call error_finish_to_c(err, status, msg, msglen)
     if (error_has(err)) return
 
-    result_fene = c_loc(fene_f)
+    if (associated(fene_f)) result_fene = c_loc(fene_f)
+    if (associated(weights_f)) result_weights = c_loc(weights_f)
+  contains
+    subroutine run_body() bind(C)
+      call mbar_analysis_main( &
+          ctrl_text, ctrl_len, return_weights /= 0, &
+          fene_f, n_replica, n_blocks, weights_f, &
+          n_weight_replica, n_weight_step, err)
+    end subroutine run_body
   end subroutine mbar_analysis_c
 
   subroutine mbar_analysis_main( &
-          ctrl_text, ctrl_len, result_fene, n_replica, n_blocks, err)
+          ctrl_text, ctrl_len, return_weights, result_fene, &
+          n_replica, n_blocks, result_weights, &
+          n_weight_replica, n_weight_step, err)
     implicit none
     character(kind=c_char), intent(in) :: ctrl_text(*)
     integer,                intent(in) :: ctrl_len
+    logical,                intent(in) :: return_weights
     real(wp), pointer, intent(out) :: result_fene(:,:)
     integer,           intent(out) :: n_replica
     integer,           intent(out) :: n_blocks
+    real(wp), pointer, intent(out) :: result_weights(:,:)
+    integer,           intent(out) :: n_weight_replica
+    integer,           intent(out) :: n_weight_step
     type(s_error),     intent(inout) :: err
 
 
@@ -107,8 +143,9 @@ module mbar_c_mod
     write(MsgOut,'(A)') ' '
 
     ! call analyze(molecule, s_trajes_c, ana_period, input, output, option)
-    call analyze(molecule, input, output, option, &
-                 result_fene, n_replica, n_blocks, err)
+    call analyze(molecule, input, output, option, return_weights, &
+                 result_fene, n_replica, n_blocks, result_weights, &
+                 n_weight_replica, n_weight_step, err)
     if (error_has(err)) return
 
 

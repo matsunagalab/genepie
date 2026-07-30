@@ -549,7 +549,8 @@ contains
     character(*), intent(in) :: form
 
 
-    call error_msg('Open_file> File ' // trim(filename) // ' does not exist')
+    call error_msg('Open_file> File ' // trim(filename) // ' does not exist', &
+                   code=201)   ! ERROR_FILE_NOT_FOUND
 
     return
 

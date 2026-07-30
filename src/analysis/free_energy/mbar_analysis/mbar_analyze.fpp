@@ -328,6 +328,12 @@ contains
 
     ! output f_k and pmf
     !
+    ! bin_k / pmf are only populated for CV/US input; energy-based input types
+    ! (EneSingle/REMD/...) never allocate them. output_mbar only dereferences
+    ! them when a pmffile is requested (CV/US only), so allocate harmless
+    ! 1-element placeholders to keep the bin_k(1)/pmf actual arguments in bounds.
+    if (.not. allocated(bin_k)) allocate(bin_k(1))
+    if (.not. allocated(pmf))   allocate(pmf(1))
     call output_mbar(option, output, bin_k(1), f_k, pmf, weight_k, time_k)
 
 

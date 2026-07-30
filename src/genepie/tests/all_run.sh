@@ -25,6 +25,10 @@ python -m genepie.tests.test_diffusion "$@"
 python -m genepie.tests.test_mdanalysis "$@"
 python -m genepie.tests.test_mdtraj "$@"
 python -m genepie.tests.test_error_handling "$@"
+# MBAR weighted resampling: synthetic tests always run; the reference-regression
+# and full-pipeline tests self-skip unless the T-REMD tutorial data is present
+# (python -m genepie.tests.download_tremd_data).
+python -m genepie.tests.test_mbar_resample "$@"
 # Note: test_atdyn uses subprocess isolation to avoid Fortran global state issues
 python -m genepie.tests.test_atdyn "$@"
 

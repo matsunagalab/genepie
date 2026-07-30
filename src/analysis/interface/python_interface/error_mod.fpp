@@ -5,11 +5,26 @@
 !
 !--------1---------2---------3---------4---------5---------6---------7---------8
 module error_mod
-  use iso_c_binding, only: c_int, c_char, c_null_char
+  use iso_c_binding, only: c_int, c_char, c_null_char, c_funptr
   implicit none
   private
   public :: s_error, error_init, error_clear, error_set, error_has, &
-            fi_msg_len, error_to_c, error_finish_to_c
+            fi_msg_len, error_to_c, error_finish_to_c, &
+            fi_error_guard_run, error_from_pending
+
+  ! Library-mode error guard (implemented in lib.a / fileio_data_.c).
+  ! fi_error_guard_run runs a bind(C) body under a setjmp guard and returns a
+  ! nonzero value if the body aborted via error_msg (see messages_mod). A
+  ! bind(C) wrapper then turns the pending error into an s_error and reports it
+  ! to the C caller, instead of the process being killed by exit(1).
+  interface
+    function fi_error_guard_run(body) bind(C, name="fi_error_guard_run") &
+        result(rc)
+      import :: c_int, c_funptr
+      type(c_funptr), value :: body
+      integer(c_int)        :: rc
+    end function fi_error_guard_run
+  end interface
 
   ! Legacy error code (kept for backward compatibility)
   integer, public, parameter :: ERROR_CODE = 101
@@ -61,6 +76,24 @@ contains
   integer(c_int) function fi_msg_len() bind(C, name="fi_msg_len")
     fi_msg_len = MSG_LEN_
   end function
+
+  !> Populate err from the error that error_msg recorded before unwinding.
+  !! Used on the failure path of fi_error_guard_run so the C caller receives
+  !! the message and category code exactly as the aborting routine reported.
+  subroutine error_from_pending(err)
+    use messages_mod, only: fi_pending_msg, fi_pending_code
+    type(s_error), intent(inout) :: err
+    integer :: code
+
+    code = fi_pending_code
+    if (code == 0) code = ERROR_GENERIC   ! guarantee error_has(err) is true
+
+    if (allocated(fi_pending_msg)) then
+      call error_set(err, code, fi_pending_msg)
+    else
+      call error_set(err, code, 'GENESIS aborted')
+    end if
+  end subroutine error_from_pending
 
   subroutine error_init(e)
     type(s_error), intent(out) :: e

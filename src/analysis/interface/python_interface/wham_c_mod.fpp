@@ -50,16 +50,29 @@ contains
     real(wp), pointer :: pmf_f(:,:) => null()
 
     type(s_error) :: err
+    integer(c_int) :: grc
 
     call error_init(err)
 
-    call wa_analysis_main( &
-        ctrl_text, ctrl_len, pmf_f, n_bins, n_bin_x, err)
+    ! Run the analysis under the library-mode error guard so that a fatal
+    ! error_msg (e.g. a missing cvfile) is turned into a catchable error
+    ! instead of aborting the host process.
+    grc = fi_error_guard_run(c_funloc(run_body))
+    if (grc /= 0) then
+      call error_from_pending(err)
+      call error_finish_to_c(err, status, msg, msglen)
+      return
+    end if
 
     call error_finish_to_c(err, status, msg, msglen)
     if (error_has(err)) return
 
     result_pmf = c_loc(pmf_f)
+  contains
+    subroutine run_body() bind(C)
+      call wa_analysis_main( &
+          ctrl_text, ctrl_len, pmf_f, n_bins, n_bin_x, err)
+    end subroutine run_body
   end subroutine wa_analysis_c
 
   subroutine wa_analysis_main( &

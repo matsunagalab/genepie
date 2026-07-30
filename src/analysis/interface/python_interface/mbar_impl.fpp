@@ -131,8 +131,9 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   ! subroutine analyze(molecule, trajes_c, ana_period, input, output, option)
-  subroutine analyze(molecule, input, output, option, &
-                     fene, n_replica, n_blocks, err)
+  subroutine analyze(molecule, input, output, option, return_weights, &
+                     fene, n_replica, n_blocks, weights, &
+                     n_weight_replica, n_weight_step, err)
     use s_trajectories_c_mod
 
     ! formal arguments
@@ -142,9 +143,13 @@ contains
     type(s_input),           intent(in)    :: input
     type(s_output),          intent(in)    :: output
     type(s_option),          intent(inout) :: option
+    logical,                 intent(in)    :: return_weights
     real(wp), pointer,       intent(out)   :: fene(:,:)
     integer,                 intent(out)   :: n_replica
     integer,                 intent(out)   :: n_blocks
+    real(wp), pointer,       intent(out)   :: weights(:,:)
+    integer,                 intent(out)   :: n_weight_replica
+    integer,                 intent(out)   :: n_weight_step
     type(s_error),           intent(inout) :: err
 
 
@@ -162,6 +167,12 @@ contains
 
     real(8):: time_start, time_end
 
+    nullify(fene)
+    nullify(weights)
+    n_replica = 0
+    n_blocks = 0
+    n_weight_replica = 0
+    n_weight_step = 0
 
     ! check only
     !
@@ -169,6 +180,12 @@ contains
       return
 
     if (error_has(err)) return
+
+    if (return_weights .and. option%nblocks /= 1) then
+      call error_set(err, ERROR_BLOCK_NOT_SUPP, &
+             'Analyze> in-memory weights require nblocks = 1.')
+      return
+    end if
 
     if (option%dimension == 1) then
       n_replica = option%num_replicas
@@ -370,8 +387,30 @@ contains
 
     ! output f_k and pmf
     !
+    ! bin_k / pmf are only populated for CV/US input; energy-based input types
+    ! (EneSingle/REMD/...) never allocate them. output_mbar only dereferences
+    ! them when a pmffile is requested (CV/US only), so allocate harmless
+    ! 1-element placeholders to keep the bin_k(1)/pmf actual arguments in bounds.
+    if (.not. allocated(bin_k)) allocate(bin_k(1))
+    if (.not. allocated(pmf))   allocate(pmf(1))
     call output_mbar(option, output, bin_k(1), f_k, pmf, weight_k, time_k, fene, err)
     if (error_has(err)) return
+
+    ! Return a separately allocated C-interface buffer. weight_k is a local
+    ! allocatable work array and is released when analyze returns, so its
+    ! address cannot be exposed directly. Python copies this buffer to NumPy
+    ! and releases it with deallocate_double2.
+    if (return_weights) then
+      if (.not. allocated(weight_k)) then
+        call error_set(err, ERROR_NOT_SUPPORTED, &
+               'Analyze> weights are unavailable for this MBAR input type.')
+        return
+      end if
+      n_weight_step = size(weight_k, 1)
+      n_weight_replica = size(weight_k, 2)
+      allocate(weights(n_weight_step, n_weight_replica))
+      weights(:,:) = weight_k(:,:)
+    end if
 
 
     return

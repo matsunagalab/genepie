@@ -63,6 +63,12 @@ jobs:
         run: |
           python -m genepie.tests.test_error_handling
 
+      - name: Run MBAR resampling tests
+        run: |
+          # Synthetic resampling tests always run; the reference-regression and
+          # full-pipeline tests self-skip without the T-REMD tutorial data.
+          python -m genepie.tests.test_mbar_resample
+
       - name: Run ATDYN tests
         run: |
           python -m genepie.tests.test_atdyn
@@ -127,6 +133,12 @@ jobs:
       - name: Run error handling tests
         run: |
           python -m genepie.tests.test_error_handling
+
+      - name: Run MBAR resampling tests
+        run: |
+          # Synthetic resampling tests always run; the reference-regression and
+          # full-pipeline tests self-skip without the T-REMD tutorial data.
+          python -m genepie.tests.test_mbar_resample
 
       - name: Run ATDYN tests
         run: |

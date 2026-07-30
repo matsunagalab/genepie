@@ -295,6 +295,44 @@ class STrajectories:
 
         return obj
 
+    def save_dcd(self, path: str, molecule: SMolecule) -> None:
+        """Write the trajectory to a DCD file via mdtraj.
+
+        The coordinates and box vectors are converted from GENESIS angstroms to
+        the nanometers mdtraj expects (the same conversion
+        :meth:`to_mdtraj_trajectory` performs). The topology is taken from
+        ``molecule`` so the DCD can be paired with e.g. ``molecule``'s PDB when
+        deposited or reloaded.
+
+        Args:
+            path: Destination DCD path.
+            molecule: SMolecule providing the topology (atom count must match
+                this trajectory's ``natom``).
+
+        Raises:
+            ImportError: If mdtraj is not installed (an optional dependency).
+            GenesisValidationError: If the trajectory has no in-memory
+                coordinates (e.g. a lazy trajectory) or the atom counts differ.
+        """
+        if not hasattr(self, "to_mdtraj_trajectory"):
+            raise ImportError(
+                "save_dcd requires mdtraj, which is an optional dependency. "
+                "Install it with 'pip install mdtraj' (or 'pip install "
+                "genepie[mdtraj]')."
+            )
+        if getattr(self, "is_lazy", False) or self.coords is None:
+            raise GenesisValidationError(
+                "save_dcd requires in-memory coordinates; this trajectory is "
+                "lazy. Load it eagerly (crd_convert without lazy=True) first."
+            )
+        if molecule.num_atoms != self.natom:
+            raise GenesisValidationError(
+                f"save_dcd: molecule has {molecule.num_atoms} atoms but the "
+                f"trajectory has {self.natom}. Pass the matching (subset) "
+                "molecule."
+            )
+        self.to_mdtraj_trajectory(molecule).save_dcd(path)
+
 
 try:
     import mdtraj as md

@@ -196,7 +196,7 @@ contains
     open(unit_no, file=trim(filename), status='old', &
          form='unformatted', access='stream', iostat=iostat)
     if (iostat /= 0) then
-      call error_msg('init_source_lazy_dcd> Cannot open DCD file')
+      call error_msg('init_source_lazy_dcd> Cannot open DCD file', code=201)   ! ERROR_FILE_NOT_FOUND
     end if
     source%dcd_unit = unit_no
     source%dcd_open = .true.
@@ -213,7 +213,7 @@ contains
       if (rec_size == 84) then
         byte_swap = .true.
       else
-        call error_msg('init_source_lazy_dcd> Invalid DCD header')
+        call error_msg('init_source_lazy_dcd> Invalid DCD header', code=202)   ! ERROR_FILE_FORMAT
       end if
     end if
 

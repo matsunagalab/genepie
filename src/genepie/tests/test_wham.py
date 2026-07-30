@@ -6,10 +6,12 @@ if __name__ == "__main__" and __package__ is None:
     __package__ = "genepie.tests"
 # --------------------------------------------
 import unittest
+from unittest import mock
 import numpy as np
 from .. import genesis_exe
 from ..custom_test_case import CustomTestCase
 from ..exceptions import (
+    GenesisFortranFileError,
     GenesisFortranNotSupportedError,
     GenesisValidationError,
 )
@@ -77,6 +79,23 @@ class TestWhamAnalysis(CustomTestCase):
         """
         with self.assertRaises(GenesisValidationError):
             self._run(cvfile="/no/such/dir/{}.dis")
+
+    def test_wham_fortran_catches_missing_cvfile(self):
+        """Even without the Python pre-check, Fortran must not exit(1).
+
+        The Python guard (_validate_cvfiles_exist) is bypassed here so the
+        missing path reaches Fortran's open_file(). The library-mode error
+        guard converts the would-be exit(1) into a catchable
+        GenesisFortranFileError (ERROR_FILE_NOT_FOUND=201) instead of killing
+        the interpreter.
+        """
+        with mock.patch(
+            "genepie.analysis.free_energy._validate_cvfiles_exist",
+            lambda *a, **k: None,
+        ):
+            with self.assertRaises(GenesisFortranFileError) as ctx:
+                self._run(cvfile="/no/such/dir/{}.dis")
+        self.assertEqual(ctx.exception.code, 201)
 
 
 if __name__ == "__main__":

@@ -51,13 +51,26 @@ contains
     type(s_molecule) :: f_molecule
 
     type(s_error) :: err
+    integer(c_int) :: grc
 
     call error_init(err)
-    call c2f_s_molecule(molecule, f_molecule)
+    ! Safe defaults so the C side never reads uninitialised outputs if the
+    ! guard aborts the run (e.g. a missing trajectory file -> exit(1)).
+    s_trajes_c_array     = c_null_ptr
+    num_trajs            = 0
+    selected_atom_indices = c_null_ptr
+    num_selected_atoms   = 0
 
-    call crd_convert_main(f_molecule, ctrl_text, ctrl_len, s_trajes_c_array, num_trajs, &
-                         selected_atom_indices, num_selected_atoms, err)
+    grc = fi_error_guard_run(c_funloc(run_body))
+    if (grc /= 0) call error_from_pending(err)
     call error_finish_to_c(err, status, msg, msglen)
+  contains
+    subroutine run_body() bind(C)
+      call c2f_s_molecule(molecule, f_molecule)
+      call crd_convert_main(f_molecule, ctrl_text, ctrl_len, s_trajes_c_array, &
+                           num_trajs, selected_atom_indices, num_selected_atoms, &
+                           err)
+    end subroutine run_body
   end subroutine crd_convert_c
 
   subroutine crd_convert_main(molecule, ctrl_text, ctrl_len, s_trajes_c_array, num_trajs, &
@@ -313,21 +326,22 @@ contains
     type(s_molecule) :: f_molecule
     type(s_error) :: err
     integer(c_int), pointer :: frame_counts(:)
+    integer(c_int) :: grc
 
     call error_init(err)
-    call c2f_s_molecule(molecule_c, f_molecule)
+    frame_counts_ptr = c_null_ptr
+    n_trajs = 0
+    nullify(frame_counts)
 
-    ! Allocate frame counts array
-    allocate(frame_counts(n_trj_files))
-
-    ! Get trajectory info
-    call get_info(f_molecule, trj_filenames, n_trj_files, filename_len, &
-                  trj_format, trj_type, frame_counts, n_trajs, err)
+    ! Guard the file-reading section: a missing/unreadable trajectory calls
+    ! error_msg -> exit(1) in CLI mode, which would kill the Python process.
+    grc = fi_error_guard_run(c_funloc(run_body))
+    if (grc /= 0) call error_from_pending(err)
 
     call error_finish_to_c(err, status, msg, msglen)
 
     if (error_has(err)) then
-      deallocate(frame_counts)
+      if (associated(frame_counts)) deallocate(frame_counts)
       frame_counts_ptr = c_null_ptr
     else
       frame_counts_ptr = c_loc(frame_counts(1))
@@ -335,6 +349,17 @@ contains
 
     call dealloc_molecules_all(f_molecule)
 
+  contains
+    subroutine run_body() bind(C)
+      call c2f_s_molecule(molecule_c, f_molecule)
+
+      ! Allocate frame counts array
+      allocate(frame_counts(n_trj_files))
+
+      ! Get trajectory info
+      call get_info(f_molecule, trj_filenames, n_trj_files, filename_len, &
+                    trj_format, trj_type, frame_counts, n_trajs, err)
+    end subroutine run_body
   end subroutine crd_convert_info_c
 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -413,45 +438,54 @@ contains
     integer(c_int), pointer :: frame_counts_f(:)
     real(c_double), pointer :: center_coord_f(:)
     type(c_ptr), pointer :: coords_ptrs_f(:), pbc_box_ptrs_f(:)
+    integer(c_int) :: grc
 
     call error_init(err)
-    call c2f_s_molecule(molecule_c, f_molecule)
 
-    ! Get Fortran pointers to C arrays
-    call c_f_pointer(selected_indices, sel_idx_f, [n_selected])
-    call c_f_pointer(frame_counts, frame_counts_f, [n_trj_files])
-    call c_f_pointer(coords_ptrs, coords_ptrs_f, [n_trj_files])
-    call c_f_pointer(pbc_box_ptrs, pbc_box_ptrs_f, [n_trj_files])
-    call c_f_pointer(center_coord, center_coord_f, [3])
-
-    if (n_fitting > 0) then
-      call c_f_pointer(fitting_indices, fit_idx_f, [n_fitting])
-    else
-      nullify(fit_idx_f)
-    end if
-
-    if (n_centering > 0) then
-      call c_f_pointer(centering_indices, cen_idx_f, [n_centering])
-    else
-      nullify(cen_idx_f)
-    end if
-
-    ! Call the implementation
-    call convert_zerocopy(f_molecule, &
-                          trj_filenames, n_trj_files, filename_len, &
-                          trj_format, trj_type, &
-                          sel_idx_f, n_selected, &
-                          fitting_method, fit_idx_f, n_fitting, mass_weighted, &
-                          do_centering, cen_idx_f, n_centering, center_coord_f, &
-                          pbcc_mode, ana_period, &
-                          frame_counts_f, &
-                          coords_ptrs_f, pbc_box_ptrs_f, &
-                          err)
+    ! Guard the conversion: a missing/unreadable trajectory calls error_msg ->
+    ! exit(1) in CLI mode, which would kill the Python process.
+    grc = fi_error_guard_run(c_funloc(run_body))
+    if (grc /= 0) call error_from_pending(err)
 
     call error_finish_to_c(err, status, msg, msglen)
 
     call dealloc_molecules_all(f_molecule)
 
+  contains
+    subroutine run_body() bind(C)
+      call c2f_s_molecule(molecule_c, f_molecule)
+
+      ! Get Fortran pointers to C arrays
+      call c_f_pointer(selected_indices, sel_idx_f, [n_selected])
+      call c_f_pointer(frame_counts, frame_counts_f, [n_trj_files])
+      call c_f_pointer(coords_ptrs, coords_ptrs_f, [n_trj_files])
+      call c_f_pointer(pbc_box_ptrs, pbc_box_ptrs_f, [n_trj_files])
+      call c_f_pointer(center_coord, center_coord_f, [3])
+
+      if (n_fitting > 0) then
+        call c_f_pointer(fitting_indices, fit_idx_f, [n_fitting])
+      else
+        nullify(fit_idx_f)
+      end if
+
+      if (n_centering > 0) then
+        call c_f_pointer(centering_indices, cen_idx_f, [n_centering])
+      else
+        nullify(cen_idx_f)
+      end if
+
+      ! Call the implementation
+      call convert_zerocopy(f_molecule, &
+                            trj_filenames, n_trj_files, filename_len, &
+                            trj_format, trj_type, &
+                            sel_idx_f, n_selected, &
+                            fitting_method, fit_idx_f, n_fitting, mass_weighted, &
+                            do_centering, cen_idx_f, n_centering, center_coord_f, &
+                            pbcc_mode, ana_period, &
+                            frame_counts_f, &
+                            coords_ptrs_f, pbc_box_ptrs_f, &
+                            err)
+    end subroutine run_body
   end subroutine crd_convert_zerocopy_c
 
   !======1=========2=========3=========4=========5=========6=========7=========8

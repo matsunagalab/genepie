@@ -448,12 +448,16 @@ class LibGenesis:
         self.lib.mbar_analysis_c.argtypes = [
                 ctypes.c_char_p,                  # ctrl_text
                 ctypes.c_int,                     # ctrl_len
-                ctypes.POINTER(ctypes.c_void_p),
-                ctypes.POINTER(ctypes.c_int),
-                ctypes.POINTER(ctypes.c_int),
-                ctypes.POINTER(ctypes.c_int),
-                ctypes.c_char_p,
-                ctypes.c_int,
+                ctypes.c_int,                     # return_weights
+                ctypes.POINTER(ctypes.c_void_p),  # result_fene
+                ctypes.POINTER(ctypes.c_int),     # n_replica
+                ctypes.POINTER(ctypes.c_int),     # n_blocks
+                ctypes.POINTER(ctypes.c_void_p),  # result_weights
+                ctypes.POINTER(ctypes.c_int),     # n_weight_replica
+                ctypes.POINTER(ctypes.c_int),     # n_weight_step
+                ctypes.POINTER(ctypes.c_int),     # status
+                ctypes.c_char_p,                  # msg
+                ctypes.c_int,                     # msglen
                 ]
         self.lib.mbar_analysis_c.restype = None
 

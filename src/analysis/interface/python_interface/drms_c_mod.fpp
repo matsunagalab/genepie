@@ -223,6 +223,20 @@ contains
     logical :: pbc_flag
     integer :: nstru
     integer :: i
+    integer(c_int) :: grc
+
+    ! Guard the whole body: init_source_lazy_dcd opens the DCD file, and a
+    ! missing/unreadable file calls error_msg -> exit(1) in CLI mode, which
+    ! would kill the host Python process.
+    grc = fi_error_guard_run(c_funloc(run_body))
+    if (grc /= 0) then
+      call error_from_pending(err)
+      call error_to_c(err, status, msg, msglen)
+    end if
+    return
+
+  contains
+    subroutine run_body() bind(C)
 
     ! Initialize
     call error_init(err)
@@ -322,6 +336,7 @@ contains
     call finalize_sink(sink)
     call finalize_source(source)
 
+    end subroutine run_body
   end subroutine drms_analysis_lazy_c
 
 end module drms_c_mod

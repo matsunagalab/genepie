@@ -260,6 +260,39 @@ def test_rmsd_lazy_ana_period():
     print(f"  ana_period=2: {len(result_p2.rmsd)} frames")
 
 
+def test_rmsd_lazy_missing_dcd_fortran_catch():
+    """A missing DCD must surface as a catchable error, never crash the process.
+
+    The Python wrapper normally guards with os.path.exists, but the real
+    protection lives in Fortran: init_source_lazy_dcd -> error_msg used to call
+    exit(1). With the library-mode error guard, that path now longjmps back and
+    is reported to Python as a GenesisFortranFileError. Here we deliberately
+    bypass the Python guard to exercise the Fortran layer directly.
+    """
+    from ..analysis import rmsd as rmsd_mod
+    from ..exceptions import GenesisError, GenesisFortranFileError
+
+    mol = SMolecule.from_file(pdb=BPTI_PDB, psf=BPTI_PSF, ref=BPTI_PDB)
+
+    real_exists = rmsd_mod.os.path.exists
+    rmsd_mod.os.path.exists = lambda p: True if str(p).endswith(".dcd") else real_exists(p)
+    try:
+        raised = None
+        try:
+            genesis_exe.rmsd_analysis_lazy(
+                mol, "/no/such/dir/missing.dcd", analysis_selection="an:CA")
+        except GenesisError as e:
+            raised = e
+    finally:
+        rmsd_mod.os.path.exists = real_exists
+
+    assert raised is not None, "missing DCD must raise (not silently pass)"
+    assert isinstance(raised, GenesisFortranFileError), \
+        f"expected GenesisFortranFileError, got {type(raised).__name__}: {raised}"
+    assert raised.code == 201, f"expected ERROR_FILE_NOT_FOUND (201), got {raised.code}"
+    print(f"Fortran-level catch OK: {type(raised).__name__} code={raised.code}: {raised}")
+
+
 def _run_test_in_subprocess(test_name: str) -> bool:
     """Run a single test function in isolated subprocess to avoid Fortran state issues."""
     code = f'''
@@ -298,6 +331,7 @@ def main():
         "test_rmsd_lazy_with_fitting",
         "test_rmsd_lazy_vs_memory",
         "test_rmsd_lazy_ana_period",
+        "test_rmsd_lazy_missing_dcd_fortran_catch",
     ]
 
     failed = []

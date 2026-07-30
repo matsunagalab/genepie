@@ -29,10 +29,15 @@ from .dynamics import (
     msd_analysis,
 )
 from .free_energy import (
+    MbarResult,
     mbar_analysis,
     mbar_analysis_isolated,
     wham_analysis,
     wham_analysis_isolated,
+)
+from .resample import (
+    MbarResampleResult,
+    mbar_resample_trajectory,
 )
 from .hbond import hb_analysis
 from .rg import RgAnalysisResult, rg_analysis
@@ -76,6 +81,10 @@ __all__ = [
     "wham_analysis_isolated",
     "mbar_analysis",
     "mbar_analysis_isolated",
+    "MbarResult",
+    # MBAR weighted resampling
+    "MbarResampleResult",
+    "mbar_resample_trajectory",
     # Clustering
     "KmeansClusteringResult",
     "kmeans_clustering",
