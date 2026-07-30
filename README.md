@@ -53,7 +53,6 @@ The interface layer is built around four design ideas (see [Design Highlights](#
   - [MD Engine Functions](#md-engine-functions)
   - [Supported File Formats](#supported-file-formats)
   - [Tutorials](#tutorials)
-    - [MBAR Weighted Resampling (T-REMD)](#mbar-weighted-resampling-t-remd)
 - [For Developers](#for-developers)
   - [Installation from Source](#installation-from-source)
   - [Running Tests](#running-tests)
@@ -211,7 +210,7 @@ workflow on the BPTI system in about ten lines.
 | 3 | [Structural Analysis](docs/tutorials/03_structure.ipynb) | RMSD, Rg, DRMS, distances/angles, average structure |
 | 4 | [Dynamics](docs/tutorials/04_dynamics.ipynb) | Mean squared displacement and diffusion |
 | 5 | [Free Energy](docs/tutorials/05_free_energy.ipynb) | Recover a PMF with WHAM & MBAR |
-| 5b | [MBAR Weighted Resampling](demo/mbar_resample_tremd.ipynb) | Reweight T-REMD to 300 K, resample frames, and save a uniform-weight DCD |
+| 5b | [MBAR Weighted Resampling](docs/tutorials/05b_mbar_resampling.ipynb) | Reweight T-REMD to 300 K, resample frames, and save a uniform-weight DCD |
 | 6 | [Clustering](docs/tutorials/06_clustering.ipynb) | k-means conformational clustering (GENESIS + scikit-learn) |
 | 7 | [MD Engine](docs/tutorials/07_md_engine.ipynb) | Run minimization and MD with ATDYN |
 | 8 | [ML Integration](docs/tutorials/08_ml_integration.ipynb) | Feed results into MDTraj, scikit-learn, PyTorch |
@@ -230,7 +229,7 @@ open docs/_build/html/index.html          # macOS (use xdg-open on Linux)
 
 #### MBAR Weighted Resampling (T-REMD)
 
-[`demo/mbar_resample_tremd.ipynb`](demo/mbar_resample_tremd.ipynb) demonstrates
+[`docs/tutorials/05b_mbar_resampling.ipynb`](docs/tutorials/05b_mbar_resampling.ipynb) demonstrates
 the complete T-REMD workflow: calculate unbiased per-sample MBAR weights at a
 target temperature, verify the reweighted Ramachandran PMF, resample frames with
 replacement, and save the resulting uniform-weight ensemble as a DCD file.
@@ -240,7 +239,7 @@ The tutorial dataset is downloaded on demand:
 ```bash
 uv pip install gdown mdtraj matplotlib
 python -m genepie.tests.download_tremd_data
-jupyter lab demo/mbar_resample_tremd.ipynb
+jupyter lab docs/tutorials/05b_mbar_resampling.ipynb
 ```
 
 ---
