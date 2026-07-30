@@ -6,6 +6,38 @@
 
 The `genepie` package provides a Python interface to GENESIS analysis tools and the ATDYN MD engine.
 
+### Why genepie?
+
+An MD study is not a single command — it is a workflow of *setup → simulation → analysis*, with many
+analysis methods to choose from, and increasingly a final step that feeds the results into AI/ML tooling.
+Doing this by stitching together CLI tools and intermediate files is tedious and hard to reproduce.
+
+`genepie` turns GENESIS into a **single, programmable Python workflow**: run simulations, run analyses, and
+hand the numerical results straight to NumPy / PyTorch / scikit-learn without leaving Python. It bridges the
+GENESIS Fortran engine with researchers and the AI/ML ecosystem.
+
+### Architecture
+
+`genepie` is a thin interface layer over the existing GENESIS Fortran engine — it does not reimplement any
+science. Three layers are connected by standard interop mechanisms:
+
+```
+┌─────────────────────────────────────────────┐
+│ User layer     Python script / Jupyter / NumPy │
+├─────────────────────────────────────────────┤   ctypes  (C ↔ Python)
+│ Interface layer   genepie (this package)       │
+├─────────────────────────────────────────────┤   ISO_C_BINDING (Fortran ↔ C)
+│ Engine layer   GENESIS (Fortran: MD & analysis)│
+└─────────────────────────────────────────────┘
+```
+
+The interface layer is built around four design ideas (see [Design Highlights](#design-highlights) for details):
+
+- **Zerocopy memory** — NumPy arrays and Fortran share the same memory (no copy).
+- **Lazy DCD loading** — read one frame at a time for large trajectories.
+- **CLI/Python unified core** — the same Fortran routine serves both the CLI and Python (identical results).
+- **Structured error handling** — a typed exception hierarchy with numeric error codes.
+
 ---
 
 ## For Users
@@ -59,44 +91,65 @@ Note: Some tests (test_trj, test_wham, test_mbar_*, test_atdyn) require the full
 ```python
 from genepie import genesis_exe, SMolecule
 
-# Load molecular structure
-mol = SMolecule.from_file(pdbfile="protein.pdb", psffile="protein.psf")
+# Load molecular structure (pdb/psf topology, ref = reference structure for RMSD)
+mol = SMolecule.from_file(pdb="protein.pdb", psf="protein.psf", ref="protein.pdb")
 print(f"Loaded {mol.num_atoms} atoms")
 
-# Load trajectory and calculate RMSD
-traj = genesis_exe.crd_convert(
-    psffile="protein.psf",
-    pdbfile="protein.pdb",
-    dcdfile="trajectory.dcd",
-    selection_group="an:CA",
+# Load trajectory. crd_convert returns (list_of_trajectories, subset_molecule)
+trajs, subset_mol = genesis_exe.crd_convert(
+    mol,
+    trj_files=["trajectory.dcd"],
+    trj_format="DCD",
+    trj_type="COOR+BOX",
+    selection="all",
 )
-rmsd = genesis_exe.rmsd_analysis(molecule=mol, trajectories=traj)
-print(f"RMSD: {rmsd.mean():.2f} Å")
 
-# Run MD simulation
-energies, coords = genesis_exe.run_atdyn_md(
+# Calculate RMSD of C-alpha atoms with translational + rotational fitting
+result = genesis_exe.rmsd_analysis(
+    mol,
+    trajs[0],
+    analysis_selection="an:CA",
+    fitting_selection="an:CA",
+    fitting_method="TR+ROT",
+)
+print(f"RMSD: {result.rmsd.mean():.2f} Å")  # result.rmsd is a NumPy array
+
+# Run MD simulation (returns a namedtuple: energies, final_coords, energy_labels)
+md = genesis_exe.run_atdyn_md(
     prmtopfile="protein.prmtop",
     ambcrdfile="protein.inpcrd",
     nsteps=1000,
     ensemble="NVT",
     temperature=300.0,
 )
+print(md.energies.shape, md.final_coords.shape)
 ```
+
+For memory-efficient processing of large trajectories, pass `lazy=True` to `crd_convert()` and feed the
+resulting lazy trajectory to `rmsd_analysis()` — the same call reads frames from disk on demand.
 
 ### Available Analysis Functions
 
-- `crd_convert()` - Coordinate/trajectory conversion
-- `trj_analysis()` - Distance, angle, dihedral analysis
-- `rmsd_analysis()` - RMSD calculation
-- `drms_analysis()` - Distance RMSD calculation
-- `rg_analysis()` - Radius of gyration
-- `msd_analysis()` - Mean squared displacement
-- `diffusion_analysis()` - Diffusion coefficient calculation
-- `hb_analysis()` - Hydrogen bond analysis
-- `avecrd_analysis()` - Average coordinate calculation
-- `wham_analysis()` - WHAM free energy analysis
-- `mbar_analysis()` - MBAR free energy analysis
-- `kmeans_clustering()` - K-means trajectory clustering
+`Zerocopy` = results/coordinates share memory with NumPy (no copy).
+`Lazy` = supports frame-by-frame DCD loading for large trajectories.
+
+| Function | Description | Zerocopy | Lazy |
+|----------|-------------|:--------:|:----:|
+| `crd_convert()` | Coordinate/trajectory conversion | ✓ | – |
+| `trj_analysis()` | Distance, angle, dihedral analysis | ✓ | – |
+| `rmsd_analysis()` | RMSD calculation | ✓ | ✓ |
+| `drms_analysis()` | Distance RMSD calculation | ✓ | – |
+| `rg_analysis()` | Radius of gyration | ✓ | – |
+| `diffusion_analysis()` | Diffusion coefficient calculation | ✓ | – |
+| `msd_analysis()` | Mean squared displacement | – | – |
+| `hb_analysis()` | Hydrogen bond analysis | – | – |
+| `avecrd_analysis()` | Average coordinate calculation | – | – |
+| `wham_analysis()` | WHAM free energy analysis | – | – |
+| `mbar_analysis()` | MBAR free energy analysis | – | – |
+| `kmeans_clustering()` | K-means trajectory clustering | – | – |
+
+The full GENESIS analysis suite (43 tools) is also installed as CLI commands; the table above lists the
+tools currently wrapped as native Python functions.
 
 ### MD Engine Functions
 
@@ -158,7 +211,8 @@ uv pip install -e .
 python -m genepie.tests.test_rmsd
 python -m genepie.tests.test_crd_convert
 
-# Run all basic tests (18 tests)
+# Run the full local test suite (basic + regression + error + atdyn, and
+# integration if chignolin data has been downloaded)
 cd src/genepie/tests
 ./all_run.sh
 
@@ -282,6 +336,59 @@ genepie/
 ├── CLAUDE.md              # Developer guide for Claude Code
 └── pyproject.toml         # Package configuration
 ```
+
+### Design Highlights
+
+These four ideas define how the interface layer connects Python to the GENESIS Fortran engine.
+
+#### 1. Zerocopy memory management
+
+Coordinate arrays and analysis results are shared between Python and Fortran instead of being copied.
+Python (NumPy) owns and allocates the memory; Fortran creates an alias to it with `C_F_POINTER` and writes
+results directly into the NumPy array.
+
+```
+Copy-based (before):  Python → copy → Fortran → copy → Python   (2× memory + overhead)
+Zerocopy (after):     Python numpy array  ⇄  Fortran C_F_POINTER (1× memory, in-place)
+```
+
+Applied to: `crd_convert`, `rmsd_analysis`, `rg_analysis`, `drms_analysis`, `trj_analysis`, `diffusion_analysis`.
+
+#### 2. Lazy DCD loading
+
+Instead of loading an entire trajectory into memory, lazy mode reads one frame at a time directly from disk.
+Because DCD files have a fixed frame size, any frame is reachable in O(1) via a computed byte offset
+(`byte_offset = header_size + (N - 1) * frame_size`), using Fortran stream I/O. This keeps memory usage
+minimal for large trajectories. Currently used by `rmsd_analysis` (via `crd_convert(..., lazy=True)`);
+`rg_analysis`, `drms_analysis`, and `trj_analysis` are natural candidates.
+
+#### 3. CLI / Python unified core
+
+The CLI tool and the Python interface call **the same** analysis routine (`analyze_*_unified()`), so results
+are guaranteed identical and bugs are fixed in one place. The routine is agnostic to its caller; only the I/O
+is abstracted:
+
+- `trj_source` — where frames are read from: a file on disk (CLI) or a NumPy array in memory (Python).
+  Implemented as `TRJ_SOURCE_FILE`, `TRJ_SOURCE_MEMORY`, and `TRJ_SOURCE_LAZY_DCD` in `trj_source_mod`.
+- `result_sink` — where results are written to: an output file (CLI) or a zerocopy NumPy array (Python).
+
+Unified tools: RMSD (`ra_analyze.fpp`), RG (`rg_analyze.fpp`), DRMS (`dr_analyze.fpp`).
+
+#### 4. Structured error handling
+
+Fortran return codes are mapped to a typed Python exception hierarchy, and messages written to Fortran's
+stderr are captured and attached to the exception. Numeric codes (`e.code`) allow programmatic handling.
+
+| Code range | Category | Exception |
+|-----------|----------|-----------|
+| 100–199 | Memory (alloc/dealloc) | `GenesisFortranMemoryError` |
+| 200–299 | File I/O (not found, format) | `GenesisFortranFileError` |
+| 300–399 | Validation (invalid/missing params) | `GenesisFortranValidationError` |
+| 400–499 | Data (mismatch, no data) | `GenesisFortranDataError` |
+| 500–599 | Not supported (feature, dimension) | `GenesisFortranNotSupportedError` |
+| 600–699 | Internal (internal, syntax) | `GenesisFortranInternalError` |
+
+All inherit from `GenesisFortranError` → `GenesisError`. See [CLAUDE.md](CLAUDE.md) for usage examples.
 
 ### Adding a New Analysis Tool
 
