@@ -180,6 +180,185 @@ def _trj_analysis_lazy(
     )
 
 
+def _trj_analysis_com_lazy(
+        trajs: STrajectories,
+        molecule: SMolecule,
+        distance_pairs: Optional[npt.NDArray[np.int32]] = None,
+        angle_triplets: Optional[npt.NDArray[np.int32]] = None,
+        torsion_quadruplets: Optional[npt.NDArray[np.int32]] = None,
+        cdis_groups: Optional[List[Tuple[List[int], List[int]]]] = None,
+        cang_groups: Optional[List[Tuple[List[int], List[int], List[int]]]] = None,
+        ctor_groups: Optional[List[Tuple[List[int], List[int], List[int], List[int]]]] = None,
+        ana_period: int = 1,
+        ) -> TrjAnalysisResult:
+    """Private implementation: COM trj_analysis with lazy DCD loading.
+
+    Called by trj_analysis() when trajs.is_lazy is True and COM groups were
+    requested. Atom indices (both atom-based and COM) are expressed in the
+    selected atom space, so the molecule must describe exactly the selected
+    atoms carried by the lazy trajectory.
+    """
+    lib = LibGenesis().lib
+
+    dcd_filename_bytes, source_selection, effective_period, n_frame = \
+        _prepare_lazy_trajectory(trajs, ana_period)
+    trj_type = trajs.lazy_trj_type
+    n_atoms = trajs.natom
+
+    if molecule.num_atoms != trajs.natom:
+        raise GenesisValidationError(
+            "Lazy trajectory and molecule must contain the same selected atoms"
+        )
+
+    mass = np.ascontiguousarray(molecule.mass, dtype=np.float64)
+    mass_ptr = mass.ctypes.data_as(ctypes.c_void_p)
+
+    # Prepare atom-based measurement lists
+    n_dist = 0
+    dist_list_ptr = ctypes.c_void_p()
+    dist_f = None
+    if distance_pairs is not None and len(distance_pairs) > 0:
+        n_dist = distance_pairs.shape[0]
+        dist_f = np.asfortranarray(distance_pairs.T, dtype=np.int32)
+        dist_list_ptr = dist_f.ctypes.data_as(ctypes.c_void_p)
+
+    n_angl = 0
+    angl_list_ptr = ctypes.c_void_p()
+    angl_f = None
+    if angle_triplets is not None and len(angle_triplets) > 0:
+        n_angl = angle_triplets.shape[0]
+        angl_f = np.asfortranarray(angle_triplets.T, dtype=np.int32)
+        angl_list_ptr = angl_f.ctypes.data_as(ctypes.c_void_p)
+
+    n_tors = 0
+    tors_list_ptr = ctypes.c_void_p()
+    tors_f = None
+    if torsion_quadruplets is not None and len(torsion_quadruplets) > 0:
+        n_tors = torsion_quadruplets.shape[0]
+        tors_f = np.asfortranarray(torsion_quadruplets.T, dtype=np.int32)
+        tors_list_ptr = tors_f.ctypes.data_as(ctypes.c_void_p)
+
+    # Prepare COM groups
+    n_cdis = 0
+    cdis_atoms = np.array([], dtype=np.int32)
+    cdis_offsets = np.array([0], dtype=np.int32)
+    cdis_pairs_arr = np.array([], dtype=np.int32)
+    if cdis_groups is not None and len(cdis_groups) > 0:
+        n_cdis = len(cdis_groups)
+        cdis_atoms, cdis_offsets, cdis_pairs_arr = _flatten_com_groups(cdis_groups, 2)
+
+    n_cang = 0
+    cang_atoms = np.array([], dtype=np.int32)
+    cang_offsets = np.array([0], dtype=np.int32)
+    cang_triplets_arr = np.array([], dtype=np.int32)
+    if cang_groups is not None and len(cang_groups) > 0:
+        n_cang = len(cang_groups)
+        cang_atoms, cang_offsets, cang_triplets_arr = _flatten_com_groups(cang_groups, 3)
+
+    n_ctor = 0
+    ctor_atoms = np.array([], dtype=np.int32)
+    ctor_offsets = np.array([0], dtype=np.int32)
+    ctor_quads = np.array([], dtype=np.int32)
+    if ctor_groups is not None and len(ctor_groups) > 0:
+        n_ctor = len(ctor_groups)
+        ctor_atoms, ctor_offsets, ctor_quads = _flatten_com_groups(ctor_groups, 4)
+
+    # Pre-allocate result arrays (zerocopy, sized to the analyzed frame count)
+    result_distance = np.zeros((n_dist, n_frame), dtype=np.float64, order='F') if n_dist > 0 else None
+    result_angle = np.zeros((n_angl, n_frame), dtype=np.float64, order='F') if n_angl > 0 else None
+    result_torsion = np.zeros((n_tors, n_frame), dtype=np.float64, order='F') if n_tors > 0 else None
+    result_cdis = np.zeros((n_cdis, n_frame), dtype=np.float64, order='F') if n_cdis > 0 else None
+    result_cang = np.zeros((n_cang, n_frame), dtype=np.float64, order='F') if n_cang > 0 else None
+    result_ctor = np.zeros((n_ctor, n_frame), dtype=np.float64, order='F') if n_ctor > 0 else None
+
+    dist_ptr = result_distance.ctypes.data_as(ctypes.c_void_p) if result_distance is not None else ctypes.c_void_p()
+    angl_ptr = result_angle.ctypes.data_as(ctypes.c_void_p) if result_angle is not None else ctypes.c_void_p()
+    tors_ptr = result_torsion.ctypes.data_as(ctypes.c_void_p) if result_torsion is not None else ctypes.c_void_p()
+    cdis_result_ptr = result_cdis.ctypes.data_as(ctypes.c_void_p) if result_cdis is not None else ctypes.c_void_p()
+    cang_result_ptr = result_cang.ctypes.data_as(ctypes.c_void_p) if result_cang is not None else ctypes.c_void_p()
+    ctor_result_ptr = result_ctor.ctypes.data_as(ctypes.c_void_p) if result_ctor is not None else ctypes.c_void_p()
+
+    nstru_out = ctypes.c_int()
+    dcd_nframe_out = ctypes.c_int()
+    dcd_natom_out = ctypes.c_int()
+
+    with fortran_status() as (status, msg, msglen):
+        lib.trj_analysis_com_lazy_c(
+            dcd_filename_bytes,
+            ctypes.c_int(len(dcd_filename_bytes)),
+            ctypes.c_int(trj_type),
+            ctypes.c_int(trajs.lazy_dcd_natom),
+            source_selection.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(n_atoms),
+            mass_ptr,
+            ctypes.c_int(n_atoms),
+            ctypes.c_int(effective_period),
+            ctypes.c_int(n_frame),
+            # Atom-based measurements
+            dist_list_ptr,
+            ctypes.c_int(n_dist),
+            angl_list_ptr,
+            ctypes.c_int(n_angl),
+            tors_list_ptr,
+            ctypes.c_int(n_tors),
+            # COM distance
+            cdis_atoms.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(len(cdis_atoms)),
+            cdis_offsets.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(len(cdis_offsets)),
+            cdis_pairs_arr.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(n_cdis),
+            # COM angle
+            cang_atoms.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(len(cang_atoms)),
+            cang_offsets.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(len(cang_offsets)),
+            cang_triplets_arr.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(n_cang),
+            # COM torsion
+            ctor_atoms.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(len(ctor_atoms)),
+            ctor_offsets.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(len(ctor_offsets)),
+            ctor_quads.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(n_ctor),
+            # Pre-allocated output arrays
+            dist_ptr,
+            ctypes.c_int(n_dist * n_frame),
+            angl_ptr,
+            ctypes.c_int(n_angl * n_frame),
+            tors_ptr,
+            ctypes.c_int(n_tors * n_frame),
+            cdis_result_ptr,
+            ctypes.c_int(n_cdis * n_frame),
+            cang_result_ptr,
+            ctypes.c_int(n_cang * n_frame),
+            ctor_result_ptr,
+            ctypes.c_int(n_ctor * n_frame),
+            # Output
+            ctypes.byref(nstru_out),
+            ctypes.byref(dcd_nframe_out),
+            ctypes.byref(dcd_natom_out),
+            ctypes.byref(status),
+            msg,
+            ctypes.c_int(msglen),
+        )
+
+    n_actual = nstru_out.value
+
+    final_distance = result_distance[:, :n_actual].T.copy() if result_distance is not None else None
+    final_angle = result_angle[:, :n_actual].T.copy() if result_angle is not None else None
+    final_torsion = result_torsion[:, :n_actual].T.copy() if result_torsion is not None else None
+    final_cdis = result_cdis[:, :n_actual].T.copy() if result_cdis is not None else None
+    final_cang = result_cang[:, :n_actual].T.copy() if result_cang is not None else None
+    final_ctor = result_ctor[:, :n_actual].T.copy() if result_ctor is not None else None
+
+    return TrjAnalysisResult(
+        final_distance, final_angle, final_torsion,
+        final_cdis, final_cang, final_ctor
+    )
+
+
 def trj_analysis(
         trajs: STrajectories,
         distance_pairs: Optional[npt.NDArray[np.int32]] = None,
@@ -198,9 +377,10 @@ def trj_analysis(
     trajectory data. It supports both atom-based and COM-based measurements.
 
     Lazy trajectories (from ``crd_convert(..., lazy=True)``) are supported for
-    atom-based distance/angle/torsion measurements; frames are read from the
-    DCD file on demand. COM-based measurements still require an in-memory
-    trajectory.
+    both atom-based distance/angle/torsion measurements and COM-based
+    measurements; frames are read from the DCD file on demand. COM-based
+    measurements on a lazy trajectory require the molecule to describe exactly
+    the selected atoms carried by the trajectory.
 
     Args:
         trajs: STrajectories object containing trajectory data (memory or lazy)
@@ -248,12 +428,20 @@ def trj_analysis(
     if has_com and molecule is None:
         raise ValueError("molecule is required for COM-based measurements")
 
-    # Handle lazy trajectories (atom-based measurements only for now).
+    # Handle lazy trajectories: atom-based and COM-based measurements both read
+    # frames on demand from the DCD file.
     if trajs.is_lazy:
         if has_com:
-            raise GenesisValidationError(
-                "COM-based trj_analysis is not supported for lazy "
-                "trajectories yet; load the trajectory into memory instead"
+            return _trj_analysis_com_lazy(
+                trajs,
+                molecule,
+                distance_pairs=distance_pairs,
+                angle_triplets=angle_triplets,
+                torsion_quadruplets=torsion_quadruplets,
+                cdis_groups=cdis_groups,
+                cang_groups=cang_groups,
+                ctor_groups=ctor_groups,
+                ana_period=ana_period,
             )
         return _trj_analysis_lazy(
             trajs,

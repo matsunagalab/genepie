@@ -30,6 +30,7 @@ module trj_c_mod
   public :: trj_analysis_c
   public :: trj_analysis_lazy_c
   public :: trj_analysis_com_c
+  public :: trj_analysis_com_lazy_c
 
 contains
 
@@ -571,6 +572,7 @@ contains
     integer, allocatable :: ctor_offsets_copy(:)
     integer, allocatable :: ctor_quads_copy(:)
 
+    type(s_trj_source) :: source
     integer :: nstru_local
     integer :: num_out_frame
     integer :: n_cdis_groups, n_cang_groups, n_ctor_groups
@@ -719,7 +721,11 @@ contains
     write(MsgOut,'(A)') '[STEP1] Trajectory Analysis with COM'
     write(MsgOut,'(A)') ' '
 
-    call analyze_com(mass_f, s_trajes_c, ana_period, &
+    ! Build a memory-backed source and run the shared COM analysis loop.
+    call init_source_memory(source, s_trajes_c%coords, s_trajes_c%pbc_boxes, &
+                            s_trajes_c%natom, s_trajes_c%nframe, ana_period)
+
+    call analyze_com(source, mass_f, &
                      dist_list_copy, n_dist, &
                      angl_list_copy, n_angl, &
                      tors_list_copy, n_tors, &
@@ -731,6 +737,8 @@ contains
                      n_ctor, n_ctor_groups, &
                      distance_f, angle_f, torsion_f, &
                      cdis_f, cang_f, ctor_f, nstru_local)
+
+    call finalize_source(source)
 
     nstru_out = nstru_local
 
@@ -756,5 +764,435 @@ contains
     deallocate(ctor_quads_copy)
 
   end subroutine trj_analysis_com_c
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    trj_analysis_com_lazy_c
+  !> @brief        COM trajectory analysis with lazy DCD loading
+  !! @authors      Claude Code
+  !! @note         Mirrors trj_analysis_com_c but reads frames on demand from a
+  !!               DCD file via the lazy trajectory source. All measurement and
+  !!               COM atom indices are expressed in the selected atom space.
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine trj_analysis_com_lazy_c(dcd_filename, filename_len, trj_type, &
+                                     dcd_natom_expected, source_selection_ptr, &
+                                     n_source_selection, &
+                                     mass_ptr, n_atoms, ana_period, n_frame, &
+                                     dist_list_ptr, n_dist, &
+                                     angl_list_ptr, n_angl, &
+                                     tors_list_ptr, n_tors, &
+                                     cdis_atoms_ptr, n_cdis_atoms, &
+                                     cdis_offsets_ptr, n_cdis_offsets, &
+                                     cdis_pairs_ptr, n_cdis, &
+                                     cang_atoms_ptr, n_cang_atoms, &
+                                     cang_offsets_ptr, n_cang_offsets, &
+                                     cang_triplets_ptr, n_cang, &
+                                     ctor_atoms_ptr, n_ctor_atoms, &
+                                     ctor_offsets_ptr, n_ctor_offsets, &
+                                     ctor_quads_ptr, n_ctor, &
+                                     dist_ptr, dist_size, &
+                                     angl_ptr, angl_size, &
+                                     tors_ptr, tors_size, &
+                                     cdis_result_ptr, cdis_size, &
+                                     cang_result_ptr, cang_size, &
+                                     ctor_result_ptr, ctor_size, &
+                                     nstru_out, dcd_nframe_out, dcd_natom_out, &
+                                     status, msg, msglen) &
+        bind(C, name="trj_analysis_com_lazy_c")
+    implicit none
+
+    ! Arguments - lazy DCD source
+    character(kind=c_char), intent(in) :: dcd_filename(*)
+    integer(c_int), value :: filename_len
+    integer(c_int), value :: trj_type
+    integer(c_int), value :: dcd_natom_expected
+    type(c_ptr), value :: source_selection_ptr
+    integer(c_int), value :: n_source_selection
+
+    ! Arguments - mass array (selected atom space)
+    type(c_ptr), value :: mass_ptr
+    integer(c_int), value :: n_atoms
+    integer(c_int), value :: ana_period
+    integer(c_int), value :: n_frame
+
+    ! Arguments - atom-based measurements
+    type(c_ptr), value :: dist_list_ptr
+    integer(c_int), value :: n_dist
+    type(c_ptr), value :: angl_list_ptr
+    integer(c_int), value :: n_angl
+    type(c_ptr), value :: tors_list_ptr
+    integer(c_int), value :: n_tors
+
+    ! Arguments - COM distance
+    type(c_ptr), value :: cdis_atoms_ptr
+    integer(c_int), value :: n_cdis_atoms
+    type(c_ptr), value :: cdis_offsets_ptr
+    integer(c_int), value :: n_cdis_offsets
+    type(c_ptr), value :: cdis_pairs_ptr
+    integer(c_int), value :: n_cdis
+
+    ! Arguments - COM angle
+    type(c_ptr), value :: cang_atoms_ptr
+    integer(c_int), value :: n_cang_atoms
+    type(c_ptr), value :: cang_offsets_ptr
+    integer(c_int), value :: n_cang_offsets
+    type(c_ptr), value :: cang_triplets_ptr
+    integer(c_int), value :: n_cang
+
+    ! Arguments - COM torsion
+    type(c_ptr), value :: ctor_atoms_ptr
+    integer(c_int), value :: n_ctor_atoms
+    type(c_ptr), value :: ctor_offsets_ptr
+    integer(c_int), value :: n_ctor_offsets
+    type(c_ptr), value :: ctor_quads_ptr
+    integer(c_int), value :: n_ctor
+
+    ! Pre-allocated output arrays
+    type(c_ptr), value :: dist_ptr
+    integer(c_int), value :: dist_size
+    type(c_ptr), value :: angl_ptr
+    integer(c_int), value :: angl_size
+    type(c_ptr), value :: tors_ptr
+    integer(c_int), value :: tors_size
+    type(c_ptr), value :: cdis_result_ptr
+    integer(c_int), value :: cdis_size
+    type(c_ptr), value :: cang_result_ptr
+    integer(c_int), value :: cang_size
+    type(c_ptr), value :: ctor_result_ptr
+    integer(c_int), value :: ctor_size
+
+    ! Output
+    integer(c_int), intent(out) :: nstru_out
+    integer(c_int), intent(out) :: dcd_nframe_out
+    integer(c_int), intent(out) :: dcd_natom_out
+    integer(c_int), intent(out) :: status
+    character(kind=c_char), intent(out) :: msg(*)
+    integer(c_int), value :: msglen
+
+    ! Local variables
+    type(s_error) :: err
+    type(s_trj_source) :: source
+    character(MaxFilename) :: filename_f
+    integer, pointer :: source_selection_f(:)
+    real(wp), pointer :: mass_f(:)
+    integer, pointer :: dist_list_f(:,:)
+    integer, pointer :: angl_list_f(:,:)
+    integer, pointer :: tors_list_f(:,:)
+    integer, pointer :: cdis_atoms_f(:)
+    integer, pointer :: cdis_offsets_f(:)
+    integer, pointer :: cdis_pairs_f(:)
+    integer, pointer :: cang_atoms_f(:)
+    integer, pointer :: cang_offsets_f(:)
+    integer, pointer :: cang_triplets_f(:)
+    integer, pointer :: ctor_atoms_f(:)
+    integer, pointer :: ctor_offsets_f(:)
+    integer, pointer :: ctor_quads_f(:)
+    real(wp), pointer :: distance_f(:,:)
+    real(wp), pointer :: angle_f(:,:)
+    real(wp), pointer :: torsion_f(:,:)
+    real(wp), pointer :: cdis_f(:,:)
+    real(wp), pointer :: cang_f(:,:)
+    real(wp), pointer :: ctor_f(:,:)
+    integer, allocatable :: dist_list_copy(:,:)
+    integer, allocatable :: angl_list_copy(:,:)
+    integer, allocatable :: tors_list_copy(:,:)
+    integer, allocatable :: cdis_atoms_copy(:)
+    integer, allocatable :: cdis_offsets_copy(:)
+    integer, allocatable :: cdis_pairs_copy(:)
+    integer, allocatable :: cang_atoms_copy(:)
+    integer, allocatable :: cang_offsets_copy(:)
+    integer, allocatable :: cang_triplets_copy(:)
+    integer, allocatable :: ctor_atoms_copy(:)
+    integer, allocatable :: ctor_offsets_copy(:)
+    integer, allocatable :: ctor_quads_copy(:)
+    integer :: nstru_local, init_status
+    integer :: n_cdis_groups, n_cang_groups, n_ctor_groups
+    integer(c_int) :: grc
+
+    ! Guard the whole body: init_source_lazy_dcd opens the DCD file and a
+    ! missing/unreadable file would otherwise call error_msg -> exit(1).
+    grc = fi_error_guard_run(c_funloc(run_body))
+    if (grc /= 0) then
+      call error_from_pending(err)
+      call error_to_c(err, status, msg, msglen)
+      call cleanup()
+      call finalize_source(source)
+    end if
+    return
+
+  contains
+
+    subroutine cleanup()
+      if (allocated(dist_list_copy))     deallocate(dist_list_copy)
+      if (allocated(angl_list_copy))     deallocate(angl_list_copy)
+      if (allocated(tors_list_copy))     deallocate(tors_list_copy)
+      if (allocated(cdis_atoms_copy))    deallocate(cdis_atoms_copy)
+      if (allocated(cdis_offsets_copy))  deallocate(cdis_offsets_copy)
+      if (allocated(cdis_pairs_copy))    deallocate(cdis_pairs_copy)
+      if (allocated(cang_atoms_copy))    deallocate(cang_atoms_copy)
+      if (allocated(cang_offsets_copy))  deallocate(cang_offsets_copy)
+      if (allocated(cang_triplets_copy)) deallocate(cang_triplets_copy)
+      if (allocated(ctor_atoms_copy))    deallocate(ctor_atoms_copy)
+      if (allocated(ctor_offsets_copy))  deallocate(ctor_offsets_copy)
+      if (allocated(ctor_quads_copy))    deallocate(ctor_quads_copy)
+    end subroutine cleanup
+
+    subroutine run_body() bind(C)
+
+    ! Initialize
+    call error_init(err)
+    status = 0
+    nstru_out = 0
+    dcd_nframe_out = 0
+    dcd_natom_out = 0
+
+    n_cdis_groups = n_cdis_offsets - 1
+    n_cang_groups = n_cang_offsets - 1
+    n_ctor_groups = n_ctor_offsets - 1
+
+    ! Convert C string to Fortran string
+    call c_filename_to_fortran(dcd_filename, filename_len, filename_f)
+
+    ! Validate the source selection
+    if (n_source_selection /= n_atoms .or. &
+        .not. c_associated(source_selection_ptr)) then
+      call error_set(err, ERROR_INVALID_PARAM, &
+                     "trj_analysis_com_lazy_c: invalid source selection")
+      call error_to_c(err, status, msg, msglen)
+      return
+    end if
+
+    if (n_frame <= 0) then
+      call error_set(err, ERROR_INVALID_PARAM, &
+                     "trj_analysis_com_lazy_c: n_frame must be positive")
+      call error_to_c(err, status, msg, msglen)
+      return
+    end if
+
+    ! Set MPI variables for analysis
+    my_city_rank = 0
+    nproc_city   = 1
+    main_rank    = .true.
+
+    call C_F_POINTER(source_selection_ptr, source_selection_f, &
+                     [n_source_selection])
+    if (any(source_selection_f < 1) .or. &
+        any(source_selection_f > dcd_natom_expected)) then
+      call error_set(err, ERROR_INVALID_PARAM, &
+                     "trj_analysis_com_lazy_c: source selection out of range")
+      call error_to_c(err, status, msg, msglen)
+      return
+    end if
+
+    ! Mass array (selected atom space)
+    call C_F_POINTER(mass_ptr, mass_f, [n_atoms])
+
+    ! Convert atom-based measurement lists (1-indexed in selected space)
+    if (n_dist > 0 .and. c_associated(dist_list_ptr)) then
+      call C_F_POINTER(dist_list_ptr, dist_list_f, [2, n_dist])
+      allocate(dist_list_copy(2, n_dist))
+      dist_list_copy = dist_list_f
+    else
+      allocate(dist_list_copy(2, 1))
+      dist_list_copy = 0
+    end if
+
+    if (n_angl > 0 .and. c_associated(angl_list_ptr)) then
+      call C_F_POINTER(angl_list_ptr, angl_list_f, [3, n_angl])
+      allocate(angl_list_copy(3, n_angl))
+      angl_list_copy = angl_list_f
+    else
+      allocate(angl_list_copy(3, 1))
+      angl_list_copy = 0
+    end if
+
+    if (n_tors > 0 .and. c_associated(tors_list_ptr)) then
+      call C_F_POINTER(tors_list_ptr, tors_list_f, [4, n_tors])
+      allocate(tors_list_copy(4, n_tors))
+      tors_list_copy = tors_list_f
+    else
+      allocate(tors_list_copy(4, 1))
+      tors_list_copy = 0
+    end if
+
+    ! Convert COM distance arrays (atoms already 1-indexed in selected space)
+    if (n_cdis_atoms > 0 .and. n_cdis > 0) then
+      call C_F_POINTER(cdis_atoms_ptr, cdis_atoms_f, [n_cdis_atoms])
+      call C_F_POINTER(cdis_offsets_ptr, cdis_offsets_f, [n_cdis_offsets])
+      call C_F_POINTER(cdis_pairs_ptr, cdis_pairs_f, [2 * n_cdis])
+      allocate(cdis_atoms_copy(n_cdis_atoms))
+      allocate(cdis_offsets_copy(n_cdis_offsets))
+      allocate(cdis_pairs_copy(2 * n_cdis))
+      cdis_atoms_copy = cdis_atoms_f
+      cdis_offsets_copy = cdis_offsets_f
+      cdis_pairs_copy = cdis_pairs_f
+    else
+      allocate(cdis_atoms_copy(1))
+      allocate(cdis_offsets_copy(2))
+      allocate(cdis_pairs_copy(2))
+      cdis_atoms_copy = 0
+      cdis_offsets_copy = 0
+      cdis_pairs_copy = 0
+    end if
+
+    ! Convert COM angle arrays
+    if (n_cang_atoms > 0 .and. n_cang > 0) then
+      call C_F_POINTER(cang_atoms_ptr, cang_atoms_f, [n_cang_atoms])
+      call C_F_POINTER(cang_offsets_ptr, cang_offsets_f, [n_cang_offsets])
+      call C_F_POINTER(cang_triplets_ptr, cang_triplets_f, [3 * n_cang])
+      allocate(cang_atoms_copy(n_cang_atoms))
+      allocate(cang_offsets_copy(n_cang_offsets))
+      allocate(cang_triplets_copy(3 * n_cang))
+      cang_atoms_copy = cang_atoms_f
+      cang_offsets_copy = cang_offsets_f
+      cang_triplets_copy = cang_triplets_f
+    else
+      allocate(cang_atoms_copy(1))
+      allocate(cang_offsets_copy(2))
+      allocate(cang_triplets_copy(3))
+      cang_atoms_copy = 0
+      cang_offsets_copy = 0
+      cang_triplets_copy = 0
+    end if
+
+    ! Convert COM torsion arrays
+    if (n_ctor_atoms > 0 .and. n_ctor > 0) then
+      call C_F_POINTER(ctor_atoms_ptr, ctor_atoms_f, [n_ctor_atoms])
+      call C_F_POINTER(ctor_offsets_ptr, ctor_offsets_f, [n_ctor_offsets])
+      call C_F_POINTER(ctor_quads_ptr, ctor_quads_f, [4 * n_ctor])
+      allocate(ctor_atoms_copy(n_ctor_atoms))
+      allocate(ctor_offsets_copy(n_ctor_offsets))
+      allocate(ctor_quads_copy(4 * n_ctor))
+      ctor_atoms_copy = ctor_atoms_f
+      ctor_offsets_copy = ctor_offsets_f
+      ctor_quads_copy = ctor_quads_f
+    else
+      allocate(ctor_atoms_copy(1))
+      allocate(ctor_offsets_copy(2))
+      allocate(ctor_quads_copy(4))
+      ctor_atoms_copy = 0
+      ctor_offsets_copy = 0
+      ctor_quads_copy = 0
+    end if
+
+    ! Atom-based measurement indices must stay within the selected atom range
+    if ((n_dist > 0 .and. (any(dist_list_copy < 1) .or. &
+                           any(dist_list_copy > n_atoms))) .or. &
+        (n_angl > 0 .and. (any(angl_list_copy < 1) .or. &
+                           any(angl_list_copy > n_atoms))) .or. &
+        (n_tors > 0 .and. (any(tors_list_copy < 1) .or. &
+                           any(tors_list_copy > n_atoms)))) then
+      call error_set(err, ERROR_INVALID_PARAM, &
+                     "trj_analysis_com_lazy_c: measurement index out of range")
+      call error_to_c(err, status, msg, msglen)
+      call cleanup()
+      return
+    end if
+
+    ! COM group atom indices must also stay within the selected atom range
+    if ((n_cdis > 0 .and. (any(cdis_atoms_copy < 1) .or. &
+                           any(cdis_atoms_copy > n_atoms))) .or. &
+        (n_cang > 0 .and. (any(cang_atoms_copy < 1) .or. &
+                           any(cang_atoms_copy > n_atoms))) .or. &
+        (n_ctor > 0 .and. (any(ctor_atoms_copy < 1) .or. &
+                           any(ctor_atoms_copy > n_atoms)))) then
+      call error_set(err, ERROR_INVALID_PARAM, &
+                     "trj_analysis_com_lazy_c: COM atom index out of range")
+      call error_to_c(err, status, msg, msglen)
+      call cleanup()
+      return
+    end if
+
+    ! Create views of the pre-allocated result arrays (nullify when unused)
+    if (n_dist > 0 .and. c_associated(dist_ptr) .and. dist_size > 0) then
+      call C_F_POINTER(dist_ptr, distance_f, [n_dist, n_frame])
+    else
+      nullify(distance_f)
+    end if
+
+    if (n_angl > 0 .and. c_associated(angl_ptr) .and. angl_size > 0) then
+      call C_F_POINTER(angl_ptr, angle_f, [n_angl, n_frame])
+    else
+      nullify(angle_f)
+    end if
+
+    if (n_tors > 0 .and. c_associated(tors_ptr) .and. tors_size > 0) then
+      call C_F_POINTER(tors_ptr, torsion_f, [n_tors, n_frame])
+    else
+      nullify(torsion_f)
+    end if
+
+    if (n_cdis > 0 .and. c_associated(cdis_result_ptr) .and. cdis_size > 0) then
+      call C_F_POINTER(cdis_result_ptr, cdis_f, [n_cdis, n_frame])
+    else
+      nullify(cdis_f)
+    end if
+
+    if (n_cang > 0 .and. c_associated(cang_result_ptr) .and. cang_size > 0) then
+      call C_F_POINTER(cang_result_ptr, cang_f, [n_cang, n_frame])
+    else
+      nullify(cang_f)
+    end if
+
+    if (n_ctor > 0 .and. c_associated(ctor_result_ptr) .and. ctor_size > 0) then
+      call C_F_POINTER(ctor_result_ptr, ctor_f, [n_ctor, n_frame])
+    else
+      nullify(ctor_f)
+    end if
+
+    ! Initialize lazy DCD source
+    write(MsgOut,'(A)') '[STEP1] Initialize Lazy DCD Source for COM Trj Analysis'
+    write(MsgOut,'(A)') ' '
+
+    call init_source_lazy_dcd(source, trim(filename_f), trj_type, ana_period, &
+                              source_selection_f, n_source_selection, &
+                              init_status)
+    if (init_status /= 0) then
+      call error_set(err, init_status, &
+                     "trj_analysis_com_lazy_c: unable to initialize DCD source")
+      call error_to_c(err, status, msg, msglen)
+      call cleanup()
+      return
+    end if
+
+    ! Return DCD info
+    dcd_nframe_out = source%dcd_nframe
+    dcd_natom_out = source%dcd_natom
+
+    if (source%dcd_natom /= dcd_natom_expected) then
+      call error_set(err, ERROR_ATOM_COUNT, &
+                     "trj_analysis_com_lazy_c: atom count mismatch")
+      call error_to_c(err, status, msg, msglen)
+      call finalize_source(source)
+      call cleanup()
+      return
+    end if
+
+    ! Run the shared COM analysis loop (lazy loading via source abstraction)
+    write(MsgOut,'(A)') '[STEP2] Trajectory Analysis with COM (lazy loading)'
+    write(MsgOut,'(A)') ' '
+
+    call analyze_com(source, mass_f, &
+                     dist_list_copy, n_dist, &
+                     angl_list_copy, n_angl, &
+                     tors_list_copy, n_tors, &
+                     cdis_atoms_copy, cdis_offsets_copy, cdis_pairs_copy, &
+                     n_cdis, n_cdis_groups, &
+                     cang_atoms_copy, cang_offsets_copy, cang_triplets_copy, &
+                     n_cang, n_cang_groups, &
+                     ctor_atoms_copy, ctor_offsets_copy, ctor_quads_copy, &
+                     n_ctor, n_ctor_groups, &
+                     distance_f, angle_f, torsion_f, &
+                     cdis_f, cang_f, ctor_f, nstru_local)
+
+    nstru_out = nstru_local
+
+    call finalize_source(source)
+    call cleanup()
+
+    end subroutine run_body
+  end subroutine trj_analysis_com_lazy_c
 
 end module trj_c_mod

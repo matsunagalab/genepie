@@ -123,6 +123,59 @@ class TestTrjAnalysis(CustomTestCase):
             np.testing.assert_allclose(
                 lazy.torsion, mem.torsion, rtol=1e-4, atol=1e-5)
 
+    def test_trj_com_lazy_vs_memory(self):
+        """Lazy COM trj_analysis must match the memory-based result."""
+        mol = SMolecule.from_file(
+            pdb=self.PDB_PATH, psf=self.PSF_PATH, ref=self.PDB_PATH)
+
+        res1_idx = genesis_exe.selection(mol, "rno:1")
+        res2_idx = genesis_exe.selection(mol, "rno:2")
+        res3_idx = genesis_exe.selection(mol, "rno:3")
+        res4_idx = genesis_exe.selection(mol, "rno:4")
+
+        ca1_idx = genesis_exe.selection(mol, "rno:1 and an:CA")
+        ca2_idx = genesis_exe.selection(mol, "rno:2 and an:CA")
+
+        # Mix atom-based and COM-based measurements to exercise every stream.
+        dist_pairs = np.array([[ca1_idx[0], ca2_idx[0]]], dtype=np.int32)
+        cdis_groups = [(list(res1_idx), list(res2_idx))]
+        cang_groups = [(list(res1_idx), list(res2_idx), list(res3_idx))]
+        ctor_groups = [
+            (list(res1_idx), list(res2_idx), list(res3_idx), list(res4_idx)),
+        ]
+
+        common = dict(
+            trj_files=[str(self.TRJ_PATH)],
+            trj_format="DCD",
+            trj_type="COOR+BOX",
+            selection="all",
+        )
+        for ana_period in (1, 2):
+            mem_trajs, _ = genesis_exe.crd_convert(mol, lazy=False, **common)
+            lazy_trajs, _ = genesis_exe.crd_convert(mol, lazy=True, **common)
+            self.assertTrue(lazy_trajs[0].is_lazy)
+
+            kwargs = dict(
+                distance_pairs=dist_pairs,
+                cdis_groups=cdis_groups,
+                cang_groups=cang_groups,
+                ctor_groups=ctor_groups,
+                molecule=mol,
+                ana_period=ana_period,
+            )
+            mem = genesis_exe.trj_analysis(mem_trajs[0], **kwargs)
+            lazy = genesis_exe.trj_analysis(lazy_trajs[0], **kwargs)
+
+            self.assertEqual(mem.distance.shape, lazy.distance.shape)
+            np.testing.assert_allclose(
+                lazy.distance, mem.distance, rtol=1e-4, atol=1e-5)
+            np.testing.assert_allclose(
+                lazy.com_distance, mem.com_distance, rtol=1e-4, atol=1e-5)
+            np.testing.assert_allclose(
+                lazy.com_angle, mem.com_angle, rtol=1e-4, atol=1e-5)
+            np.testing.assert_allclose(
+                lazy.com_torsion, mem.com_torsion, rtol=1e-4, atol=1e-5)
+
     def test_trj_analysis_com(self):
         """Test trj_analysis with COM-based measurements."""
         trajs, mol = self.create_traj_by_genesis(

@@ -142,9 +142,8 @@ contains
   !  Subroutine    analyze_com
   !> @brief        Trajectory analysis with COM (zerocopy, pre-allocated)
   !! @authors      Claude Code
+  !! @param[inout] source       : abstract trajectory source (memory/lazy/file)
   !! @param[in]    mass         : atomic masses (n_atoms)
-  !! @param[in]    trajes_c     : trajectories C structure
-  !! @param[in]    ana_period   : analysis period
   !! @param[in]    dist_list    : distance atom pairs (2, n_dist)
   !! @param[in]    n_dist       : number of distance measurements
   !! @param[in]    angl_list    : angle atom triplets (3, n_angl)
@@ -173,10 +172,13 @@ contains
   !! @param[inout] cang         : pre-allocated COM angle results (n_cang, nframe)
   !! @param[inout] ctor         : pre-allocated COM torsion results (n_ctor, nframe)
   !! @param[out]   nstru_out    : actual number of frames processed
+  !! @note         The analysis period is encapsulated by the source, so the
+  !!               same loop serves memory and lazy DCD sources (identical to
+  !!               the non-COM ``analyze`` routine).
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine analyze_com(mass, trajes_c, ana_period, &
+  subroutine analyze_com(source, mass, &
                          dist_list, n_dist, &
                          angl_list, n_angl, &
                          tors_list, n_tors, &
@@ -188,12 +190,11 @@ contains
                          n_ctor, n_ctor_groups, &
                          distance, angle, torsion, &
                          cdis, cang, ctor, nstru_out)
-    use s_trajectories_c_mod
+    use trj_source_mod
 
     ! formal arguments
+    type(s_trj_source),      intent(inout) :: source
     real(wp),                intent(in)    :: mass(:)
-    type(s_trajectories_c),  intent(in)    :: trajes_c
-    integer,                 intent(in)    :: ana_period
 
     ! Atom-based measurements
     integer,                 intent(in)    :: dist_list(:,:)  ! (2, n_dist)
@@ -235,145 +236,141 @@ contains
 
     ! local variables
     type(s_trajectory) :: trajectory
-    integer            :: nstru, istep, i
+    integer            :: nstru, i, frame_status
     integer            :: idx1, idx2, idx3, idx4
     integer            :: grp1, grp2, grp3, grp4
     integer            :: start1, end1, start2, end2, start3, end3, start4, end4
     real(wp)           :: com1(3), com2(3), com3(3), com4(3)
 
-    ! Analysis loop
+    ! Analysis loop (source yields only the frames satisfying its period)
     nstru = 0
 
-    do istep = 1, trajes_c%nframe
+    do while (has_more_frames(source))
 
-      ! Get trajectory frame
-      call get_frame(trajes_c, istep, trajectory)
+      call get_next_frame(source, trajectory, frame_status)
+      if (frame_status /= 0) exit
 
-      if (mod(istep, ana_period) == 0) then
+      nstru = nstru + 1
+      write(MsgOut,*) '      number of structures = ', nstru
 
-        nstru = nstru + 1
-        write(MsgOut,*) '      number of structures = ', nstru
+      ! ===== Atom-based measurements =====
 
-        ! ===== Atom-based measurements =====
+      ! Compute distances
+      if (n_dist > 0) then
+        do i = 1, n_dist
+          idx1 = dist_list(1, i)
+          idx2 = dist_list(2, i)
+          distance(i, nstru) = compute_dis(trajectory%coord(:, idx1), &
+                                           trajectory%coord(:, idx2))
+        end do
+      end if
 
-        ! Compute distances
-        if (n_dist > 0) then
-          do i = 1, n_dist
-            idx1 = dist_list(1, i)
-            idx2 = dist_list(2, i)
-            distance(i, nstru) = compute_dis(trajectory%coord(:, idx1), &
-                                             trajectory%coord(:, idx2))
-          end do
-        end if
+      ! Compute angles
+      if (n_angl > 0) then
+        do i = 1, n_angl
+          idx1 = angl_list(1, i)
+          idx2 = angl_list(2, i)
+          idx3 = angl_list(3, i)
+          angle(i, nstru) = compute_ang(trajectory%coord(:, idx1), &
+                                        trajectory%coord(:, idx2), &
+                                        trajectory%coord(:, idx3))
+        end do
+      end if
 
-        ! Compute angles
-        if (n_angl > 0) then
-          do i = 1, n_angl
-            idx1 = angl_list(1, i)
-            idx2 = angl_list(2, i)
-            idx3 = angl_list(3, i)
-            angle(i, nstru) = compute_ang(trajectory%coord(:, idx1), &
+      ! Compute torsions
+      if (n_tors > 0) then
+        do i = 1, n_tors
+          idx1 = tors_list(1, i)
+          idx2 = tors_list(2, i)
+          idx3 = tors_list(3, i)
+          idx4 = tors_list(4, i)
+          torsion(i, nstru) = compute_dih(trajectory%coord(:, idx1), &
                                           trajectory%coord(:, idx2), &
-                                          trajectory%coord(:, idx3))
-          end do
-        end if
+                                          trajectory%coord(:, idx3), &
+                                          trajectory%coord(:, idx4))
+        end do
+      end if
 
-        ! Compute torsions
-        if (n_tors > 0) then
-          do i = 1, n_tors
-            idx1 = tors_list(1, i)
-            idx2 = tors_list(2, i)
-            idx3 = tors_list(3, i)
-            idx4 = tors_list(4, i)
-            torsion(i, nstru) = compute_dih(trajectory%coord(:, idx1), &
-                                            trajectory%coord(:, idx2), &
-                                            trajectory%coord(:, idx3), &
-                                            trajectory%coord(:, idx4))
-          end do
-        end if
+      ! ===== COM-based measurements =====
 
-        ! ===== COM-based measurements =====
+      ! Compute COM distances
+      if (n_cdis > 0) then
+        do i = 1, n_cdis
+          ! Get group indices (0-based from Python, convert to 1-based)
+          grp1 = cdis_pairs(2*i - 1) + 1
+          grp2 = cdis_pairs(2*i) + 1
 
-        ! Compute COM distances
-        if (n_cdis > 0) then
-          do i = 1, n_cdis
-            ! Get group indices (0-based from Python, convert to 1-based)
-            grp1 = cdis_pairs(2*i - 1) + 1
-            grp2 = cdis_pairs(2*i) + 1
+          ! Get atom range for group 1 (offsets are 0-based)
+          start1 = cdis_offsets(grp1) + 1
+          end1 = cdis_offsets(grp1 + 1)
 
-            ! Get atom range for group 1 (offsets are 0-based)
-            start1 = cdis_offsets(grp1) + 1
-            end1 = cdis_offsets(grp1 + 1)
+          ! Get atom range for group 2
+          start2 = cdis_offsets(grp2) + 1
+          end2 = cdis_offsets(grp2 + 1)
 
-            ! Get atom range for group 2
-            start2 = cdis_offsets(grp2) + 1
-            end2 = cdis_offsets(grp2 + 1)
+          ! Compute COMs
+          com1 = compute_com(trajectory%coord, mass, cdis_atoms(start1:end1))
+          com2 = compute_com(trajectory%coord, mass, cdis_atoms(start2:end2))
 
-            ! Compute COMs
-            com1 = compute_com(trajectory%coord, mass, cdis_atoms(start1:end1))
-            com2 = compute_com(trajectory%coord, mass, cdis_atoms(start2:end2))
+          ! Compute distance
+          cdis(i, nstru) = compute_dis(com1, com2)
+        end do
+      end if
 
-            ! Compute distance
-            cdis(i, nstru) = compute_dis(com1, com2)
-          end do
-        end if
+      ! Compute COM angles
+      if (n_cang > 0) then
+        do i = 1, n_cang
+          ! Get group indices (0-based from Python, convert to 1-based)
+          grp1 = cang_triplets(3*i - 2) + 1
+          grp2 = cang_triplets(3*i - 1) + 1
+          grp3 = cang_triplets(3*i) + 1
 
-        ! Compute COM angles
-        if (n_cang > 0) then
-          do i = 1, n_cang
-            ! Get group indices (0-based from Python, convert to 1-based)
-            grp1 = cang_triplets(3*i - 2) + 1
-            grp2 = cang_triplets(3*i - 1) + 1
-            grp3 = cang_triplets(3*i) + 1
+          ! Get atom ranges
+          start1 = cang_offsets(grp1) + 1
+          end1 = cang_offsets(grp1 + 1)
+          start2 = cang_offsets(grp2) + 1
+          end2 = cang_offsets(grp2 + 1)
+          start3 = cang_offsets(grp3) + 1
+          end3 = cang_offsets(grp3 + 1)
 
-            ! Get atom ranges
-            start1 = cang_offsets(grp1) + 1
-            end1 = cang_offsets(grp1 + 1)
-            start2 = cang_offsets(grp2) + 1
-            end2 = cang_offsets(grp2 + 1)
-            start3 = cang_offsets(grp3) + 1
-            end3 = cang_offsets(grp3 + 1)
+          ! Compute COMs
+          com1 = compute_com(trajectory%coord, mass, cang_atoms(start1:end1))
+          com2 = compute_com(trajectory%coord, mass, cang_atoms(start2:end2))
+          com3 = compute_com(trajectory%coord, mass, cang_atoms(start3:end3))
 
-            ! Compute COMs
-            com1 = compute_com(trajectory%coord, mass, cang_atoms(start1:end1))
-            com2 = compute_com(trajectory%coord, mass, cang_atoms(start2:end2))
-            com3 = compute_com(trajectory%coord, mass, cang_atoms(start3:end3))
+          ! Compute angle
+          cang(i, nstru) = compute_ang(com1, com2, com3)
+        end do
+      end if
 
-            ! Compute angle
-            cang(i, nstru) = compute_ang(com1, com2, com3)
-          end do
-        end if
+      ! Compute COM torsions
+      if (n_ctor > 0) then
+        do i = 1, n_ctor
+          ! Get group indices (0-based from Python, convert to 1-based)
+          grp1 = ctor_quads(4*i - 3) + 1
+          grp2 = ctor_quads(4*i - 2) + 1
+          grp3 = ctor_quads(4*i - 1) + 1
+          grp4 = ctor_quads(4*i) + 1
 
-        ! Compute COM torsions
-        if (n_ctor > 0) then
-          do i = 1, n_ctor
-            ! Get group indices (0-based from Python, convert to 1-based)
-            grp1 = ctor_quads(4*i - 3) + 1
-            grp2 = ctor_quads(4*i - 2) + 1
-            grp3 = ctor_quads(4*i - 1) + 1
-            grp4 = ctor_quads(4*i) + 1
+          ! Get atom ranges
+          start1 = ctor_offsets(grp1) + 1
+          end1 = ctor_offsets(grp1 + 1)
+          start2 = ctor_offsets(grp2) + 1
+          end2 = ctor_offsets(grp2 + 1)
+          start3 = ctor_offsets(grp3) + 1
+          end3 = ctor_offsets(grp3 + 1)
+          start4 = ctor_offsets(grp4) + 1
+          end4 = ctor_offsets(grp4 + 1)
 
-            ! Get atom ranges
-            start1 = ctor_offsets(grp1) + 1
-            end1 = ctor_offsets(grp1 + 1)
-            start2 = ctor_offsets(grp2) + 1
-            end2 = ctor_offsets(grp2 + 1)
-            start3 = ctor_offsets(grp3) + 1
-            end3 = ctor_offsets(grp3 + 1)
-            start4 = ctor_offsets(grp4) + 1
-            end4 = ctor_offsets(grp4 + 1)
+          ! Compute COMs
+          com1 = compute_com(trajectory%coord, mass, ctor_atoms(start1:end1))
+          com2 = compute_com(trajectory%coord, mass, ctor_atoms(start2:end2))
+          com3 = compute_com(trajectory%coord, mass, ctor_atoms(start3:end3))
+          com4 = compute_com(trajectory%coord, mass, ctor_atoms(start4:end4))
 
-            ! Compute COMs
-            com1 = compute_com(trajectory%coord, mass, ctor_atoms(start1:end1))
-            com2 = compute_com(trajectory%coord, mass, ctor_atoms(start2:end2))
-            com3 = compute_com(trajectory%coord, mass, ctor_atoms(start3:end3))
-            com4 = compute_com(trajectory%coord, mass, ctor_atoms(start4:end4))
-
-            ! Compute torsion
-            ctor(i, nstru) = compute_dih(com1, com2, com3, com4)
-          end do
-        end if
-
+          ! Compute torsion
+          ctor(i, nstru) = compute_dih(com1, com2, com3, com4)
+        end do
       end if
 
     end do
