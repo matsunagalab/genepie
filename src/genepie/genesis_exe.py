@@ -27,6 +27,7 @@ from .analysis import (  # noqa: F401
     hb_analysis,
     kmeans_clustering,
     mbar_analysis,
+    mbar_analysis_isolated,
     msd_analysis,
     rg_analysis,
     rmsd_analysis,
@@ -39,6 +40,7 @@ from .analysis import (  # noqa: F401
     selection_func,
     trj_analysis,
     wham_analysis,
+    wham_analysis_isolated,
 )
 from .analysis import __all__ as _analysis_all
 

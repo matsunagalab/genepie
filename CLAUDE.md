@@ -235,7 +235,9 @@ The `reset_atdyn_state_c()` function is also exposed to Python for explicit stat
 - `hb_analysis()` - Hydrogen bond analysis
 - `avecrd_analysis()` - Average coordinate calculation
 - `wham_analysis()` - WHAM free energy analysis
+- `wham_analysis_isolated()` - WHAM in a subprocess (safe for 4+ sequential solves)
 - `mbar_analysis()` - MBAR free energy analysis
+- `mbar_analysis_isolated()` - MBAR in a subprocess (safe for 4+ sequential solves)
 - `kmeans_clustering()` - K-means trajectory clustering
 
 ### ATDYN MD Engine Functions (in `genesis_exe.py`)
@@ -958,3 +960,19 @@ python your_script.py
 **Cause**: Fortran global state (PME FFT plans, memory allocations) accumulates across runs.
 
 **Workaround**: Use subprocess isolation for tests (see test_atdyn.py pattern).
+
+### Sequential WHAM/MBAR solves crash the kernel
+
+**Symptom**: Running 4+ free energy solves (`wham_analysis`/`mbar_analysis`) in the same Python process eventually crashes the interpreter/kernel (observed on the 4th real-data MBAR solve).
+
+**Cause**: The WHAM/MBAR Fortran solvers keep global state (iteration work arrays, accumulated counters, file units) alive across calls.
+
+**Fix**: Use the subprocess-isolated variants `wham_analysis_isolated()` / `mbar_analysis_isolated()`. Each solve runs in a throwaway subprocess with clean Fortran state, so any number of estimates can be computed back to back in one kernel session. They accept the same arguments as `wham_analysis`/`mbar_analysis` plus an optional `timeout`, and return the same arrays.
+
+```python
+from genepie import genesis_exe
+
+# Safe to call any number of times in one process
+pmf  = genesis_exe.wham_analysis_isolated(cvfile="run{}.dis", ...)
+fene = genesis_exe.mbar_analysis_isolated(cvfile="run{}.dat", ..., timeout=300.0)
+```

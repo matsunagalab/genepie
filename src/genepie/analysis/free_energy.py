@@ -22,6 +22,7 @@ from .._fortran import (
     ctrl_to_bytes,
     fortran_status,
 )
+from ._common import run_analysis_isolated
 
 
 def _check_free_energy_input(tool_name: str,
@@ -384,3 +385,64 @@ def mbar_analysis(
             LibGenesis().lib.deallocate_double2(
                     ctypes.byref(result_fene_c),
                     ctypes.byref(n_replica), ctypes.byref(n_blocks))
+
+
+def wham_analysis_isolated(timeout: Optional[float] = None, **kwargs):
+    """Run :func:`wham_analysis` in an isolated subprocess.
+
+    The WHAM/MBAR solvers accumulate global Fortran state, so running four or
+    more of them in the same interpreter crashes the kernel. This variant runs
+    the solve in a throwaway subprocess, giving every call clean state so any
+    number of estimates can be computed back to back in one kernel session.
+
+    Args:
+        timeout: Maximum time in seconds to wait for completion (None = no limit).
+        **kwargs: All arguments passed to :func:`wham_analysis`.
+
+    Returns:
+        The PMF array, identical to what :func:`wham_analysis` returns.
+
+    Raises:
+        GenesisValidationError: If input validation fails.
+        GenesisFortranNotSupportedError: If an unsupported input mode is used.
+        GenesisFortranError: If the Fortran solver returns an error.
+        TimeoutError: If the solve exceeds ``timeout``.
+        RuntimeError: If the subprocess fails unexpectedly.
+    """
+    return run_analysis_isolated(
+        func_name="wham_analysis",
+        timeout=timeout,
+        task_description="wham_analysis",
+        **kwargs,
+    )
+
+
+def mbar_analysis_isolated(timeout: Optional[float] = None, **kwargs):
+    """Run :func:`mbar_analysis` in an isolated subprocess.
+
+    The WHAM/MBAR solvers accumulate global Fortran state, so running four or
+    more of them in the same interpreter crashes the kernel. This variant runs
+    the solve in a throwaway subprocess, giving every call clean state so any
+    number of estimates can be computed back to back in one kernel session.
+
+    Args:
+        timeout: Maximum time in seconds to wait for completion (None = no limit).
+        **kwargs: All arguments passed to :func:`mbar_analysis`.
+
+    Returns:
+        The relative free energy array, identical to what
+        :func:`mbar_analysis` returns.
+
+    Raises:
+        GenesisValidationError: If input validation fails.
+        GenesisFortranNotSupportedError: If an unsupported input mode is used.
+        GenesisFortranError: If the Fortran solver returns an error.
+        TimeoutError: If the solve exceeds ``timeout``.
+        RuntimeError: If the subprocess fails unexpectedly.
+    """
+    return run_analysis_isolated(
+        func_name="mbar_analysis",
+        timeout=timeout,
+        task_description="mbar_analysis",
+        **kwargs,
+    )

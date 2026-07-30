@@ -28,7 +28,12 @@ from .dynamics import (
     diffusion_analysis,
     msd_analysis,
 )
-from .free_energy import mbar_analysis, wham_analysis
+from .free_energy import (
+    mbar_analysis,
+    mbar_analysis_isolated,
+    wham_analysis,
+    wham_analysis_isolated,
+)
 from .hbond import hb_analysis
 from .rg import RgAnalysisResult, rg_analysis
 from .rmsd import (
@@ -68,7 +73,9 @@ __all__ = [
     "diffusion_analysis",
     # Free energy
     "wham_analysis",
+    "wham_analysis_isolated",
     "mbar_analysis",
+    "mbar_analysis_isolated",
     # Clustering
     "KmeansClusteringResult",
     "kmeans_clustering",
