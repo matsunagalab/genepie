@@ -161,21 +161,27 @@ resulting lazy trajectory to `rmsd_analysis()` — the same call reads frames fr
 | Function | Description | Zerocopy | Lazy |
 |----------|-------------|:--------:|:----:|
 | `crd_convert()` | Coordinate/trajectory conversion | ✓ | – |
-| `trj_analysis()` | Distance, angle, dihedral analysis | ✓ | – |
+| `trj_analysis()` | Distance, angle, dihedral analysis | ✓ | ✓ |
 | `rmsd_analysis()` | RMSD calculation | ✓ | ✓ |
-| `drms_analysis()` | Distance RMSD calculation | ✓ | – |
-| `rg_analysis()` | Radius of gyration | ✓ | – |
+| `drms_analysis()` | Distance RMSD calculation | ✓ | ✓ |
+| `rg_analysis()` | Radius of gyration | ✓ | ✓ |
 | `diffusion_analysis()` | Diffusion coefficient calculation | ✓ | – |
 | `msd_analysis()` | Mean squared displacement | – | – |
 | `hb_analysis()` | Hydrogen bond analysis | – | – |
 | `avecrd_analysis()` | Average coordinate calculation | – | – |
 | `wham_analysis()` | WHAM free energy analysis | – | – |
 | `mbar_analysis()` | MBAR free energy analysis | – | – |
+| `pmf_analysis()` | PMF from CV samples + optional weights (histogram / Gaussian kernel) | – | – |
 | `mbar_resample_trajectory()` | MBAR-weighted trajectory resampling at a target temperature or bias-free condition | – | – |
 | `kmeans_clustering()` | K-means trajectory clustering | – | – |
 
 The full GENESIS analysis suite (43 tools) is also installed as CLI commands; the table above lists the
 tools currently wrapped as native Python functions.
+
+`wham_analysis`, `mbar_analysis`, and `pmf_analysis` each also provide an
+`*_isolated(..., timeout=...)` variant that runs the solve in a throwaway subprocess, giving every call
+clean Fortran state so many estimates can be computed back to back in one session. `pmf_analysis` accepts
+either in-memory NumPy arrays (`cv`, `weight`) or CLI-style filename patterns (`cvfile`, `weightfile`).
 
 ### MD Engine Functions
 
@@ -304,6 +310,7 @@ python -m genepie.tests.test_error_handling # 64 tests
 # These tests use data in tests/regression_test/
 python -m genepie.tests.test_trj
 python -m genepie.tests.test_wham
+python -m genepie.tests.test_pmf
 python -m genepie.tests.test_mbar_1d
 python -m genepie.tests.test_mbar_block
 python -m genepie.tests.test_atdyn
@@ -435,8 +442,8 @@ Applied to: `crd_convert`, `rmsd_analysis`, `rg_analysis`, `drms_analysis`, `trj
 Instead of loading an entire trajectory into memory, lazy mode reads one frame at a time directly from disk.
 Because DCD files have a fixed frame size, any frame is reachable in O(1) via a computed byte offset
 (`byte_offset = header_size + (N - 1) * frame_size`), using Fortran stream I/O. This keeps memory usage
-minimal for large trajectories. Currently used by `rmsd_analysis` (via `crd_convert(..., lazy=True)`);
-`rg_analysis`, `drms_analysis`, and `trj_analysis` are natural candidates.
+minimal for large trajectories. Enabled via `crd_convert(..., lazy=True)` and currently supported by
+`rmsd_analysis`, `rg_analysis`, `drms_analysis`, and `trj_analysis` (atom- and COM-based measurements).
 
 #### 3. CLI / Python unified core
 

@@ -567,6 +567,18 @@ class LibGenesis:
                 ]
         self.lib.mbar_analysis_c.restype = None
 
+        self.lib.pmf_analysis_c.argtypes = [
+                ctypes.c_char_p,                  # ctrl_text
+                ctypes.c_int,                     # ctrl_len
+                ctypes.POINTER(ctypes.c_void_p),  # result_pmf
+                ctypes.POINTER(ctypes.c_int),     # n_out1 (rows)
+                ctypes.POINTER(ctypes.c_int),     # n_out2 (cols)
+                ctypes.POINTER(ctypes.c_int),     # status
+                ctypes.c_char_p,                  # msg
+                ctypes.c_int,                     # msglen
+                ]
+        self.lib.pmf_analysis_c.restype = None
+
         self.lib.kc_analysis_c.argtypes = [
                 ctypes.POINTER(SMoleculeC),
                 ctypes.POINTER(STrajectoriesC),

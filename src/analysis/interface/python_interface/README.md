@@ -291,6 +291,15 @@ Files with changed module names related to mbar_analysis created by `mbar_rename
 
 * After executing mbar_rename.py, files with changed module names related to mbar_analysis exist in genesis/src/analysis/interface/mbar_analysis
 
+### pmf_analysis related
+
+|File name        |Content                                                                 |
+|:----------------|:-----------------------------------------------------------------------|
+|pmf_impl.fpp     |PMF core logic (adapted from pm_analyze.fpp); returns the PMF as an in-memory array instead of writing a file|
+|pmf_c_mod.fpp    |bind(C) wrapper (`pmf_analysis_c`); receives the control string, calls pmf_impl_mod, and returns the PMF array pointer + dimensions|
+
+* Reuses `control_from_string` in `../../free_energy/pmf_analysis/pm_control.fpp` and links the static `libpmf_analysis.a` built from the pmf_analysis CLI sources.
+
 ### avecrd_analysis related
 
 |File name                 |Content                                       |

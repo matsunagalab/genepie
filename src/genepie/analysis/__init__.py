@@ -30,8 +30,12 @@ from .dynamics import (
 )
 from .free_energy import (
     MbarResult,
+    Pmf1DResult,
+    Pmf2DResult,
     mbar_analysis,
     mbar_analysis_isolated,
+    pmf_analysis,
+    pmf_analysis_isolated,
     wham_analysis,
     wham_analysis_isolated,
 )
@@ -82,6 +86,10 @@ __all__ = [
     "mbar_analysis",
     "mbar_analysis_isolated",
     "MbarResult",
+    "pmf_analysis",
+    "pmf_analysis_isolated",
+    "Pmf1DResult",
+    "Pmf2DResult",
     # MBAR weighted resampling
     "MbarResampleResult",
     "mbar_resample_trajectory",

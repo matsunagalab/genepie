@@ -17,6 +17,7 @@ SUBDIRS := ../../libana \
 		   ../../clustering/kmeans_clustering \
 		   ../../free_energy/mbar_analysis \
 		   ../../free_energy/wham_analysis \
+		   ../../free_energy/pmf_analysis \
 		   ../../mode_analysis/avecrd_analysis \
 		   .
 
@@ -49,6 +50,8 @@ libpython_interface_la_SOURCES = \
         wham_impl.fpp \
         mbar_c_mod.fpp \
         mbar_impl.fpp \
+        pmf_c_mod.fpp \
+        pmf_impl.fpp \
         kmeans_c_mod.fpp \
         kmeans_impl.fpp \
         dynamic_string_mod.fpp \
@@ -82,6 +85,7 @@ libpython_interface_la_LIBADD = \
 		../../clustering/kmeans_clustering/libkmeans_clustering.a \
 		../../free_energy/wham_analysis/libwham_analysis.a \
 		../../free_energy/mbar_analysis/libmbar_analysis.a \
+		../../free_energy/pmf_analysis/libpmf_analysis.a \
 		../../libana/libana.a ../../../lib/lib.a ../../../ \
 		$(INT_LAPACK_LIB) \
 		$(LAPACK_LIBS) \
@@ -117,6 +121,7 @@ if USEKCOMP
 		-I ../../clustering/kmeans_clustering \
 		-I ../../free_energy/wham_analysis \
 		-I ../../free_energy/mbar_analysis \
+		-I ../../free_energy/pmf_analysis \
 		$(libpython_interface_la_FCFLAGS) -c $*.f90
 else
 	$(FPP) $(PPFLAGS) $(DEFS) $< $*.f90
@@ -134,6 +139,7 @@ else
 		-I ../../clustering/kmeans_clustering \
 		-I ../../free_energy/wham_analysis \
 		-I ../../free_energy/mbar_analysis \
+		-I ../../free_energy/pmf_analysis \
 		$(libpython_interface_la_FCFLAGS) -c $*.f90
 endif
 

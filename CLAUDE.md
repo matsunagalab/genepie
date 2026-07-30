@@ -238,6 +238,8 @@ The `reset_atdyn_state_c()` function is also exposed to Python for explicit stat
 - `wham_analysis_isolated()` - WHAM in a subprocess (safe for 4+ sequential solves)
 - `mbar_analysis()` - MBAR free energy analysis
 - `mbar_analysis_isolated()` - MBAR in a subprocess (safe for 4+ sequential solves)
+- `pmf_analysis()` - PMF from CV samples + optional weights (histogram/Gaussian kernel; accepts numpy arrays or cvfile/weightfile patterns)
+- `pmf_analysis_isolated()` - PMF in a subprocess (clean Fortran state per call)
 - `kmeans_clustering()` - K-means trajectory clustering
 
 ### ATDYN MD Engine Functions (in `genesis_exe.py`)

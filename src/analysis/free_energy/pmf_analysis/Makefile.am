@@ -15,6 +15,7 @@ endif
 SUBDIRS := ../../libana .
 
 bin_PROGRAMS = pmf_analysis
+noinst_LIBRARIES = libpmf_analysis.a
 
 pmf_analysis_SOURCES = \
         pm_option_str.fpp \
@@ -53,6 +54,11 @@ pmf_analysis$(EXEEXT) : $(pmf_analysis_ADDLIBANA) $(pmf_analysis_ADDLIB) \
 						$(pmf_analysis_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(pmf_analysis_OBJECTS) \
 		$(pmf_analysis_ADDLIBANA) $(pmf_analysis_ADDLIB) $(LDFLAGS)
+
+$(noinst_LIBRARIES) : $(pmf_analysis_OBJECTS)
+	$(AR) $(ARFLAGS) cr $@ $(pmf_analysis_OBJECTS)
+
+libpmf_analysis.o : ;
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

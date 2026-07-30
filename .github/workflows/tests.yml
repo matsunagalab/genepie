@@ -52,6 +52,7 @@ jobs:
           # Regression tests use relative paths that expect CWD to be src/genepie/tests/
           python -m genepie.tests.test_trj
           python -m genepie.tests.test_wham
+          python -m genepie.tests.test_pmf
           python -m genepie.tests.test_mbar_1d
           python -m genepie.tests.test_mbar_block
           python -m genepie.tests.test_hb_atom
@@ -124,6 +125,7 @@ jobs:
           # Regression tests use relative paths that expect CWD to be src/genepie/tests/
           python -m genepie.tests.test_trj
           python -m genepie.tests.test_wham
+          python -m genepie.tests.test_pmf
           python -m genepie.tests.test_mbar_1d
           python -m genepie.tests.test_mbar_block
           python -m genepie.tests.test_hb_atom

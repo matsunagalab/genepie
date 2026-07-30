@@ -67,9 +67,15 @@ Selection strings and `fitting_method` values (`"NO"`, `"TR"`, `"TR+ROT"`,
 |----------|---------|-------|
 | `wham_analysis(cvfile, dimension, grids, constant, reference, ...)` | PMF array `(n_bins, n_columns)` | `cvfile` **required**; existence validated up front (raises `GenesisValidationError`). |
 | `mbar_analysis(cvfile, nreplica, input_type, grids, constant, reference, ...)` | free-energy array | Same `cvfile` validation. DCD input is rejected with `GenesisFortranNotSupportedError`. |
+| `pmf_analysis(cv/cvfile, weight/weightfile, grids, band_width, ...)` | `Pmf1DResult(cv, pmf, pmf_gaussian)` or `Pmf2DResult(cv1, cv2, pmf)` | Builds a PMF directly from CV samples and optional per-sample weights (histogram + Gaussian kernel, `F = -kT log P`). Accepts in-memory arrays (`cv`, `weight`) or CLI-style filename patterns (`cvfile`, `weightfile`). |
 
 `cvfile` is a filename *pattern* where `{}` expands to the window/replica index,
 e.g. `"run{}.dis"`.
+
+`wham_analysis`, `mbar_analysis`, and `pmf_analysis` each have an
+`*_isolated(..., timeout=...)` variant that runs the solve in a throwaway
+subprocess, giving every call clean Fortran state so many estimates can be
+computed back to back in one session.
 
 ## Clustering
 

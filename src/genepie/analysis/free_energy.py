@@ -39,6 +39,22 @@ MbarResult = namedtuple(
     "MbarResult", ["fene", "weights", "n_replica", "n_step"])
 
 
+# Result of a 1-D :func:`pmf_analysis`.
+#   cv:           bin-center coordinates, shape (n_bins,)
+#   pmf:          free energy from the standard histogram estimator (kcal/mol)
+#   pmf_gaussian: free energy from the Gaussian-kernel estimator (kcal/mol)
+# Both PMF curves have their minimum shifted to zero.
+Pmf1DResult = namedtuple("Pmf1DResult", ["cv", "pmf", "pmf_gaussian"])
+
+
+# Result of a 2-D :func:`pmf_analysis`.
+#   cv1: bin-center coordinates along the first reaction coordinate, (n_x,)
+#   cv2: bin-center coordinates along the second reaction coordinate, (n_y,)
+#   pmf: Gaussian-kernel free energy matrix, shape (n_x, n_y); ``pmf[i, j]`` is
+#        the free energy at ``(cv1[i], cv2[j])``, minimum shifted to zero.
+Pmf2DResult = namedtuple("Pmf2DResult", ["cv1", "cv2", "pmf"])
+
+
 # MBAR input_type keywords accepted by the Fortran reader (mbar_option_str.fpp).
 MBAR_INPUT_TYPES = (
     "CV", "US", "ENESINGLE", "REMD", "ENEPAIR", "FEP", "ENEALL", "REST", "MBGO",
@@ -475,6 +491,257 @@ def mbar_analysis(
                     ctypes.byref(result_weights_c),
                     ctypes.byref(n_weight_replica),
                     ctypes.byref(n_weight_step))
+
+
+def _bin_centers(grid):
+    """Reproduce the bin centers pmf_analysis places at each grid cell.
+
+    Mirrors ``setup_option`` in ``pm_option.fpp``: ``num_grids`` grid edges give
+    ``num_grids - 1`` bins whose centers are offset by half a bin width.
+    """
+    grid_min, grid_max, num_grids = grid
+    num_grids = int(num_grids)
+    delta = (grid_max - grid_min) / (num_grids - 1)
+    return grid_min + 0.5 * delta + np.arange(num_grids - 1) * delta
+
+
+def _as_per_dim(value, name, dimension):
+    """Normalize a scalar or per-dimension sequence into a length-``dimension`` list."""
+    if value is None:
+        return None
+    if isinstance(value, (list, tuple)):
+        seq = list(value)
+    else:
+        seq = [value]
+    if len(seq) == 1 and dimension > 1:
+        seq = seq * dimension
+    if len(seq) != dimension:
+        raise GenesisValidationError(
+            f"pmf_analysis: {name} must have one entry per dimension "
+            f"(expected {dimension}, got {len(seq)})."
+        )
+    return seq
+
+
+def _write_cv_weight_files(directory, cv, weight):
+    """Serialize in-memory CV (and weight) samples to the pmf_analysis format.
+
+    Returns ``(cvfile_pattern, weightfile_pattern)`` using a single ``{}``
+    replica so the wrapper can drive the same file-based Fortran routine used
+    for the CLI. The first column is a sample index (the Fortran reader treats
+    it as the time stamp and ignores it).
+    """
+    cv = np.asarray(cv, dtype=np.float64)
+    if cv.ndim == 1:
+        cv = cv[:, None]
+    n_sample, ndim = cv.shape
+
+    cvfile = os.path.join(directory, "{}.cv")
+    idx = np.arange(1, n_sample + 1)
+    np.savetxt(cvfile.format(1), np.column_stack([idx, cv]))
+
+    weightfile = None
+    if weight is not None:
+        weight = np.asarray(weight, dtype=np.float64).ravel()
+        if weight.shape[0] != n_sample:
+            raise GenesisValidationError(
+                "pmf_analysis: weight length "
+                f"({weight.shape[0]}) does not match the number of CV samples "
+                f"({n_sample})."
+            )
+        weightfile = os.path.join(directory, "{}.weight")
+        np.savetxt(weightfile.format(1), np.column_stack([idx, weight]))
+
+    return cvfile, weightfile, ndim
+
+
+def pmf_analysis(
+        cv: Optional[Iterable] = None,
+        weight: Optional[Iterable] = None,
+        cvfile: Optional[str] = None,
+        weightfile: Optional[str] = None,
+        distfile: Optional[str] = None,
+        grids: Optional[Iterable[tuple[float, float, int]]] = None,
+        band_width: Optional[Iterable[float]] = None,
+        dimension: Optional[int] = None,
+        nreplica: Optional[int] = None,
+        temperature: float = 300.0,
+        cutoff: Optional[float] = None,
+        is_periodic: Optional[Iterable[bool]] = None,
+        box_size: Optional[Iterable[float]] = None,
+        check_only: Optional[bool] = None,
+        allow_backup: Optional[bool] = None,
+        ):
+    """
+    Estimate a potential of mean force (PMF) from reaction-coordinate samples.
+
+    This wraps the GENESIS ``pmf_analysis`` tool, which builds the PMF directly
+    from collective-variable samples and optional per-sample weights (for
+    example MBAR weights) using a histogram and a Gaussian-kernel estimator.
+
+    There are two ways to provide the data:
+
+    * **In-memory arrays** (convenient in notebooks): pass ``cv`` (and, for a
+      reweighted PMF, ``weight``). ``cv`` is ``(n_sample,)`` for a 1-D PMF or
+      ``(n_sample, 2)`` for a 2-D PMF. The arrays are written to temporary
+      files internally.
+    * **File patterns** (same as the CLI): pass ``cvfile`` (and optionally
+      ``weightfile`` / ``distfile``) as filename patterns whose ``{}``
+      placeholder expands to the replica index, e.g. ``"run{}.pathcv"``.
+
+    Args:
+        cv: In-memory CV samples, shape ``(n_sample,)`` or ``(n_sample, ndim)``.
+        weight: In-memory per-sample weights, shape ``(n_sample,)``. When
+            omitted every sample is weighted equally.
+        cvfile: CV filename pattern (alternative to ``cv``).
+        weightfile: Weight filename pattern (alternative to ``weight``).
+        distfile: Optional path-CV distance filename pattern; samples whose
+            distance is >= ``cutoff`` are discarded.
+        grids: ``(min, max, num_grids)`` per dimension. ``num_grids`` grid
+            edges produce ``num_grids - 1`` bins.
+        band_width: Gaussian-kernel sigma per dimension.
+        dimension: Number of reaction coordinates (1 or 2). Inferred from
+            ``cv``/``grids`` when omitted.
+        nreplica: Number of replicas when using ``cvfile`` patterns (default 1).
+        temperature: Temperature in K used for ``-kT log P``.
+        cutoff: Distance cutoff paired with ``distfile`` (0 disables filtering).
+        is_periodic: Whether each reaction coordinate is periodic.
+        box_size: Period of each periodic reaction coordinate.
+
+    Returns:
+        :class:`Pmf1DResult` for a 1-D PMF or :class:`Pmf2DResult` for a 2-D
+        PMF (see their docstrings for the exact fields).
+    """
+    if cv is not None and cvfile is not None:
+        raise GenesisValidationError(
+            "pmf_analysis: pass either cv (in-memory) or cvfile (pattern), "
+            "not both."
+        )
+    if cv is None and cvfile is None:
+        raise GenesisValidationError(
+            "pmf_analysis: provide the reaction coordinate via cv (array) or "
+            "cvfile (filename pattern)."
+        )
+    if grids is None:
+        raise GenesisValidationError("pmf_analysis: grids is required.")
+    if band_width is None:
+        raise GenesisValidationError("pmf_analysis: band_width is required.")
+
+    # Normalize grids to a list of (min, max, num_grids) tuples so both the
+    # inferred dimension and the returned bin centers are unambiguous.
+    grids = list(grids)
+    if grids and not isinstance(grids[0], (list, tuple)):
+        grids = [tuple(grids)]
+    grids = [tuple(g) for g in grids]
+
+    scratch = tempfile.TemporaryDirectory()
+    result_pmf_c = ctypes.c_void_p(None)
+    n_out1 = ctypes.c_int(0)
+    n_out2 = ctypes.c_int(0)
+    try:
+        if cv is not None:
+            cvfile, weightfile, ndim = _write_cv_weight_files(
+                scratch.name, cv, weight)
+            nreplica = 1
+            if dimension is None:
+                dimension = ndim
+        if dimension is None:
+            dimension = len(grids)
+        if len(grids) != dimension:
+            raise GenesisValidationError(
+                f"pmf_analysis: grids must have one (min, max, num_grids) entry "
+                f"per dimension (expected {dimension}, got {len(grids)})."
+            )
+
+        band_width = _as_per_dim(band_width, "band_width", dimension)
+        is_periodic = _as_per_dim(is_periodic, "is_periodic", dimension)
+        box_size = _as_per_dim(box_size, "box_size", dimension)
+
+        _validate_cvfiles_exist("pmf_analysis", cvfile, nreplica)
+
+        ctrl = io.BytesIO()
+        ctrl_files.write_ctrl_input(
+                ctrl,
+                cvfile=cvfile,
+                weightfile=weightfile,
+                distfile=distfile,
+                )
+        ctrl_files.write_ctrl_output(
+                ctrl,
+                pmffile=os.path.join(scratch.name, "pmf.dat"))
+        ctrl.write(b'[OPTION]\n')
+        ctrl_files.write_kwargs(
+                ctrl,
+                check_only=check_only,
+                allow_backup=allow_backup,
+                nreplica=nreplica,
+                dimension=dimension,
+                temperature=temperature,
+                cutoff=cutoff,
+                grids=ctrl_files.NumberingData(grids),
+                band_width=ctrl_files.NumberingData(band_width),
+                is_periodic=ctrl_files.NumberingData(is_periodic),
+                box_size=ctrl_files.NumberingData(box_size),
+                )
+
+        ctrl_bytes, ctrl_len = ctrl_to_bytes(ctrl)
+        with fortran_status() as (status, msgbuf, msglen):
+            LibGenesis().lib.pmf_analysis_c(
+                    ctrl_bytes,
+                    ctrl_len,
+                    ctypes.byref(result_pmf_c),
+                    ctypes.byref(n_out1),
+                    ctypes.byref(n_out2),
+                    ctypes.byref(status),
+                    msgbuf,
+                    ctypes.c_int(msglen),
+                    )
+
+        result = c2py_util.conv_double_ndarray(
+                result_pmf_c, [n_out1.value, n_out2.value])
+
+        if dimension == 1:
+            # Columns: bin center, standard PMF, Gaussian-kernel PMF.
+            return Pmf1DResult(
+                cv=result[:, 0],
+                pmf=result[:, 1],
+                pmf_gaussian=result[:, 2],
+            )
+
+        return Pmf2DResult(
+            cv1=_bin_centers(grids[0]),
+            cv2=_bin_centers(grids[1]),
+            pmf=result,
+        )
+    finally:
+        scratch.cleanup()
+        if result_pmf_c:
+            LibGenesis().lib.deallocate_double2(
+                    ctypes.byref(result_pmf_c),
+                    ctypes.byref(n_out1), ctypes.byref(n_out2))
+
+
+def pmf_analysis_isolated(timeout: Optional[float] = None, **kwargs):
+    """Run :func:`pmf_analysis` in an isolated subprocess.
+
+    Like the WHAM/MBAR isolated variants, this runs the estimate in a throwaway
+    subprocess so accumulated Fortran state cannot destabilize the host kernel
+    across many sequential calls.
+
+    Args:
+        timeout: Maximum time in seconds to wait for completion (None = no limit).
+        **kwargs: All arguments passed to :func:`pmf_analysis`.
+
+    Returns:
+        The :class:`Pmf1DResult` or :class:`Pmf2DResult`, identical to what
+        :func:`pmf_analysis` returns.
+    """
+    return run_analysis_isolated(
+        func_name="pmf_analysis",
+        timeout=timeout,
+        task_description="pmf_analysis",
+        **kwargs,
+    )
 
 
 def wham_analysis_isolated(timeout: Optional[float] = None, **kwargs):
