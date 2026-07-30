@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel", "packaging>=24.2"]
+requires = ["setuptools>=68,<77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,7 +7,7 @@ name = "genepie"
 version = "0.1.23"
 description = "GENESIS: Molecular dynamics simulation and analysis toolkit for biomolecular systems"
 readme = "README.md"
-license = "LGPL-3.0-or-later"
+license = {text = "LGPL-3.0-or-later"}
 requires-python = ">=3.9"
 authors = [
     {name = "Yasuhiro Matsunaga"},
