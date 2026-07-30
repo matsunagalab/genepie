@@ -22,13 +22,13 @@ GENESIS Fortran engine with researchers and the AI/ML ecosystem.
 science. Three layers are connected by standard interop mechanisms:
 
 ```
-┌─────────────────────────────────────────────┐
-│ User layer     Python script / Jupyter / NumPy │
-├─────────────────────────────────────────────┤   ctypes  (C ↔ Python)
-│ Interface layer   genepie (this package)       │
-├─────────────────────────────────────────────┤   ISO_C_BINDING (Fortran ↔ C)
-│ Engine layer   GENESIS (Fortran: MD & analysis)│
-└─────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────┐
+│ User layer       Python script / Jupyter / NumPy   │
+├────────────────────────────────────────────────────┤   ctypes  (C ↔ Python)
+│ Interface layer  genepie (this package)            │
+├────────────────────────────────────────────────────┤   ISO_C_BINDING (Fortran ↔ C)
+│ Engine layer     GENESIS (Fortran: MD & analysis)  │
+└────────────────────────────────────────────────────┘
 ```
 
 The interface layer is built around four design ideas (see [Design Highlights](#design-highlights) for details):
