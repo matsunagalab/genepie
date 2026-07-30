@@ -40,6 +40,31 @@ The interface layer is built around four design ideas (see [Design Highlights](#
 
 ---
 
+## Table of Contents
+
+- [Python Interface (genepie)](#python-interface-genepie)
+  - [Why genepie?](#why-genepie)
+  - [Architecture](#architecture)
+- [For Users](#for-users)
+  - [Installation](#installation)
+  - [Testing Your Installation](#testing-your-installation)
+  - [Quick Start](#quick-start)
+  - [Available Analysis Functions](#available-analysis-functions)
+  - [MD Engine Functions](#md-engine-functions)
+  - [Supported File Formats](#supported-file-formats)
+  - [Tutorials](#tutorials)
+- [For Developers](#for-developers)
+  - [Installation from Source](#installation-from-source)
+  - [Running Tests](#running-tests)
+  - [Developer Workflow](#developer-workflow)
+  - [Project Structure](#project-structure)
+  - [Design Highlights](#design-highlights)
+  - [Adding a New Analysis Tool](#adding-a-new-analysis-tool)
+- [Documentation](#documentation)
+- [License](#license)
+
+---
+
 ## For Users
 
 ### Installation
