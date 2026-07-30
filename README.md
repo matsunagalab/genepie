@@ -252,12 +252,20 @@ jupyter lab docs/tutorials/05b_mbar_resampling.ipynb
 
 ## For Developers
 
+> **genepie is an open-source public repository.** External contributors do **not** have push access
+> to `matsunagalab/genepie`. To contribute, **fork** the repository, push your changes to a branch on
+> your fork, and open a **pull request** back to `matsunagalab/genepie`. See
+> [Contributing (Fork & Pull Request)](#4-contributing-fork--pull-request) below.
+
 ### Installation from Source
 
 ```bash
-# Clone repository
-git clone https://github.com/matsunagalab/genepie.git
+# 1. Fork matsunagalab/genepie on GitHub (click "Fork"), then clone YOUR fork
+git clone https://github.com/<your-username>/genepie.git
 cd genepie
+
+# 2. Add the upstream repository so you can keep your fork in sync
+git remote add upstream https://github.com/matsunagalab/genepie.git
 
 # Set up Python environment with uv
 uv venv --python=python3.11
@@ -325,8 +333,8 @@ python -m genepie.tests.test_atdyn
 | 1 | Edit code | Python: instant; Fortran: requires `make` |
 | 2 | Run tests | See testing strategy below |
 | 3 | Commit changes | Use descriptive commit messages |
-| 4 | Push to branch | Create feature branch from main |
-| 5 | Create PR | Target: main branch |
+| 4 | Push to your fork | Create a feature branch, push to `origin` (your fork) |
+| 5 | Open a PR | From your fork's branch → `matsunagalab/genepie` `main` |
 
 #### 2. Rebuilding After Changes
 
@@ -346,18 +354,51 @@ python -m genepie.tests.test_atdyn
 | Bug fixes | Relevant test + add new regression test |
 | New analysis function | Create `test_<name>.py` + add to `all_run.sh` |
 
-#### 4. Pull Request Process
+#### 4. Contributing (Fork & Pull Request)
 
-1. Push changes to a feature branch
-2. Create PR targeting `main` branch
-3. GitHub Actions automatically builds wheels for all platforms
-4. Review CI build results (Linux x86_64, macOS arm64, macOS x86_64)
-5. Merge after approval and CI passes
+`genepie` is a public repository, so contributions go through the standard GitHub **fork & pull request**
+flow. You do not need write access to the upstream repository.
+
+```bash
+# 1. Fork matsunagalab/genepie on GitHub, then clone your fork
+git clone https://github.com/<your-username>/genepie.git
+cd genepie
+git remote add upstream https://github.com/matsunagalab/genepie.git
+
+# 2. Sync your fork with upstream before starting
+git checkout main
+git fetch upstream
+git merge upstream/main
+git push origin main
+
+# 3. Create a feature branch
+git checkout -b feature/my-change
+
+# 4. Make changes, run tests, and commit
+git add -A
+git commit -m "Describe your change"
+
+# 5. Push the branch to YOUR fork
+git push origin feature/my-change
+
+# 6. Open a pull request on GitHub:
+#    base: matsunagalab/genepie  main  ←  compare: <your-username>/genepie  feature/my-change
+```
+
+Then:
+
+1. GitHub Actions automatically builds wheels for all platforms on the PR
+2. Review CI build results (Linux x86_64, macOS arm64, macOS x86_64)
+3. Address review feedback by pushing more commits to the same branch
+4. A maintainer merges after approval and CI passes
 
 #### 5. Release Workflow
 
+> **Maintainers only.** The steps below require push access to `matsunagalab/genepie` and are performed
+> by maintainers after a contributor's pull request has been merged.
+
 ```
-Feature Branch → PR → main → TestPyPI (optional) → Tag → PyPI
+Fork → PR → main → TestPyPI (optional) → Tag → PyPI
 ```
 
 **Step 1: Test on TestPyPI (optional but recommended)**
