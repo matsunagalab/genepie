@@ -1,0 +1,29 @@
+# Table of contents for the genepie documentation site.
+# Reference: https://jupyterbook.org/customize/toc.html
+format: jb-book
+root: intro
+parts:
+  - caption: Getting Started
+    chapters:
+      - file: install
+      - file: getting-started
+  - caption: Tutorials
+    chapters:
+      - file: tutorials/01_molecule
+      - file: tutorials/02_trajectory
+      - file: tutorials/02b_lazy_loading
+      - file: tutorials/03_structure
+      - file: tutorials/04_dynamics
+      - file: tutorials/05_free_energy
+      - file: tutorials/06_clustering
+      - file: tutorials/07_md_engine
+      - file: tutorials/08_ml_integration
+  - caption: Reference
+    chapters:
+      - file: reference/api
+      - file: reference/errors
+  - caption: Developer Guide
+    chapters:
+      - file: developer/architecture
+      - file: developer/design
+      - file: developer/adding-a-tool

@@ -1,0 +1,68 @@
+# Jupyter Book configuration for the genepie documentation & tutorial site.
+# Reference: https://jupyterbook.org/customize/config.html
+
+title: genepie
+author: The GENESIS developers
+logo: ""
+copyright: "2026"
+
+# Only build files that are part of the table of contents.
+only_build_toc_files: true
+
+#######################################################################################
+# Execution
+# Notebooks are executed at build time so their real outputs (plots, arrays,
+# structures) are embedded in the HTML, mirroring the GENESIS MD-engine tutorials.
+execute:
+  execute_notebooks: force
+  timeout: 600
+  allow_errors: false
+  # The ML integration chapter needs PyTorch + the ~500 MB chignolin download,
+  # so it ships with pre-saved outputs and is not re-executed during the build.
+  exclude_patterns:
+    - "tutorials/08_ml_integration.ipynb"
+
+#######################################################################################
+# HTML-specific settings
+html:
+  use_issues_button: true
+  use_repository_button: true
+  use_edit_page_button: false
+  home_page_in_navbar: true
+
+# Information about where the book exists on the web
+repository:
+  url: https://github.com/matsunagalab/genepie
+  path_to_book: docs
+  branch: main
+
+#######################################################################################
+# Parse and render settings
+parse:
+  myst_enable_extensions:
+    - amsmath
+    - colon_fence
+    - deflist
+    - dollarmath
+    - html_admonition
+    - html_image
+    - linkify
+    - substitution
+    - tasklist
+
+#######################################################################################
+# Sphinx configuration
+sphinx:
+  config:
+    # Enable Mermaid diagrams inside MyST Markdown.
+    myst_fence_as_directive:
+      - mermaid
+    # Load require.js + Mermaid so Plotly figures and Mermaid diagrams render
+    # in the static HTML output.
+    html_js_files:
+      - https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js
+    # Keep large embedded Plotly/py3Dmol payloads from tripping the size guard.
+    nb_output_stderr: remove
+    nb_merge_streams: true
+  extra_extensions:
+    - sphinxcontrib.mermaid

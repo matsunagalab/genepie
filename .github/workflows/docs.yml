@@ -1,0 +1,68 @@
+name: Docs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Allow this workflow to publish to GitHub Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one concurrent deployment.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/pypa/manylinux_2_28_x86_64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          yum install -y gcc-gfortran lapack-devel blas-devel autoconf automake libtool
+          ln -sf /opt/python/cp311-cp311/bin/python /usr/local/bin/python
+          ln -sf /opt/python/cp311-cp311/bin/pip /usr/local/bin/pip
+
+      - name: Build GENESIS
+        run: |
+          autoreconf -fi
+          ./configure --disable-mpi CC=gcc FC=gfortran LAPACK_LIBS="-llapack -lblas"
+          make -j$(nproc)
+          make install
+
+      - name: Install Python package and documentation dependencies
+        run: |
+          pip install -e .
+          pip install -r docs/requirements.txt ipykernel
+          python -m ipykernel install --user --name python3 --display-name "Python 3"
+
+      - name: Build the book (executes runnable notebooks)
+        run: |
+          jupyter-book build docs
+
+      - name: Upload the built site as a Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/_build/html
+
+  deploy:
+    # Only deploy on pushes to main; PRs just build to catch breakage.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

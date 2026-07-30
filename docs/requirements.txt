@@ -1,0 +1,20 @@
+# Documentation build requirements for the genepie site.
+# Install with:  uv pip install -r docs/requirements.txt
+#
+# The genepie package itself must also be importable (built + installed):
+#   uv pip install -e .
+# and the compiled shared library (libpython_interface) must be discoverable
+# (see docs/install.md; locally you can point GENEPIE_LIB_DIR at the build dir).
+
+jupyter-book<2
+myst-nb
+sphinxcontrib-mermaid
+numpy
+plotly
+py3Dmol
+mdtraj
+MDAnalysis
+scikit-learn
+# Note: torch is intentionally NOT listed. The ML integration chapter
+# (tutorials/08_ml_integration.ipynb) is marked non-executing, so PyTorch is
+# not required to build the book.
