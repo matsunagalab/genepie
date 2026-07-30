@@ -31,6 +31,7 @@ jobs:
           yum install -y gcc-gfortran lapack-devel blas-devel autoconf automake libtool
           ln -sf /opt/python/cp311-cp311/bin/python /usr/local/bin/python
           ln -sf /opt/python/cp311-cp311/bin/pip /usr/local/bin/pip
+          echo "/opt/python/cp311-cp311/bin" >> "$GITHUB_PATH"
 
       - name: Build GENESIS
         run: |
