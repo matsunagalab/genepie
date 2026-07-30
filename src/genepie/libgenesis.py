@@ -171,6 +171,38 @@ class LibGenesis:
                 ]
         self.lib.trj_analysis_c.restype = None
 
+        # TRJ analysis with lazy DCD loading (memory efficient)
+        self.lib.trj_analysis_lazy_c.argtypes = [
+                ctypes.c_char_p,                  # dcd_filename
+                ctypes.c_int,                     # filename_len
+                ctypes.c_int,                     # trj_type
+                ctypes.c_int,                     # physical DCD atom count
+                ctypes.c_void_p,                  # source selection
+                ctypes.c_int,                     # selected atom count
+                ctypes.c_void_p,                  # dist_list_ptr
+                ctypes.c_int,                     # n_dist
+                ctypes.c_void_p,                  # angl_list_ptr
+                ctypes.c_int,                     # n_angl
+                ctypes.c_void_p,                  # tors_list_ptr
+                ctypes.c_int,                     # n_tors
+                ctypes.c_int,                     # n_atoms (selected)
+                ctypes.c_int,                     # ana_period
+                ctypes.c_int,                     # n_frame (result columns)
+                ctypes.c_void_p,                  # dist_ptr (pre-allocated)
+                ctypes.c_int,                     # dist_size
+                ctypes.c_void_p,                  # angl_ptr (pre-allocated)
+                ctypes.c_int,                     # angl_size
+                ctypes.c_void_p,                  # tors_ptr (pre-allocated)
+                ctypes.c_int,                     # tors_size
+                ctypes.POINTER(ctypes.c_int),     # nstru_out (output)
+                ctypes.POINTER(ctypes.c_int),     # dcd_nframe_out (output)
+                ctypes.POINTER(ctypes.c_int),     # dcd_natom_out (output)
+                ctypes.POINTER(ctypes.c_int),     # status (output)
+                ctypes.c_char_p,                  # msg (output)
+                ctypes.c_int,                     # msglen
+                ]
+        self.lib.trj_analysis_lazy_c.restype = None
+
         # TRJ analysis with COM (zerocopy, pre-allocated result arrays)
         self.lib.trj_analysis_com_c.argtypes = [
                 ctypes.c_void_p,                  # mass_ptr

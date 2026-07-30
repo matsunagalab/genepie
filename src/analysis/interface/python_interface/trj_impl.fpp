@@ -35,8 +35,7 @@ contains
   !  Subroutine    analyze
   !> @brief        Trajectory analysis (zerocopy, pre-allocated results)
   !! @authors      Claude Code
-  !! @param[in]    trajes_c     : trajectories C structure
-  !! @param[in]    ana_period   : analysis period
+  !! @param[inout] source       : abstract trajectory source (memory/lazy/file)
   !! @param[in]    dist_list    : distance atom pairs (2, n_dist)
   !! @param[in]    n_dist       : number of distance measurements
   !! @param[in]    angl_list    : angle atom triplets (3, n_angl)
@@ -47,19 +46,21 @@ contains
   !! @param[inout] angle        : pre-allocated angle results (n_angl, nframe)
   !! @param[inout] torsion      : pre-allocated torsion results (n_tors, nframe)
   !! @param[out]   nstru_out    : actual number of structures analyzed
+  !! @note         The analysis period is encapsulated by the source, so the
+  !!               loop simply consumes frames the source decides to emit. The
+  !!               same loop therefore serves memory and lazy DCD sources.
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine analyze(trajes_c, ana_period, &
+  subroutine analyze(source, &
                      dist_list, n_dist, &
                      angl_list, n_angl, &
                      tors_list, n_tors, &
                      distance, angle, torsion, nstru_out)
-    use s_trajectories_c_mod
+    use trj_source_mod
 
     ! formal arguments
-    type(s_trajectories_c),  intent(in)    :: trajes_c
-    integer,                 intent(in)    :: ana_period
+    type(s_trj_source),      intent(inout) :: source
     integer,                 intent(in)    :: dist_list(:,:)  ! (2, n_dist)
     integer,                 intent(in)    :: n_dist
     integer,                 intent(in)    :: angl_list(:,:)  ! (3, n_angl)
@@ -73,58 +74,55 @@ contains
 
     ! local variables
     type(s_trajectory) :: trajectory
-    integer            :: nstru, istep, i
+    integer            :: nstru, i, frame_status
     integer            :: idx1, idx2, idx3, idx4
 
-    ! Analysis loop (NO allocation - arrays are pre-allocated)
+    ! Analysis loop (NO allocation - arrays are pre-allocated).
+    ! The source yields only the frames that satisfy its analysis period.
     nstru = 0
 
-    do istep = 1, trajes_c%nframe
+    do while (has_more_frames(source))
 
-      ! Get trajectory frame
-      call get_frame(trajes_c, istep, trajectory)
+      call get_next_frame(source, trajectory, frame_status)
+      if (frame_status /= 0) exit
 
-      if (mod(istep, ana_period) == 0) then
+      nstru = nstru + 1
+      write(MsgOut,*) '      number of structures = ', nstru
 
-        nstru = nstru + 1
-        write(MsgOut,*) '      number of structures = ', nstru
+      ! Compute distances
+      if (n_dist > 0) then
+        do i = 1, n_dist
+          idx1 = dist_list(1, i)
+          idx2 = dist_list(2, i)
+          distance(i, nstru) = compute_dis(trajectory%coord(:, idx1), &
+                                           trajectory%coord(:, idx2))
+        end do
+      end if
 
-        ! Compute distances
-        if (n_dist > 0) then
-          do i = 1, n_dist
-            idx1 = dist_list(1, i)
-            idx2 = dist_list(2, i)
-            distance(i, nstru) = compute_dis(trajectory%coord(:, idx1), &
-                                             trajectory%coord(:, idx2))
-          end do
-        end if
+      ! Compute angles
+      if (n_angl > 0) then
+        do i = 1, n_angl
+          idx1 = angl_list(1, i)
+          idx2 = angl_list(2, i)
+          idx3 = angl_list(3, i)
+          angle(i, nstru) = compute_ang(trajectory%coord(:, idx1), &
+                                        trajectory%coord(:, idx2), &
+                                        trajectory%coord(:, idx3))
+        end do
+      end if
 
-        ! Compute angles
-        if (n_angl > 0) then
-          do i = 1, n_angl
-            idx1 = angl_list(1, i)
-            idx2 = angl_list(2, i)
-            idx3 = angl_list(3, i)
-            angle(i, nstru) = compute_ang(trajectory%coord(:, idx1), &
+      ! Compute torsions
+      if (n_tors > 0) then
+        do i = 1, n_tors
+          idx1 = tors_list(1, i)
+          idx2 = tors_list(2, i)
+          idx3 = tors_list(3, i)
+          idx4 = tors_list(4, i)
+          torsion(i, nstru) = compute_dih(trajectory%coord(:, idx1), &
                                           trajectory%coord(:, idx2), &
-                                          trajectory%coord(:, idx3))
-          end do
-        end if
-
-        ! Compute torsions
-        if (n_tors > 0) then
-          do i = 1, n_tors
-            idx1 = tors_list(1, i)
-            idx2 = tors_list(2, i)
-            idx3 = tors_list(3, i)
-            idx4 = tors_list(4, i)
-            torsion(i, nstru) = compute_dih(trajectory%coord(:, idx1), &
-                                            trajectory%coord(:, idx2), &
-                                            trajectory%coord(:, idx3), &
-                                            trajectory%coord(:, idx4))
-          end do
-        end if
-
+                                          trajectory%coord(:, idx3), &
+                                          trajectory%coord(:, idx4))
+        end do
       end if
 
     end do

@@ -16,15 +16,19 @@ module trj_c_mod
   use, intrinsic :: iso_c_binding
   use s_trajectories_c_mod
   use trj_impl_mod
+  use trj_source_mod
 
   use trajectory_str_mod
   use molecules_str_mod
+  use string_mod
+  use error_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
   implicit none
 
   public :: trj_analysis_c
+  public :: trj_analysis_lazy_c
   public :: trj_analysis_com_c
 
 contains
@@ -87,6 +91,7 @@ contains
     integer(c_int), value :: msglen
 
     ! Local variables
+    type(s_trj_source) :: source
     integer, pointer :: dist_list_f(:,:)
     integer, pointer :: angl_list_f(:,:)
     integer, pointer :: tors_list_f(:,:)
@@ -155,12 +160,17 @@ contains
       nullify(tors_f)
     end if
 
-    ! Run analysis with pre-allocated arrays
-    call analyze(s_trajes_c, ana_period, &
+    ! Build a memory-backed source and run the shared analysis loop.
+    call init_source_memory(source, s_trajes_c%coords, s_trajes_c%pbc_boxes, &
+                            s_trajes_c%natom, s_trajes_c%nframe, ana_period)
+
+    call analyze(source, &
                  dist_list_copy, n_dist, &
                  angl_list_copy, n_angl, &
                  tors_list_copy, n_tors, &
                  dist_f, angl_f, tors_f, nstru_local)
+
+    call finalize_source(source)
 
     nstru_out = nstru_local
 
@@ -170,6 +180,266 @@ contains
     deallocate(tors_list_copy)
 
   end subroutine trj_analysis_c
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    trj_analysis_lazy_c
+  !> @brief        Trajectory analysis with lazy DCD loading (memory efficient)
+  !! @authors      Claude Code
+  !! @param[in]    dcd_filename       : DCD file path (C string)
+  !! @param[in]    filename_len       : length of filename
+  !! @param[in]    trj_type           : trajectory type (1=COOR, 2=COOR+BOX)
+  !! @param[in]    dcd_natom_expected : physical atom count in the DCD file
+  !! @param[in]    source_selection_ptr : selected atom indices (1-indexed DCD)
+  !! @param[in]    n_source_selection : number of selected atoms
+  !! @param[in]    dist_list_ptr      : distance atom pairs (2, n_dist)
+  !! @param[in]    n_dist             : number of distance measurements
+  !! @param[in]    angl_list_ptr      : angle atom triplets (3, n_angl)
+  !! @param[in]    n_angl             : number of angle measurements
+  !! @param[in]    tors_list_ptr      : torsion atom quadruplets (4, n_tors)
+  !! @param[in]    n_tors             : number of torsion measurements
+  !! @param[in]    n_atoms            : number of selected (logical) atoms
+  !! @param[in]    ana_period         : analysis period
+  !! @param[in]    n_frame            : number of result frames (columns)
+  !! @param[in]    dist_ptr           : pre-allocated distance results
+  !! @param[in]    dist_size          : total size of dist array
+  !! @param[in]    angl_ptr           : pre-allocated angle results
+  !! @param[in]    angl_size          : total size of angl array
+  !! @param[in]    tors_ptr           : pre-allocated torsion results
+  !! @param[in]    tors_size          : total size of tors array
+  !! @param[out]   nstru_out          : actual number of structures analyzed
+  !! @param[out]   dcd_nframe_out     : total frames in DCD
+  !! @param[out]   dcd_natom_out      : atoms per frame in DCD
+  !! @param[out]   status             : error status
+  !! @param[out]   msg                : error message
+  !! @param[in]    msglen             : max length of error message
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine trj_analysis_lazy_c(dcd_filename, filename_len, trj_type, &
+                                 dcd_natom_expected, source_selection_ptr, &
+                                 n_source_selection, &
+                                 dist_list_ptr, n_dist, &
+                                 angl_list_ptr, n_angl, &
+                                 tors_list_ptr, n_tors, &
+                                 n_atoms, ana_period, n_frame, &
+                                 dist_ptr, dist_size, &
+                                 angl_ptr, angl_size, &
+                                 tors_ptr, tors_size, &
+                                 nstru_out, dcd_nframe_out, dcd_natom_out, &
+                                 status, msg, msglen) &
+        bind(C, name="trj_analysis_lazy_c")
+    implicit none
+
+    ! Arguments
+    character(kind=c_char), intent(in) :: dcd_filename(*)
+    integer(c_int), value :: filename_len
+    integer(c_int), value :: trj_type
+    integer(c_int), value :: dcd_natom_expected
+    type(c_ptr), value :: source_selection_ptr
+    integer(c_int), value :: n_source_selection
+    type(c_ptr), value :: dist_list_ptr
+    integer(c_int), value :: n_dist
+    type(c_ptr), value :: angl_list_ptr
+    integer(c_int), value :: n_angl
+    type(c_ptr), value :: tors_list_ptr
+    integer(c_int), value :: n_tors
+    integer(c_int), value :: n_atoms
+    integer(c_int), value :: ana_period
+    integer(c_int), value :: n_frame
+    type(c_ptr), value :: dist_ptr
+    integer(c_int), value :: dist_size
+    type(c_ptr), value :: angl_ptr
+    integer(c_int), value :: angl_size
+    type(c_ptr), value :: tors_ptr
+    integer(c_int), value :: tors_size
+    integer(c_int), intent(out) :: nstru_out
+    integer(c_int), intent(out) :: dcd_nframe_out
+    integer(c_int), intent(out) :: dcd_natom_out
+    integer(c_int), intent(out) :: status
+    character(kind=c_char), intent(out) :: msg(*)
+    integer(c_int), value :: msglen
+
+    ! Local variables
+    type(s_error) :: err
+    type(s_trj_source) :: source
+    character(MaxFilename) :: filename_f
+    integer, pointer :: dist_list_f(:,:)
+    integer, pointer :: angl_list_f(:,:)
+    integer, pointer :: tors_list_f(:,:)
+    integer, pointer :: source_selection_f(:)
+    real(wp), pointer :: dist_f(:,:)
+    real(wp), pointer :: angl_f(:,:)
+    real(wp), pointer :: tors_f(:,:)
+    integer, allocatable :: dist_list_copy(:,:)
+    integer, allocatable :: angl_list_copy(:,:)
+    integer, allocatable :: tors_list_copy(:,:)
+    integer :: nstru_local, init_status
+    integer(c_int) :: grc
+
+    ! Guard the whole body: init_source_lazy_dcd opens the DCD file, and a
+    ! missing/unreadable file calls error_msg -> exit(1) in CLI mode, which
+    ! would kill the host Python process.
+    grc = fi_error_guard_run(c_funloc(run_body))
+    if (grc /= 0) then
+      call error_from_pending(err)
+      call error_to_c(err, status, msg, msglen)
+      if (allocated(dist_list_copy)) deallocate(dist_list_copy)
+      if (allocated(angl_list_copy)) deallocate(angl_list_copy)
+      if (allocated(tors_list_copy)) deallocate(tors_list_copy)
+      call finalize_source(source)
+    end if
+    return
+
+  contains
+    subroutine run_body() bind(C)
+
+    ! Initialize
+    call error_init(err)
+    status = 0
+    nstru_out = 0
+    dcd_nframe_out = 0
+    dcd_natom_out = 0
+
+    ! Convert C string to Fortran string
+    call c_filename_to_fortran(dcd_filename, filename_len, filename_f)
+
+    ! Validate inputs
+    if (n_source_selection /= n_atoms .or. &
+        .not. c_associated(source_selection_ptr)) then
+      call error_set(err, ERROR_INVALID_PARAM, &
+                     "trj_analysis_lazy_c: invalid source selection")
+      call error_to_c(err, status, msg, msglen)
+      return
+    end if
+
+    if (n_frame <= 0) then
+      call error_set(err, ERROR_INVALID_PARAM, &
+                     "trj_analysis_lazy_c: n_frame must be positive")
+      call error_to_c(err, status, msg, msglen)
+      return
+    end if
+
+    ! Set MPI variables for analysis
+    my_city_rank = 0
+    nproc_city   = 1
+    main_rank    = .true.
+
+    ! Create zero-copy views of the selection and result arrays
+    call C_F_POINTER(source_selection_ptr, source_selection_f, &
+                     [n_source_selection])
+    if (any(source_selection_f < 1) .or. &
+        any(source_selection_f > dcd_natom_expected)) then
+      call error_set(err, ERROR_INVALID_PARAM, &
+                     "trj_analysis_lazy_c: source selection out of range")
+      call error_to_c(err, status, msg, msglen)
+      return
+    end if
+
+    ! Convert measurement lists (already 1-indexed in selected space)
+    if (n_dist > 0 .and. c_associated(dist_list_ptr)) then
+      call C_F_POINTER(dist_list_ptr, dist_list_f, [2, n_dist])
+      allocate(dist_list_copy(2, n_dist))
+      dist_list_copy = dist_list_f
+    else
+      allocate(dist_list_copy(2, 0))
+    end if
+
+    if (n_angl > 0 .and. c_associated(angl_list_ptr)) then
+      call C_F_POINTER(angl_list_ptr, angl_list_f, [3, n_angl])
+      allocate(angl_list_copy(3, n_angl))
+      angl_list_copy = angl_list_f
+    else
+      allocate(angl_list_copy(3, 0))
+    end if
+
+    if (n_tors > 0 .and. c_associated(tors_list_ptr)) then
+      call C_F_POINTER(tors_list_ptr, tors_list_f, [4, n_tors])
+      allocate(tors_list_copy(4, n_tors))
+      tors_list_copy = tors_list_f
+    else
+      allocate(tors_list_copy(4, 0))
+    end if
+
+    ! Measurement indices must stay within the selected atom range
+    if ((n_dist > 0 .and. (any(dist_list_copy < 1) .or. &
+                           any(dist_list_copy > n_atoms))) .or. &
+        (n_angl > 0 .and. (any(angl_list_copy < 1) .or. &
+                           any(angl_list_copy > n_atoms))) .or. &
+        (n_tors > 0 .and. (any(tors_list_copy < 1) .or. &
+                           any(tors_list_copy > n_atoms)))) then
+      call error_set(err, ERROR_INVALID_PARAM, &
+                     "trj_analysis_lazy_c: measurement index out of range")
+      call error_to_c(err, status, msg, msglen)
+      return
+    end if
+
+    ! Create views of pre-allocated result arrays
+    if (n_dist > 0 .and. c_associated(dist_ptr) .and. dist_size > 0) then
+      call C_F_POINTER(dist_ptr, dist_f, [n_dist, n_frame])
+    else
+      nullify(dist_f)
+    end if
+
+    if (n_angl > 0 .and. c_associated(angl_ptr) .and. angl_size > 0) then
+      call C_F_POINTER(angl_ptr, angl_f, [n_angl, n_frame])
+    else
+      nullify(angl_f)
+    end if
+
+    if (n_tors > 0 .and. c_associated(tors_ptr) .and. tors_size > 0) then
+      call C_F_POINTER(tors_ptr, tors_f, [n_tors, n_frame])
+    else
+      nullify(tors_f)
+    end if
+
+    ! Initialize lazy DCD source
+    write(MsgOut,'(A)') '[STEP1] Initialize Lazy DCD Source for Trj Analysis'
+    write(MsgOut,'(A)') ' '
+
+    call init_source_lazy_dcd(source, trim(filename_f), trj_type, ana_period, &
+                              source_selection_f, n_source_selection, &
+                              init_status)
+    if (init_status /= 0) then
+      call error_set(err, init_status, &
+                     "trj_analysis_lazy_c: unable to initialize DCD source")
+      call error_to_c(err, status, msg, msglen)
+      return
+    end if
+
+    ! Return DCD info
+    dcd_nframe_out = source%dcd_nframe
+    dcd_natom_out = source%dcd_natom
+
+    ! Check atom count
+    if (source%dcd_natom /= dcd_natom_expected) then
+      call error_set(err, ERROR_ATOM_COUNT, &
+                     "trj_analysis_lazy_c: atom count mismatch")
+      call error_to_c(err, status, msg, msglen)
+      call finalize_source(source)
+      return
+    end if
+
+    ! Run the shared analysis loop (lazy loading via source abstraction)
+    write(MsgOut,'(A)') '[STEP2] Trajectory Analysis (lazy loading)'
+    write(MsgOut,'(A)') ' '
+
+    call analyze(source, &
+                 dist_list_copy, n_dist, &
+                 angl_list_copy, n_angl, &
+                 tors_list_copy, n_tors, &
+                 dist_f, angl_f, tors_f, nstru_local)
+
+    nstru_out = nstru_local
+
+    ! Cleanup
+    call finalize_source(source)
+    deallocate(dist_list_copy)
+    deallocate(angl_list_copy)
+    deallocate(tors_list_copy)
+
+    end subroutine run_body
+  end subroutine trj_analysis_lazy_c
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

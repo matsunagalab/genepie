@@ -8,6 +8,7 @@ if __name__ == "__main__" and __package__ is None:
 import unittest
 import numpy as np
 from .. import genesis_exe
+from ..s_molecule import SMolecule
 from ..custom_test_case import CustomTestCase
 
 
@@ -66,6 +67,61 @@ class TestTrjAnalysis(CustomTestCase):
             self.assertAlmostEqual(ref_ang[:, 1:], result.angle, places=3)
             ref_tor = np.loadtxt(ta_test_root / "Dihedral/ref")
             self.assertAlmostEqual(ref_tor[:, 1:], result.torsion, places=3)
+
+    def test_trj_lazy_vs_memory(self):
+        """Lazy trj_analysis must match the memory-based result."""
+        mol = SMolecule.from_file(
+            pdb=self.PDB_PATH, psf=self.PSF_PATH, ref=self.PDB_PATH)
+
+        ca1_idx = genesis_exe.selection(mol, "rno:1 and an:CA")
+        ca2_idx = genesis_exe.selection(mol, "rno:2 and an:CA")
+        ca3_idx = genesis_exe.selection(mol, "rno:3 and an:CA")
+        ca4_idx = genesis_exe.selection(mol, "rno:4 and an:CA")
+
+        dist_pairs = np.array([
+            [ca1_idx[0], ca2_idx[0]],
+            [ca2_idx[0], ca3_idx[0]],
+        ], dtype=np.int32)
+        angle_triplets = np.array([
+            [ca1_idx[0], ca2_idx[0], ca3_idx[0]],
+        ], dtype=np.int32)
+        torsion_quads = np.array([
+            [ca1_idx[0], ca2_idx[0], ca3_idx[0], ca4_idx[0]],
+        ], dtype=np.int32)
+
+        common = dict(
+            trj_files=[str(self.TRJ_PATH)],
+            trj_format="DCD",
+            trj_type="COOR+BOX",
+            selection="all",
+        )
+        for ana_period in (1, 2):
+            mem_trajs, _ = genesis_exe.crd_convert(mol, lazy=False, **common)
+            lazy_trajs, _ = genesis_exe.crd_convert(mol, lazy=True, **common)
+            self.assertTrue(lazy_trajs[0].is_lazy)
+
+            mem = genesis_exe.trj_analysis(
+                mem_trajs[0],
+                distance_pairs=dist_pairs,
+                angle_triplets=angle_triplets,
+                torsion_quadruplets=torsion_quads,
+                ana_period=ana_period,
+            )
+            lazy = genesis_exe.trj_analysis(
+                lazy_trajs[0],
+                distance_pairs=dist_pairs,
+                angle_triplets=angle_triplets,
+                torsion_quadruplets=torsion_quads,
+                ana_period=ana_period,
+            )
+
+            self.assertEqual(mem.distance.shape, lazy.distance.shape)
+            np.testing.assert_allclose(
+                lazy.distance, mem.distance, rtol=1e-4, atol=1e-5)
+            np.testing.assert_allclose(
+                lazy.angle, mem.angle, rtol=1e-4, atol=1e-5)
+            np.testing.assert_allclose(
+                lazy.torsion, mem.torsion, rtol=1e-4, atol=1e-5)
 
     def test_trj_analysis_com(self):
         """Test trj_analysis with COM-based measurements."""

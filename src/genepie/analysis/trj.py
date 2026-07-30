@@ -13,7 +13,9 @@ from typing import (
 from ..libgenesis import LibGenesis
 from ..s_molecule import SMolecule
 from ..s_trajectories import STrajectories
+from ..exceptions import GenesisValidationError
 from .._fortran import fortran_status
+from ._common import _prepare_lazy_trajectory
 
 
 TrjAnalysisResult = namedtuple(
@@ -69,6 +71,115 @@ def _flatten_com_groups(
     )
 
 
+def _trj_analysis_lazy(
+        trajs: STrajectories,
+        distance_pairs: Optional[npt.NDArray[np.int32]] = None,
+        angle_triplets: Optional[npt.NDArray[np.int32]] = None,
+        torsion_quadruplets: Optional[npt.NDArray[np.int32]] = None,
+        ana_period: int = 1,
+        ) -> TrjAnalysisResult:
+    """Private implementation: trj_analysis with lazy DCD loading.
+
+    Called by trj_analysis() when trajs.is_lazy is True. Only atom-based
+    distance/angle/torsion measurements are supported in lazy mode.
+    """
+    lib = LibGenesis().lib
+
+    dcd_filename_bytes, source_selection, effective_period, n_frame = \
+        _prepare_lazy_trajectory(trajs, ana_period)
+    trj_type = trajs.lazy_trj_type
+    n_atoms = trajs.natom
+
+    # Prepare distance list
+    n_dist = 0
+    dist_list_ptr = ctypes.c_void_p()
+    dist_f = None
+    if distance_pairs is not None and len(distance_pairs) > 0:
+        n_dist = distance_pairs.shape[0]
+        dist_f = np.asfortranarray(distance_pairs.T, dtype=np.int32)
+        dist_list_ptr = dist_f.ctypes.data_as(ctypes.c_void_p)
+
+    # Prepare angle list
+    n_angl = 0
+    angl_list_ptr = ctypes.c_void_p()
+    angl_f = None
+    if angle_triplets is not None and len(angle_triplets) > 0:
+        n_angl = angle_triplets.shape[0]
+        angl_f = np.asfortranarray(angle_triplets.T, dtype=np.int32)
+        angl_list_ptr = angl_f.ctypes.data_as(ctypes.c_void_p)
+
+    # Prepare torsion list
+    n_tors = 0
+    tors_list_ptr = ctypes.c_void_p()
+    tors_f = None
+    if torsion_quadruplets is not None and len(torsion_quadruplets) > 0:
+        n_tors = torsion_quadruplets.shape[0]
+        tors_f = np.asfortranarray(torsion_quadruplets.T, dtype=np.int32)
+        tors_list_ptr = tors_f.ctypes.data_as(ctypes.c_void_p)
+
+    if n_dist == 0 and n_angl == 0 and n_tors == 0:
+        raise GenesisValidationError(
+            "trj_analysis requires at least one distance/angle/torsion "
+            "measurement"
+        )
+
+    # Pre-allocate result arrays (zerocopy, sized to the analyzed frame count)
+    result_distance = np.zeros((n_dist, n_frame), dtype=np.float64, order='F') if n_dist > 0 else None
+    result_angle = np.zeros((n_angl, n_frame), dtype=np.float64, order='F') if n_angl > 0 else None
+    result_torsion = np.zeros((n_tors, n_frame), dtype=np.float64, order='F') if n_tors > 0 else None
+
+    dist_ptr = result_distance.ctypes.data_as(ctypes.c_void_p) if result_distance is not None else ctypes.c_void_p()
+    angl_ptr = result_angle.ctypes.data_as(ctypes.c_void_p) if result_angle is not None else ctypes.c_void_p()
+    tors_ptr = result_torsion.ctypes.data_as(ctypes.c_void_p) if result_torsion is not None else ctypes.c_void_p()
+
+    nstru_out = ctypes.c_int()
+    dcd_nframe_out = ctypes.c_int()
+    dcd_natom_out = ctypes.c_int()
+
+    with fortran_status() as (status, msg, msglen):
+        lib.trj_analysis_lazy_c(
+            dcd_filename_bytes,
+            ctypes.c_int(len(dcd_filename_bytes)),
+            ctypes.c_int(trj_type),
+            ctypes.c_int(trajs.lazy_dcd_natom),
+            source_selection.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(n_atoms),
+            dist_list_ptr,
+            ctypes.c_int(n_dist),
+            angl_list_ptr,
+            ctypes.c_int(n_angl),
+            tors_list_ptr,
+            ctypes.c_int(n_tors),
+            ctypes.c_int(n_atoms),
+            ctypes.c_int(effective_period),
+            ctypes.c_int(n_frame),
+            dist_ptr,
+            ctypes.c_int(n_dist * n_frame),
+            angl_ptr,
+            ctypes.c_int(n_angl * n_frame),
+            tors_ptr,
+            ctypes.c_int(n_tors * n_frame),
+            ctypes.byref(nstru_out),
+            ctypes.byref(dcd_nframe_out),
+            ctypes.byref(dcd_natom_out),
+            ctypes.byref(status),
+            msg,
+            ctypes.c_int(msglen),
+        )
+
+    n_actual = nstru_out.value
+
+    # Transpose to Python convention and slice to analyzed frames
+    final_distance = result_distance[:, :n_actual].T.copy() if result_distance is not None else None
+    final_angle = result_angle[:, :n_actual].T.copy() if result_angle is not None else None
+    final_torsion = result_torsion[:, :n_actual].T.copy() if result_torsion is not None else None
+
+    return TrjAnalysisResult(
+        final_distance, final_angle, final_torsion,
+        None, None, None
+    )
+
+
 def trj_analysis(
         trajs: STrajectories,
         distance_pairs: Optional[npt.NDArray[np.int32]] = None,
@@ -86,8 +197,13 @@ def trj_analysis(
     This function calculates distances, angles, and dihedral angles from
     trajectory data. It supports both atom-based and COM-based measurements.
 
+    Lazy trajectories (from ``crd_convert(..., lazy=True)``) are supported for
+    atom-based distance/angle/torsion measurements; frames are read from the
+    DCD file on demand. COM-based measurements still require an in-memory
+    trajectory.
+
     Args:
-        trajs: STrajectories object containing trajectory data
+        trajs: STrajectories object containing trajectory data (memory or lazy)
         distance_pairs: 2D array of shape (n_pairs, 2) with atom index pairs
                         (1-indexed as in Fortran convention)
         angle_triplets: 2D array of shape (n_triplets, 3) with atom indices
@@ -131,6 +247,21 @@ def trj_analysis(
 
     if has_com and molecule is None:
         raise ValueError("molecule is required for COM-based measurements")
+
+    # Handle lazy trajectories (atom-based measurements only for now).
+    if trajs.is_lazy:
+        if has_com:
+            raise GenesisValidationError(
+                "COM-based trj_analysis is not supported for lazy "
+                "trajectories yet; load the trajectory into memory instead"
+            )
+        return _trj_analysis_lazy(
+            trajs,
+            distance_pairs=distance_pairs,
+            angle_triplets=angle_triplets,
+            torsion_quadruplets=torsion_quadruplets,
+            ana_period=ana_period,
+        )
 
     n_frame = int(trajs.nframe / ana_period)
 
