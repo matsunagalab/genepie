@@ -496,3 +496,188 @@ def crd_convert(
 
     finally:
         lib.deallocate_s_molecule_c(ctypes.byref(mol_c))
+
+
+# Fortran rc_option_str_mod: REPLICA = 1, PARAMETER = 2.
+_REMD_CONVERT_TYPE = {"REPLICA": 1, "PARAMETER": 2}
+
+RemdConvertResult = namedtuple("RemdConvertResult", [
+    "trajectories",  # List[STrajectories], one per parameter or replica id
+    "subset",        # SMolecule reduced to the selection
+    "param_ids",     # List[int], 1-based ids in output order
+])
+
+
+def remd_convert(
+    molecule: SMolecule,
+    dcd_files: List[str],
+    rem_files: Optional[List[str]] = None,
+    convert_type: str = "PARAMETER",
+    nsteps: int = 0,
+    exchange_period: int = 0,
+    crdout_period: int = 0,
+    trjout_period: int = 0,
+    convert_ids: Optional[List[int]] = None,
+    selection: str = "all",
+) -> RemdConvertResult:
+    """Sort replica DCD files onto parameter or replica ids.
+
+    This is the in-memory form of the ``remd_convert`` program for
+    coordinates. The step clock is the same one the program uses: a frame
+    is read every ``crdout_period`` MD steps, and the parameter id is
+    advanced every ``exchange_period`` steps after that frame is placed.
+    ``trjout_period`` defaults to ``crdout_period``.
+
+    Centering, fitting, PBC correction and energy-log sorting stay on the
+    ``remd_convert`` command-line program.
+
+    Args:
+        molecule: Topology of the atoms stored in the DCD files.
+        dcd_files: Replica trajectories, in replica order starting at 1.
+        rem_files: One ``.rem`` file per replica. Required for
+            ``convert_type="PARAMETER"``.
+        convert_type: ``"PARAMETER"`` or ``"REPLICA"``.
+        nsteps: ``nsteps`` from the REMD ``[DYNAMICS]`` section.
+        exchange_period: ``exchange_period`` from ``[REMD]``.
+        crdout_period: ``crdout_period`` from ``[DYNAMICS]``.
+        trjout_period: Keep every frame whose MD step is a multiple of this.
+            ``0`` means the same value as ``crdout_period``.
+        convert_ids: Parameter or replica ids to keep. ``None`` keeps all.
+        selection: GENESIS selection string. ``"all"`` keeps every atom.
+
+    Returns:
+        RemdConvertResult with one trajectory per requested id, the molecule
+        reduced to ``selection``, and those ids in output order.
+    """
+    lib = LibGenesis().lib
+    kind = _resolve_enum(convert_type, _REMD_CONVERT_TYPE, "convert_type")
+    if nsteps <= 0 or exchange_period <= 0 or crdout_period <= 0:
+        raise GenesisValidationError(
+            "nsteps, exchange_period and crdout_period must be positive"
+        )
+    if trjout_period < 0:
+        raise GenesisValidationError(
+            f"trjout_period must be >= 0, got {trjout_period}"
+        )
+    if not dcd_files:
+        raise GenesisValidationError("dcd_files is empty")
+    nreplica = len(dcd_files)
+    if kind == _REMD_CONVERT_TYPE["PARAMETER"]:
+        if not rem_files or len(rem_files) != nreplica:
+            raise GenesisValidationError(
+                "PARAMETER sort needs one rem file per replica trajectory"
+            )
+        rem_list = list(rem_files)
+    else:
+        rem_list = ["."] * nreplica
+
+    if convert_ids is None:
+        param_ids = list(range(1, nreplica + 1))
+        n_ids = 0
+        ids_ptr = None
+    else:
+        param_ids = [int(i) for i in convert_ids]
+        if not param_ids:
+            raise GenesisValidationError("convert_ids is empty")
+        if any(i < 1 or i > nreplica for i in param_ids):
+            raise GenesisValidationError(
+                f"convert_ids must be in 1..{nreplica}, got {param_ids}"
+            )
+        if len(set(param_ids)) != len(param_ids):
+            raise GenesisValidationError("convert_ids contains a duplicate")
+        n_ids = len(param_ids)
+        ids_arr = np.array(param_ids, dtype=np.int32)
+        ids_ptr = ids_arr.ctypes.data
+
+    selected = np.ascontiguousarray(selection_func(molecule, selection), dtype=np.int32)
+    if selected.size == 0:
+        raise GenesisValidationError(
+            f"Selection '{selection}' returned no atoms"
+        )
+
+    width = max(max(len(p) for p in dcd_files), max(len(p) for p in rem_list))
+    def _pack(paths: List[str]) -> bytes:
+        return b"".join(p.encode("utf-8").ljust(width, b"\0") for p in paths)
+    dcd_packed = _pack(list(dcd_files))
+    rem_packed = _pack(rem_list)
+    n_out = len(param_ids)
+    counts = np.zeros(n_out, dtype=np.int32)
+
+    with fortran_status() as (status, msg, msglen):
+        lib.remd_convert_counts_c(
+            rem_packed,
+            ctypes.c_int(nreplica),
+            ctypes.c_int(width),
+            ctypes.c_int(kind),
+            ids_ptr,
+            ctypes.c_int(n_ids),
+            ctypes.c_int(nsteps),
+            ctypes.c_int(exchange_period),
+            ctypes.c_int(crdout_period),
+            ctypes.c_int(trjout_period),
+            counts.ctypes.data,
+            ctypes.c_int(n_out),
+            ctypes.byref(status),
+            msg,
+            ctypes.c_int(msglen),
+        )
+
+    if int(counts.sum()) == 0:
+        raise GenesisValidationError(
+            "remd_convert produced no frames. Check nsteps and the periods."
+        )
+
+    n_selected = int(selected.size)
+    coords_list = []
+    box_list = []
+    coords_ptrs = (ctypes.c_void_p * n_out)()
+    box_ptrs = (ctypes.c_void_p * n_out)()
+    for i, nframe in enumerate(int(n) for n in counts):
+        coords = np.zeros((3, n_selected, nframe), dtype=np.float64, order="F")
+        box = np.zeros((3, 3, nframe), dtype=np.float64, order="F")
+        coords_list.append(coords)
+        box_list.append(box)
+        if nframe > 0:
+            coords_ptrs[i] = coords.ctypes.data
+            box_ptrs[i] = box.ctypes.data
+
+    with fortran_status() as (status, msg, msglen):
+        lib.remd_convert_fill_c(
+            dcd_packed,
+            rem_packed,
+            ctypes.c_int(nreplica),
+            ctypes.c_int(width),
+            ctypes.c_int(kind),
+            ids_ptr,
+            ctypes.c_int(n_ids),
+            ctypes.c_int(nsteps),
+            ctypes.c_int(exchange_period),
+            ctypes.c_int(crdout_period),
+            ctypes.c_int(trjout_period),
+            selected.ctypes.data,
+            ctypes.c_int(n_selected),
+            ctypes.c_int(molecule.num_atoms),
+            counts.ctypes.data,
+            ctypes.c_int(n_out),
+            ctypes.cast(coords_ptrs, ctypes.c_void_p),
+            ctypes.cast(box_ptrs, ctypes.c_void_p),
+            ctypes.byref(status),
+            msg,
+            ctypes.c_int(msglen),
+        )
+
+    trajectories = []
+    for coords, box in zip(coords_list, box_list):
+        coords_py = np.ascontiguousarray(np.transpose(coords, (2, 1, 0)))
+        if box.shape[2] == 0:
+            pbc_py = np.zeros((0, 3), dtype=np.float64)
+        else:
+            pbc_py = np.ascontiguousarray(
+                np.transpose(box, (2, 0, 1))[:, np.diag_indices(3)[0],
+                                             np.diag_indices(3)[1]]
+            )
+        trajectories.append(STrajectories.from_numpy(
+            coords_py, pbc_box=pbc_py, mem_owner=True))
+
+    subset = molecule.subset_atoms(selected.astype(np.int64) - 1)
+    return RemdConvertResult(trajectories, subset, param_ids)

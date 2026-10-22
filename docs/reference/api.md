@@ -25,6 +25,11 @@ In the tables below:
 | `crd_convert(mol, trj_files, ...)` | Read/convert a trajectory. Returns `(list[STrajectories], SMolecule)`. Supports `selection`, `fitting_selection`/`fitting_method`, `centering`, `pbc_correct`, `ana_period`, `rename_res`, and `lazy=True`. | ✓ | ✓ |
 | `crd_convert_info(mol, trj_files, ...)` | Read only the frame counts (used internally to pre-allocate). | – | – |
 | `selection(mol, "an:CA")` | Evaluate a GENESIS selection string; returns 1-indexed atom indices. | – | – |
+| `remd_convert(mol, dcd_files, rem_files, ...)` | Sort replica DCDs by parameter or replica id. Returns `RemdConvertResult(trajectories, subset, param_ids)`. | ✓ | – |
+
+`remd_convert` follows the same step clock as the `remd_convert` program
+(`nsteps`, `exchange_period`, `crdout_period`, `trjout_period`). Centering,
+fitting, PBC correction and energy-log sorting remain on that program.
 
 In lazy mode, `selection` and `ana_period` define the same logical trajectory
 view as eager loading: the returned trajectory and subset molecule have matching

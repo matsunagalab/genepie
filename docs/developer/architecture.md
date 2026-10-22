@@ -31,7 +31,7 @@ everything, so `genesis_exe.rmsd_analysis` and
 
 | Module | Contents |
 |--------|----------|
-| `genepie/analysis/converter.py` | `crd_convert`, `crd_convert_info`, `selection` (+ `lazy=True`) |
+| `genepie/analysis/converter.py` | `crd_convert`, `crd_convert_info`, `remd_convert`, `selection` (+ `lazy=True` on `crd_convert`) |
 | `genepie/analysis/rmsd.py` | `rmsd_analysis`, `rmsd_analysis_lazy` |
 | `genepie/analysis/rg.py`, `drms.py`, `trj.py`, `avecrd.py`, `hbond.py` | structural analyses |
 | `genepie/analysis/dynamics.py` | `msd_analysis`, `diffusion_analysis` |

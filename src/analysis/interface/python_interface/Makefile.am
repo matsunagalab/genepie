@@ -7,6 +7,7 @@ endif
 SUBDIRS := ../../libana \
 		   ../../../atdyn \
 		   ../../converter/crd_convert \
+		   ../../converter/remd_convert \
 		   ../../trj_analysis/trj_analysis \
 		   ../../trj_analysis/diffusion_analysis \
 		   ../../trj_analysis/drms_analysis \
@@ -36,6 +37,7 @@ libpython_interface_la_SOURCES = \
         s_trajectories_c_mod.fpp \
         source_args_mod.fpp \
         crd_convert_c_mod.fpp \
+        remd_convert_c_mod.fpp \
         trj_c_mod.fpp \
         rg_c_mod.fpp \
         rmsd_c_mod.fpp \
@@ -71,6 +73,7 @@ libpython_interface_la_LDFLAGS += $(PYTHON_INTERFACE_LDFLAG) -Wl,-rpath,$(libdir
 libpython_interface_la_LIBADD = \
 		../../../atdyn/libatdyn.a \
 		../../converter/crd_convert/libcrd_convert.a \
+		../../converter/remd_convert/libremd_convert.a \
 		../../trj_analysis/trj_analysis/libtrj_analysis.a \
 		../../trj_analysis/rg_analysis/librg_analysis.a \
 		../../trj_analysis/rmsd_analysis/librmsd_analysis.a \
@@ -117,6 +120,7 @@ if USEKCOMP
 	$(LIBTOOL) --tag=FC --mode=compile $(FC) $(DEFAULT_INCLUDES) $(INCLUDES) \
 		-I../../../lib -I../../libana -I../../../atdyn \
 		-I../../converter/crd_convert \
+		-I../../converter/remd_convert \
 		-I ../../trj_analysis/trj_analysis \
 		-I ../../trj_analysis/rg_analysis \
 		-I ../../trj_analysis/rmsd_analysis \
@@ -138,6 +142,7 @@ else
 	$(LIBTOOL) --tag=FC --mode=compile $(FC) $(DEFAULT_INCLUDES) $(INCLUDES) \
 		-I../../../lib -I../../libana -I../../../atdyn \
 		-I../../converter/crd_convert \
+		-I../../converter/remd_convert \
 		-I ../../trj_analysis/trj_analysis \
 		-I ../../trj_analysis/rg_analysis \
 		-I ../../trj_analysis/rmsd_analysis \
@@ -155,6 +160,9 @@ else
 		-I ../../free_energy/pmf_analysis \
 		$(libpython_interface_la_FCFLAGS) -c $*.f90
 endif
+
+../../converter/remd_convert/libremd_convert.a:
+	$(MAKE) -C ../../converter/remd_convert libremd_convert.a
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp | sed -e 's/\.o/.lo/g' > $(DEPENDS)

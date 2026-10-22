@@ -4,8 +4,10 @@ avecrd_c_mod.lo: avecrd_c_mod.fpp s_trajectories_c_mod.mod s_molecule_c_mod.mod 
 avecrd_c_mod.mod: avecrd_c_mod.fpp avecrd_c_mod.lo
 conv_f_c_util.lo: conv_f_c_util.fpp  
 conv_f_c_util.mod: conv_f_c_util.fpp conv_f_c_util.lo
-crd_convert_c_mod.lo: crd_convert_c_mod.fpp s_trajectories_c_mod.mod s_molecule_c_mod.mod conv_f_c_util.mod error_mod.mod 
+crd_convert_c_mod.lo: crd_convert_c_mod.fpp s_trajectories_c_mod.mod s_molecule_c_mod.mod conv_f_c_util.mod error_mod.mod
 crd_convert_c_mod.mod: crd_convert_c_mod.fpp crd_convert_c_mod.lo
+remd_convert_c_mod.lo: remd_convert_c_mod.fpp error_mod.mod
+remd_convert_c_mod.mod: remd_convert_c_mod.fpp remd_convert_c_mod.lo
 ctrl_c_mod.lo: ctrl_c_mod.fpp conv_f_c_util.mod 
 ctrl_c_mod.mod: ctrl_c_mod.fpp ctrl_c_mod.lo
 define_molecule.lo: define_molecule.fpp conv_f_c_util.mod s_molecule_c_mod.mod 

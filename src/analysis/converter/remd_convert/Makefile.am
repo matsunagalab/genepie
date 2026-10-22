@@ -15,6 +15,7 @@ endif
 SUBDIRS := ../../libana .
 
 bin_PROGRAMS = remd_convert
+noinst_LIBRARIES = libremd_convert.a
 
 remd_convert_SOURCES = \
 	rc_option_str.fpp \
@@ -53,6 +54,11 @@ remd_convert$(EXEEXT) : $(remd_convert_ADDLIBANA) $(remd_convert_ADDLIB) \
 						$(remd_convert_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(remd_convert_OBJECTS) \
 		$(remd_convert_ADDLIBANA) $(remd_convert_ADDLIB) $(LDFLAGS)
+
+$(noinst_LIBRARIES) : $(remd_convert_OBJECTS)
+	$(AR) $(ARFLAGS) cr $@ $(remd_convert_OBJECTS)
+
+libremd_convert.o : ;
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

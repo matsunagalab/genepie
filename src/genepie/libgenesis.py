@@ -134,6 +134,51 @@ class LibGenesis:
         self.lib.deallocate_frame_counts_c.argtypes = [ctypes.c_void_p]
         self.lib.deallocate_frame_counts_c.restype = None
 
+        # REMD sort: frame counts, then fill caller-owned buffers.
+        self.lib.remd_convert_counts_c.argtypes = [
+                ctypes.c_char_p,                  # rem filenames (packed)
+                ctypes.c_int,                     # nreplica
+                ctypes.c_int,                     # name_len
+                ctypes.c_int,                     # convert_type
+                ctypes.c_void_p,                  # convert_ids
+                ctypes.c_int,                     # n_ids
+                ctypes.c_int,                     # nsteps
+                ctypes.c_int,                     # exchange_period
+                ctypes.c_int,                     # crdout_period
+                ctypes.c_int,                     # trjout_period
+                ctypes.c_void_p,                  # frame_counts
+                ctypes.c_int,                     # n_out
+                ctypes.POINTER(ctypes.c_int),     # status
+                ctypes.c_char_p,                  # msg
+                ctypes.c_int,                     # msglen
+                ]
+        self.lib.remd_convert_counts_c.restype = None
+
+        self.lib.remd_convert_fill_c.argtypes = [
+                ctypes.c_char_p,                  # dcd filenames (packed)
+                ctypes.c_char_p,                  # rem filenames (packed)
+                ctypes.c_int,                     # nreplica
+                ctypes.c_int,                     # name_len
+                ctypes.c_int,                     # convert_type
+                ctypes.c_void_p,                  # convert_ids
+                ctypes.c_int,                     # n_ids
+                ctypes.c_int,                     # nsteps
+                ctypes.c_int,                     # exchange_period
+                ctypes.c_int,                     # crdout_period
+                ctypes.c_int,                     # trjout_period
+                ctypes.c_void_p,                  # selected indices
+                ctypes.c_int,                     # n_selected
+                ctypes.c_int,                     # natom
+                ctypes.c_void_p,                  # frame_counts
+                ctypes.c_int,                     # n_out
+                ctypes.c_void_p,                  # coords_ptrs
+                ctypes.c_void_p,                  # box_ptrs
+                ctypes.POINTER(ctypes.c_int),     # status
+                ctypes.c_char_p,                  # msg
+                ctypes.c_int,                     # msglen
+                ]
+        self.lib.remd_convert_fill_c.restype = None
+
         # TRJ analysis (zerocopy, pre-allocated result arrays)
         self.lib.trj_analysis_c.argtypes = [
                 ctypes.POINTER(STrajectoriesC),   # s_trajes_c

@@ -16,8 +16,10 @@ from .avecrd import AvecrdAnalysisResult, avecrd_analysis
 from .clustering import KmeansClusteringResult, kmeans_clustering
 from .converter import (
     CrdConvertInfo,
+    RemdConvertResult,
     crd_convert,
     crd_convert_info,
+    remd_convert,
     selection,
     selection_func,
 )
@@ -69,6 +71,8 @@ __all__ = [
     "CrdConvertInfo",
     "crd_convert",
     "crd_convert_info",
+    "RemdConvertResult",
+    "remd_convert",
     "selection",
     "selection_func",
     # Structural analyses
