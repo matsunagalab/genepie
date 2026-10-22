@@ -16,7 +16,7 @@ module fa_analyze_mod
 
   use fa_option_str_mod
   use fitting_mod
-  use fileio_trj_mod
+  use trj_source_mod
   use fitting_str_mod
   use trajectory_str_mod
   use output_str_mod
@@ -33,6 +33,8 @@ module fa_analyze_mod
 
   ! subroutines
   public  :: analyze
+  public  :: analyze_flccrd_unified
+  public  :: flccrd_vcv_size
   private :: assign_mass
   private :: sum_vcv_matrix
   private :: out_vcv_matrix
@@ -41,12 +43,42 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Function      flccrd_vcv_size
+  !> @brief        dimension of the variance-covariance matrix
+  !!               (3 * analysis atoms for GLOBAL, 3 * fitting atoms for LOCAL)
+  !! @authors      Claude Code
+  !! @param[in]    fitting : fitting information
+  !! @param[in]    option  : option information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  function flccrd_vcv_size(fitting, option) result(nvcv)
+
+    ! formal arguments
+    type(s_fitting),         intent(in)    :: fitting
+    type(s_option),          intent(in)    :: option
+    integer                                :: nvcv
+
+
+    if (option%vcv_matrix == VcvMatrixGlobal) then
+      nvcv = size(option%analysis_atom%idx) * 3
+    else
+      nvcv = size(fitting%fitting_atom%idx) * 3
+    end if
+
+    return
+
+  end function flccrd_vcv_size
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Subroutine    analyze
-  !> @brief        run analyzing trajectories
-  !! @authors      NT
+  !> @brief        run analyzing trajectories (CLI driver)
+  !! @authors      NT, Claude Code
   !! @param[inout] molecule   : molecule information
   !! @param[inout] trj_list   : trajectory file list information
-  !! @param[inout] trajectory : trajectory information
+  !! @param[inout] trajectory : trajectory information (kept for the caller;
+  !!                            frames are read through trj_source_mod)
   !! @param[inout] fitting    : fitting information
   !! @param[inout] option     : option information
   !! @param[inout] input      : input information
@@ -58,62 +90,83 @@ contains
                      input, output)
 
     ! formal arguments
-    type(s_molecule),        intent(inout) :: molecule
-    type(s_trj_list),        intent(inout) :: trj_list
-    type(s_trajectory),      intent(inout) :: trajectory
-    type(s_fitting),         intent(inout) :: fitting
-    type(s_option),          intent(inout) :: option
-    type(s_input),           intent(inout) :: input
-    type(s_output),          intent(inout) :: output
+    type(s_molecule),         intent(inout) :: molecule
+    type(s_trj_list), target, intent(inout) :: trj_list
+    type(s_trajectory),       intent(inout) :: trajectory
+    type(s_fitting),          intent(inout) :: fitting
+    type(s_option),           intent(inout) :: option
+    type(s_input),            intent(inout) :: input
+    type(s_output),           intent(inout) :: output
 
     ! local variables
     type(s_pdb)              :: pdb_in
-    type(s_trj_file)         :: trj_in
-    real(wp)                 :: nstru_r
-    integer                  :: natom, ntraj, nsela, nself, nvcv, nstru
-    integer                  :: iatom, itraj, isel, istep
-    integer                  :: i, j, alloc_stat
+    type(s_trj_source)       :: source
+    integer                  :: natom, nsela, nself, nvcv, nstru
+    integer                  :: iatom, isel, alloc_stat
 
     real(wp), allocatable  :: sqrt_mass (:)
     real(wp), allocatable  :: ave_coord (:,:)
-    real(wp), allocatable  :: aft_coord (:,:)
-    real(wp), allocatable  :: trj_coord (:,:)
-    real(wp), allocatable  :: vcv_vector(:)
     real(wp), allocatable  :: vcv_matrix(:,:)
+    real(wp), allocatable  :: rmsf(:)
 
 
     if (option%check_only) &
       return
 
     natom = molecule%num_atoms
-    ntraj = size(trj_list%md_steps)
     nsela = size(option%analysis_atom%idx)
     nself = size(fitting%fitting_atom%idx)
-    if (option%vcv_matrix == VcvMatrixGlobal) then
-      nvcv = nsela * 3
-    else
-      nvcv = nself * 3
-    end if
+    nvcv  = flccrd_vcv_size(fitting, option)
 
     ! allocate memory
     !
     allocate(sqrt_mass (natom),   &
              ave_coord (3,natom), &
-             aft_coord (3,natom), &
-             trj_coord (3,natom), &
-             vcv_vector(nvcv),    &
+             rmsf      (nvcv/3),  &
              vcv_matrix(nvcv, nvcv), stat=alloc_stat)
     if (alloc_stat /= 0) &
       call error_msg_alloc
 
-    ! prepare data
+    ! averaged coordinates: analysis atoms from pdb_avefile, fitting atoms
+    ! from pdb_aftfile (both are exports of the same averaged structure)
     !
+    ave_coord(1:3,1:natom) = 0.0_wp
 
-    ! setup mass
-    if (fitting%mass_weight) then
-      call assign_mass(molecule)
-    end if
+    call input_pdb(input%pdb_avefile, pdb_in)
 
+    if (nsela /= size(pdb_in%atom_name)) &
+      call error_msg('Analyze> different count between pdb_avefile atom '// &
+                     'and analysis_atom selection.')
+
+    do isel = 1, nsela
+      iatom = option%analysis_atom%idx(isel)
+      ave_coord(1:3,iatom) = pdb_in%atom_coord(1:3,isel)
+    end do
+
+    call dealloc_pdb_all(pdb_in)
+
+    call input_pdb(input%pdb_aftfile, pdb_in)
+
+    if (nself /= size(pdb_in%atom_name)) &
+      call error_msg('Analyze> different count between pdb_aftfile atom '// &
+                     'and fitting_atom selection.')
+
+    do isel = 1, nself
+      iatom = fitting%fitting_atom%idx(isel)
+      ave_coord(1:3,iatom) = pdb_in%atom_coord(1:3,isel)
+    end do
+
+    call dealloc_pdb_all(pdb_in)
+
+    ! analysis loop
+    !
+    call init_source_file(source, trj_list, natom)
+    call analyze_flccrd_unified(molecule, source, fitting, option, &
+                                ave_coord, vcv_matrix, rmsf, nstru)
+    call finalize_source(source)
+
+    ! mass weights (assigned by the core when mass_weight is on)
+    !
     if (fitting%mass_weight) then
       do iatom = 1, natom
         sqrt_mass(iatom) = sqrt(molecule%mass(iatom))
@@ -123,116 +176,6 @@ contains
         sqrt_mass(iatom) = 1.0_wp
       end do
     end if
-
-    ! setup average coordintes
-    !
-    call input_pdb(input%pdb_avefile, pdb_in)
-
-    if (nsela /= size(pdb_in%atom_name)) &
-      call error_msg('Analyze> different count between pdb_avefile atom '// &
-                     'and analysis_atom selection.')
-
-    do isel = 1, nsela
-      iatom = option%analysis_atom%idx(isel)
-      ave_coord(1:3,iatom) = pdb_in%atom_coord(1:3,isel) * sqrt_mass(iatom)
-    end do
-
-    call dealloc_pdb_all(pdb_in)
-
-    ! setup fitted average coordinates
-    !
-    call input_pdb(input%pdb_aftfile, pdb_in)
-
-    if (nself /= size(pdb_in%atom_name)) &
-      call error_msg('Analyze> different count between pdb_aftfile atom '// &
-                     'and fitting_atom selection.')
-
-    do isel = 1, nself
-      iatom = fitting%fitting_atom%idx(isel)
-      aft_coord(1:3,iatom) = pdb_in%atom_coord(1:3,isel) * sqrt_mass(iatom)
-    end do
-
-    call dealloc_pdb_all(pdb_in)
-
-    ! setup vcv matrix
-    !
-    do i = 1, nvcv
-      vcv_vector(i) = 0.0_wp
-      do j = 1, nvcv
-        vcv_matrix(i, j) = 0.0_wp
-      end do
-    end do
-
-    ! analysis loop
-    !
-    nstru = 0
-    do itraj = 1, ntraj
-
-      call open_trj(trj_in, &
-                    trj_list%filenames(itraj), &
-                    trj_list%trj_format,       &
-                    trj_list%trj_type, IOFileInput)
-
-      do istep = 1, trj_list%md_steps(itraj)
-
-        call read_trj(trj_in, trajectory)
-
-        if (mod(istep, trj_list%ana_periods(itraj)) == 0) then
-
-          nstru = nstru + 1
-          write(MsgOut,*) '      number of structures = ', nstru
-
-          ! geometrical fitting
-          !
-          call run_fitting(fitting,             &
-                           molecule%atom_coord, &
-                           trajectory%coord,    &
-                           trajectory%coord)
-
-          ! mass-weighted fitting
-          !
-          do iatom = 1, natom
-            trj_coord(1:3,iatom) = trajectory%coord(1:3,iatom)*sqrt_mass(iatom)
-          end do
-
-          call run_fitting(fitting,   &
-                           aft_coord, &
-                           trj_coord, &
-                           trj_coord)
-
-          if (option%vcv_matrix == VcvMatrixGlobal) then
-
-            call sum_vcv_matrix(option%analysis_atom%idx, &
-                                trj_coord, &
-                                ave_coord, &
-                                vcv_vector, vcv_matrix)
-          else
-
-            call sum_vcv_matrix(fitting%fitting_atom%idx, &
-                                trj_coord, &
-                                aft_coord, &
-                                vcv_vector, vcv_matrix)
-          end if
-
-        end if
-
-      end do
-
-      call close_trj(trj_in)
-
-    end do
-
-
-    ! make the varience-covarience matrix
-    !
-    nstru_r = real(nstru, wp)
-    
-    do i = 1, nvcv
-      do j = 1, nvcv
-        vcv_matrix(i,j) = vcv_matrix(i,j) / nstru_r
-      end do
-    end do
-
 
     ! output RMS deviation and Varience-covarience matrix
     !
@@ -273,12 +216,174 @@ contains
 
     ! deallocate memory
     !
-    deallocate(vcv_matrix, vcv_vector, &
-               trj_coord, aft_coord, ave_coord, sqrt_mass)
+    deallocate(vcv_matrix, rmsf, ave_coord, sqrt_mass)
 
     return
 
   end subroutine analyze
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    analyze_flccrd_unified
+  !> @brief        variance-covariance matrix of the fitted, mass-weighted
+  !!               fluctuations about an averaged structure (shared by the
+  !!               CLI and the Python interface)
+  !! @authors      NT, Claude Code
+  !! @param[inout] molecule   : molecule information (mass may be assigned)
+  !! @param[inout] source     : trajectory source (file, memory or lazy DCD)
+  !! @param[inout] fitting    : fitting information
+  !! @param[in]    option     : option information
+  !! @param[in]    ave_coord  : averaged coordinates (3, natom), not mass
+  !!                            weighted; only the analysis and fitting
+  !!                            atoms are read
+  !! @param[out]   vcv_matrix : variance-covariance matrix (nvcv, nvcv),
+  !!                            nvcv = flccrd_vcv_size(fitting, option)
+  !! @param[out]   rmsf       : RMSF of each analysed atom (nvcv/3), angstrom
+  !! @param[out]   nstru_out  : number of structures analysed
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine analyze_flccrd_unified(molecule, source, fitting, option, &
+                                    ave_coord, vcv_matrix, rmsf, nstru_out)
+
+    ! formal arguments
+    type(s_molecule),        intent(inout) :: molecule
+    type(s_trj_source),      intent(inout) :: source
+    type(s_fitting),         intent(inout) :: fitting
+    type(s_option),          intent(in)    :: option
+    real(wp),                intent(in)    :: ave_coord(:,:)
+    real(wp),                intent(out)   :: vcv_matrix(:,:)
+    real(wp),                intent(out)   :: rmsf(:)
+    integer,                 intent(out)   :: nstru_out
+
+    ! local variables
+    type(s_trajectory)       :: trajectory
+    real(wp)                 :: nstru_r, msf
+    integer                  :: natom, nvcv, nsel, nstru
+    integer                  :: iatom, isel, i, j, k, alloc_stat, frame_status
+
+    real(wp), allocatable  :: sqrt_mass (:)
+    real(wp), allocatable  :: ave_w     (:,:)
+    real(wp), allocatable  :: trj_coord (:,:)
+    real(wp), allocatable  :: vcv_vector(:)
+
+
+    natom = molecule%num_atoms
+    nvcv  = flccrd_vcv_size(fitting, option)
+    nsel  = nvcv / 3
+
+    if (size(ave_coord,1) /= 3 .or. size(ave_coord,2) < natom) &
+      call error_msg('Analyze_Flccrd_Unified> ave_coord must be (3, natom)')
+    if (size(vcv_matrix,1) < nvcv .or. size(vcv_matrix,2) < nvcv) &
+      call error_msg('Analyze_Flccrd_Unified> vcv_matrix is too small')
+    if (size(rmsf) < nsel) &
+      call error_msg('Analyze_Flccrd_Unified> rmsf is too small')
+
+    allocate(sqrt_mass (natom),   &
+             ave_w     (3,natom), &
+             trj_coord (3,natom), &
+             vcv_vector(nvcv), stat=alloc_stat)
+    if (alloc_stat /= 0) &
+      call error_msg_alloc
+
+    ! setup mass
+    !
+    if (fitting%mass_weight) then
+      call assign_mass(molecule)
+      do iatom = 1, natom
+        sqrt_mass(iatom) = sqrt(molecule%mass(iatom))
+      end do
+    else
+      do iatom = 1, natom
+        sqrt_mass(iatom) = 1.0_wp
+      end do
+    end if
+
+    ! mass-weighted averaged coordinates
+    !
+    do iatom = 1, natom
+      ave_w(1:3,iatom) = ave_coord(1:3,iatom) * sqrt_mass(iatom)
+    end do
+
+    vcv_matrix(1:nvcv,1:nvcv) = 0.0_wp
+
+    ! analysis loop
+    !
+    nstru = 0
+    call reset_source(source)
+
+    do while (has_more_frames(source))
+
+      call get_next_frame(source, trajectory, frame_status)
+      if (frame_status /= 0) exit
+
+      nstru = nstru + 1
+      write(MsgOut,*) '      number of structures = ', nstru
+
+      ! geometrical fitting
+      !
+      call run_fitting(fitting,             &
+                       molecule%atom_coord, &
+                       trajectory%coord,    &
+                       trajectory%coord)
+
+      ! mass-weighted fitting
+      !
+      do iatom = 1, natom
+        trj_coord(1:3,iatom) = trajectory%coord(1:3,iatom)*sqrt_mass(iatom)
+      end do
+
+      call run_fitting(fitting,   &
+                       ave_w,     &
+                       trj_coord, &
+                       trj_coord)
+
+      if (option%vcv_matrix == VcvMatrixGlobal) then
+        call sum_vcv_matrix(option%analysis_atom%idx, &
+                            trj_coord, ave_w, vcv_vector, vcv_matrix)
+      else
+        call sum_vcv_matrix(fitting%fitting_atom%idx, &
+                            trj_coord, ave_w, vcv_vector, vcv_matrix)
+      end if
+
+    end do
+
+    if (nstru == 0) &
+      call error_msg('Analyze_Flccrd_Unified> no structure was analysed')
+
+    ! make the varience-covarience matrix
+    !
+    nstru_r = real(nstru, wp)
+
+    do i = 1, nvcv
+      do j = 1, nvcv
+        vcv_matrix(i,j) = vcv_matrix(i,j) / nstru_r
+      end do
+    end do
+
+    ! RMSF of each analysed atom (mass weight removed)
+    !
+    do isel = 1, nsel
+      if (option%vcv_matrix == VcvMatrixGlobal) then
+        iatom = option%analysis_atom%idx(isel)
+      else
+        iatom = fitting%fitting_atom%idx(isel)
+      end if
+      msf = 0.0_wp
+      do k = 1, 3
+        i = 3 * (isel - 1) + k
+        msf = msf + vcv_matrix(i,i)
+      end do
+      rmsf(isel) = sqrt(msf / sqrt_mass(iatom)**2)
+    end do
+
+    nstru_out = nstru
+
+    deallocate(vcv_vector, trj_coord, ave_w, sqrt_mass)
+
+    return
+
+  end subroutine analyze_flccrd_unified
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

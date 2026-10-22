@@ -512,18 +512,82 @@ class LibGenesis:
                 ]
         self.lib.hb_analysis_c.restype = None
 
+        # Trajectory-source arguments shared by the wrappers that accept an
+        # in-memory STrajectories or a lazy DCD (see source_args_mod.fpp):
+        # s_trajes_c, is_lazy, dcd_filename, filename_len, trj_type,
+        # dcd_natom_expected, source_selection_ptr, n_source_selection,
+        # ana_period.
+        _source_argtypes = [
+                ctypes.POINTER(STrajectoriesC),   # s_trajes_c (memory mode)
+                ctypes.c_int,                     # is_lazy
+                ctypes.c_char_p,                  # dcd_filename
+                ctypes.c_int,                     # filename_len
+                ctypes.c_int,                     # trj_type
+                ctypes.c_int,                     # dcd_natom_expected
+                ctypes.c_void_p,                  # source_selection_ptr
+                ctypes.c_int,                     # n_source_selection
+                ctypes.c_int,                     # ana_period
+                ]
+
         self.lib.aa_analysis_c.argtypes = [
                 ctypes.POINTER(SMoleculeC),
-                ctypes.POINTER(STrajectoriesC),
-                ctypes.POINTER(ctypes.c_int),
+                ] + _source_argtypes + [
                 ctypes.c_char_p,                  # ctrl_text
                 ctypes.c_int,                     # ctrl_len
-                ctypes.POINTER(ctypes.c_void_p),
+                ctypes.c_void_p,                  # out_coord_ptr (3, natom) or NULL
+                ctypes.POINTER(ctypes.c_void_p),  # out_pdb_ave_ptr
                 ctypes.POINTER(ctypes.c_int),
                 ctypes.c_char_p,
                 ctypes.c_int,
                 ]
         self.lib.aa_analysis_c.restype = None
+
+        self.lib.flccrd_analysis_c.argtypes = [
+                ctypes.POINTER(SMoleculeC),
+                ] + _source_argtypes + [
+                ctypes.c_char_p,                  # ctrl_text
+                ctypes.c_int,                     # ctrl_len
+                ctypes.c_void_p,                  # ave_coord_ptr (3, natom)
+                ctypes.c_void_p,                  # vcv_ptr (nvcv, nvcv)
+                ctypes.c_int,                     # nvcv
+                ctypes.c_void_p,                  # rmsf_ptr (nsel)
+                ctypes.c_int,                     # nsel
+                ctypes.POINTER(ctypes.c_int),     # nstru_out
+                ctypes.POINTER(ctypes.c_int),
+                ctypes.c_char_p,
+                ctypes.c_int,
+                ]
+        self.lib.flccrd_analysis_c.restype = None
+
+        self.lib.eigmat_analysis_c.argtypes = [
+                ctypes.c_void_p,                  # vcv_ptr (n, n)
+                ctypes.c_int,                     # n
+                ctypes.c_void_p,                  # eigval_ptr (n)
+                ctypes.c_void_p,                  # eigvec_ptr (n, n)
+                ctypes.POINTER(ctypes.c_int),
+                ctypes.c_char_p,
+                ctypes.c_int,
+                ]
+        self.lib.eigmat_analysis_c.restype = None
+
+        self.lib.prjcrd_analysis_c.argtypes = [
+                ctypes.POINTER(SMoleculeC),
+                ] + _source_argtypes + [
+                ctypes.c_char_p,                  # ctrl_text
+                ctypes.c_int,                     # ctrl_len
+                ctypes.c_void_p,                  # ave_coord_ptr (3, natom)
+                ctypes.c_void_p,                  # eigvec_ptr (nvcv, nmode)
+                ctypes.c_int,                     # nvcv
+                ctypes.c_int,                     # nmode
+                ctypes.c_void_p,                  # proj_ptr (num_pca, nframe_alloc)
+                ctypes.c_int,                     # num_pca
+                ctypes.c_int,                     # nframe_alloc
+                ctypes.POINTER(ctypes.c_int),     # nstru_out
+                ctypes.POINTER(ctypes.c_int),
+                ctypes.c_char_p,
+                ctypes.c_int,
+                ]
+        self.lib.prjcrd_analysis_c.restype = None
 
         self.lib.wa_analysis_c.argtypes = [
                 ctypes.c_char_p,                  # ctrl_text

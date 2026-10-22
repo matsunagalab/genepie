@@ -169,7 +169,11 @@ resulting lazy trajectory to `rmsd_analysis()` — the same call reads frames fr
 | `diffusion_analysis()` | Diffusion coefficient calculation | ✓ | – |
 | `msd_analysis()` | Mean squared displacement | – | – |
 | `hb_analysis()` | Hydrogen bond analysis | – | – |
-| `avecrd_analysis()` | Average coordinate calculation | – | – |
+| `avecrd_analysis()` | Iterative average structure (fit → average → refit) | ✓ | ✓ |
+| `pca_analysis()` | Cartesian PCA: iterative average fitting → covariance → eigenmodes → projections | ✓ | ✓ |
+| `flccrd_analysis()` | Variance-covariance matrix / RMSF about an average structure | ✓ | ✓ |
+| `eigmat_analysis()` | Eigen decomposition of a covariance matrix (LAPACK `DSYEV`) | ✓ | – |
+| `prjcrd_analysis()` | Projection of a trajectory onto principal modes | ✓ | ✓ |
 | `wham_analysis()` | WHAM free energy analysis | – | – |
 | `mbar_analysis()` | MBAR free energy analysis | – | – |
 | `pmf_analysis()` | PMF from CV samples + optional weights (histogram / Gaussian kernel) | – | – |
@@ -183,6 +187,34 @@ tools currently wrapped as native Python functions.
 `*_isolated(..., timeout=...)` variant that runs the solve in a throwaway subprocess, giving every call
 clean Fortran state so many estimates can be computed back to back in one session. `pmf_analysis` accepts
 either in-memory NumPy arrays (`cv`, `weight`) or CLI-style filename patterns (`cvfile`, `weightfile`).
+
+#### Principal Component Analysis
+
+`pca_analysis()` chains the four GENESIS mode-analysis tools — `avecrd_analysis` (iteratively fit every
+frame onto the running average and re-average, removing overall translation/rotation),
+`flccrd_analysis` (covariance of the fluctuations about the converged average), `eigmat_analysis`
+(`DSYEV`) and `prjcrd_analysis` (projections) — and returns everything in one namedtuple:
+
+```python
+pca = genesis_exe.pca_analysis(
+    mol, trajs[0],
+    analysis_selection="an:CA",   # atoms spanning the PC space
+    fitting_method="TR+ROT",
+    num_iterations=10,            # fit → average → refit cycles
+    num_pca=2,                    # modes to project onto (default: all)
+)
+pc1, pc2 = pca.projection[:, 0], pca.projection[:, 1]    # (nframe, num_pca), Å
+print(pca.contribution[:2])       # explained variance ratio of PC1, PC2
+pca.eigenvectors[0]               # PC1 as a (3*nsel,) vector; pca.ave_coord is the (natom, 3) average
+```
+
+This is the same recipe as "superpose onto the iteratively refined mean structure, then run PCA on the
+flattened coordinates" with mdtraj + scikit-learn. Two conventions differ: the covariance is divided by
+`nframe` (not `nframe - 1`), so eigenvalues scale by `nframe/(nframe-1)` while eigenvectors and
+projections are identical; and fluctuations are measured about the converged average rather than the
+mean of the finally superposed frames, which coincide once the iteration has converged. The individual
+steps are also exposed (`flccrd_analysis`, `eigmat_analysis`, `prjcrd_analysis`), e.g. to project a
+second trajectory onto an existing PC space. Lazy trajectories are supported throughout.
 
 ### MD Engine Functions
 
@@ -503,8 +535,8 @@ is abstracted:
   Implemented as `TRJ_SOURCE_FILE`, `TRJ_SOURCE_MEMORY`, and `TRJ_SOURCE_LAZY_DCD` in `trj_source_mod`.
 - `result_sink` — where results are written to: an output file (CLI) or a zerocopy NumPy array (Python).
 
-Every tool with a Python API follows this pattern (RMSD, RG, DRMS, trj, avecrd, HB, MSD, k-means,
-diffusion, WHAM, MBAR, PMF); see [Adding a New Analysis Tool](#adding-a-new-analysis-tool).
+Every tool with a Python API follows this pattern (RMSD, RG, DRMS, trj, avecrd, flccrd/eigmat/prjcrd
+(PCA), HB, MSD, k-means, diffusion, WHAM, MBAR, PMF); see [Adding a New Analysis Tool](#adding-a-new-analysis-tool).
 
 #### 4. Structured error handling
 

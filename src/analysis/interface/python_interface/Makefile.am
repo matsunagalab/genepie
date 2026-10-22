@@ -19,6 +19,9 @@ SUBDIRS := ../../libana \
 		   ../../free_energy/wham_analysis \
 		   ../../free_energy/pmf_analysis \
 		   ../../mode_analysis/avecrd_analysis \
+		   ../../mode_analysis/flccrd_analysis \
+		   ../../mode_analysis/eigmat_analysis \
+		   ../../mode_analysis/prjcrd_analysis \
 		   .
 
 lib_LTLIBRARIES = libpython_interface.la
@@ -31,6 +34,7 @@ libpython_interface_la_SOURCES = \
         ctrl_c_mod.fpp \
         define_molecule.fpp \
         s_trajectories_c_mod.fpp \
+        source_args_mod.fpp \
         crd_convert_c_mod.fpp \
         trj_c_mod.fpp \
         rg_c_mod.fpp \
@@ -40,6 +44,9 @@ libpython_interface_la_SOURCES = \
         hb_c_mod.fpp \
         diffusion_c_mod.fpp \
         avecrd_c_mod.fpp \
+        flccrd_c_mod.fpp \
+        eigmat_c_mod.fpp \
+        prjcrd_c_mod.fpp \
         wham_c_mod.fpp \
         mbar_c_mod.fpp \
         pmf_c_mod.fpp \
@@ -72,6 +79,9 @@ libpython_interface_la_LIBADD = \
 		../../trj_analysis/hb_analysis/libhb_analysis.a \
 		../../trj_analysis/diffusion_analysis/libdiffusion_analysis.a \
 		../../mode_analysis/avecrd_analysis/libavecrd_analysis.a \
+		../../mode_analysis/flccrd_analysis/libflccrd_analysis.a \
+		../../mode_analysis/eigmat_analysis/libeigmat_analysis.a \
+		../../mode_analysis/prjcrd_analysis/libprjcrd_analysis.a \
 		../../clustering/kmeans_clustering/libkmeans_clustering.a \
 		../../free_energy/wham_analysis/libwham_analysis.a \
 		../../free_energy/mbar_analysis/libmbar_analysis.a \
@@ -115,6 +125,9 @@ if USEKCOMP
 		-I ../../trj_analysis/hb_analysis \
 		-I ../../trj_analysis/diffusion_analysis \
 		-I ../../mode_analysis/avecrd_analysis \
+		-I ../../mode_analysis/flccrd_analysis \
+		-I ../../mode_analysis/eigmat_analysis \
+		-I ../../mode_analysis/prjcrd_analysis \
 		-I ../../clustering/kmeans_clustering \
 		-I ../../free_energy/wham_analysis \
 		-I ../../free_energy/mbar_analysis \
@@ -133,6 +146,9 @@ else
 		-I ../../trj_analysis/hb_analysis \
 		-I ../../trj_analysis/diffusion_analysis \
 		-I ../../mode_analysis/avecrd_analysis \
+		-I ../../mode_analysis/flccrd_analysis \
+		-I ../../mode_analysis/eigmat_analysis \
+		-I ../../mode_analysis/prjcrd_analysis \
 		-I ../../clustering/kmeans_clustering \
 		-I ../../free_energy/wham_analysis \
 		-I ../../free_energy/mbar_analysis \

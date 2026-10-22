@@ -44,6 +44,16 @@ from .resample import (
     mbar_resample_trajectory,
 )
 from .hbond import hb_analysis
+from .pca import (
+    EigmatAnalysisResult,
+    FlccrdAnalysisResult,
+    PcaAnalysisResult,
+    PrjcrdAnalysisResult,
+    eigmat_analysis,
+    flccrd_analysis,
+    pca_analysis,
+    prjcrd_analysis,
+)
 from .rg import RgAnalysisResult, rg_analysis
 from .rmsd import (
     RmsdAnalysisResult,
@@ -75,6 +85,15 @@ __all__ = [
     "AvecrdAnalysisResult",
     "avecrd_analysis",
     "hb_analysis",
+    # Principal component analysis
+    "FlccrdAnalysisResult",
+    "flccrd_analysis",
+    "EigmatAnalysisResult",
+    "eigmat_analysis",
+    "PrjcrdAnalysisResult",
+    "prjcrd_analysis",
+    "PcaAnalysisResult",
+    "pca_analysis",
     # Dynamics
     "MsdAnalysisResult",
     "msd_analysis",

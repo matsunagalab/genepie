@@ -16,7 +16,8 @@ module pa_analyze_mod
 
   use pa_option_str_mod
   use fitting_mod
-  use fileio_trj_mod
+  use trj_source_mod
+  use result_sink_mod
   use fitting_str_mod
   use trajectory_str_mod
   use output_str_mod
@@ -33,20 +34,51 @@ module pa_analyze_mod
 
   ! subroutines
   public  :: analyze
+  public  :: analyze_prjcrd_unified
+  public  :: prjcrd_vcv_size
   private :: assign_mass
   private :: sum_project
-  private :: out_project
 
 contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Function      prjcrd_vcv_size
+  !> @brief        dimension of the PC space
+  !!               (3 * analysis atoms for GLOBAL, 3 * fitting atoms for LOCAL)
+  !! @authors      Claude Code
+  !! @param[in]    fitting : fitting information
+  !! @param[in]    option  : option information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  function prjcrd_vcv_size(fitting, option) result(nvcv)
+
+    ! formal arguments
+    type(s_fitting),         intent(in)    :: fitting
+    type(s_option),          intent(in)    :: option
+    integer                                :: nvcv
+
+
+    if (option%vcv_matrix == VcvMatrixGlobal) then
+      nvcv = size(option%analysis_atom%idx) * 3
+    else
+      nvcv = size(fitting%fitting_atom%idx) * 3
+    end if
+
+    return
+
+  end function prjcrd_vcv_size
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Subroutine    analyze
-  !> @brief        run analyzing trajectories
-  !! @authors      NT
+  !> @brief        run analyzing trajectories (CLI driver)
+  !! @authors      NT, Claude Code
   !! @param[inout] molecule   : molecule information
   !! @param[inout] trj_list   : trajectory file list information
-  !! @param[inout] trajectory : trajectory information
+  !! @param[inout] trajectory : trajectory information (kept for the caller;
+  !!                            frames are read through trj_source_mod)
   !! @param[inout] fitting    : fitting information
   !! @param[inout] option     : option information
   !! @param[inout] input      : input information
@@ -58,81 +90,53 @@ contains
                      input, output)
 
     ! formal arguments
-    type(s_molecule),        intent(inout) :: molecule
-    type(s_trj_list),        intent(inout) :: trj_list
-    type(s_trajectory),      intent(inout) :: trajectory
-    type(s_fitting),         intent(inout) :: fitting
-    type(s_option),          intent(inout) :: option
-    type(s_input),           intent(inout) :: input
-    type(s_output),          intent(inout) :: output
+    type(s_molecule),         intent(inout) :: molecule
+    type(s_trj_list), target, intent(inout) :: trj_list
+    type(s_trajectory),       intent(inout) :: trajectory
+    type(s_fitting),          intent(inout) :: fitting
+    type(s_option),           intent(inout) :: option
+    type(s_input),            intent(inout) :: input
+    type(s_output),           intent(inout) :: output
 
     ! local variables
     type(s_pdb)              :: pdb_in
-    type(s_trj_file)         :: trj_in
-    real(wp)                 :: nstru_r, ttl_mass, rmsf
-    integer                  :: natom, ntraj, nsela, nself, nstru
-    integer                  :: iatom, itraj, isel, istep, nvcv
-    integer                  :: val_in, vec_in, prj_out
+    type(s_trj_source)       :: source
+    type(s_result_sink)      :: prj_sink
+    real(wp)                 :: ttl_mass, rmsf
+    integer                  :: natom, nsela, nself, nstru
+    integer                  :: iatom, isel, nvcv
+    integer                  :: val_in, vec_in
     integer                  :: i, j, alloc_stat
 
-    real(wp),   allocatable  :: sqrt_mass (:)
     real(wp),   allocatable  :: ave_coord (:,:)
-    real(wp),   allocatable  :: aft_coord (:,:)
-    real(wp),   allocatable  :: trj_coord (:,:)
     real(wp),   allocatable  :: eig_value (:)
     real(wp),   allocatable  :: eig_vector(:,:)
-    real(wp),   allocatable  :: vector(:)
-    real(wp),   allocatable  :: project(:)
 
 
     if (option%check_only) &
       return
 
     natom = molecule%num_atoms
-    ntraj = size(trj_list%md_steps)
     nsela = size(option%analysis_atom%idx)
     nself = size(fitting%fitting_atom%idx)
-    if (option%vcv_matrix == VcvMatrixGlobal) then
-      nvcv = nsela * 3
-    else
-      nvcv = nself * 3
-    end if
+    nvcv  = prjcrd_vcv_size(fitting, option)
 
 
     ! allocate memory
     !
-    allocate(sqrt_mass (natom),      &
-             ave_coord (3,natom),    &
-             aft_coord (3,natom),    &
-             trj_coord (3,natom),    &
+    allocate(ave_coord (3,natom),    &
              eig_value (nvcv),       &
-             eig_vector(nvcv, nvcv), &
-             vector    (nvcv),       &
-             project   (option%num_pca), stat=alloc_stat)
+             eig_vector(nvcv, nvcv), stat=alloc_stat)
 
     if (alloc_stat /= 0) &
       call error_msg_alloc
 
 
-    ! prepare data
+    ! averaged coordinates: analysis atoms from pdb_avefile, fitting atoms
+    ! from pdb_aftfile (both are exports of the same averaged structure)
     !
+    ave_coord(1:3,1:natom) = 0.0_wp
 
-    ! setup mass
-    if (fitting%mass_weight) then
-      call assign_mass(molecule)
-    end if
-
-    if (fitting%mass_weight) then
-      do iatom = 1, natom
-        sqrt_mass(iatom) = sqrt(molecule%mass(iatom))
-      end do
-    else
-      do iatom = 1, natom
-        sqrt_mass(iatom) = 1.0_wp
-      end do
-    end if
-
-    ! setup average coordintes
     call input_pdb(input%pdb_avefile, pdb_in)
 
     if (nsela /= size(pdb_in%atom_name)) &
@@ -141,12 +145,11 @@ contains
 
     do isel = 1, nsela
       iatom = option%analysis_atom%idx(isel)
-      ave_coord(1:3,iatom) = pdb_in%atom_coord(1:3,isel) * sqrt_mass(iatom)
+      ave_coord(1:3,iatom) = pdb_in%atom_coord(1:3,isel)
     end do
 
     call dealloc_pdb_all(pdb_in)
 
-    ! setup fitted average coordinates
     call input_pdb(input%pdb_aftfile, pdb_in)
 
     if (nself /= size(pdb_in%atom_name)) &
@@ -155,7 +158,7 @@ contains
 
     do isel = 1, nself
       iatom = fitting%fitting_atom%idx(isel)
-      aft_coord(1:3,iatom) = pdb_in%atom_coord(1:3,isel) * sqrt_mass(iatom)
+      ave_coord(1:3,iatom) = pdb_in%atom_coord(1:3,isel)
     end do
 
     call dealloc_pdb_all(pdb_in)
@@ -174,7 +177,21 @@ contains
     call close_file(val_in)
     call close_file(vec_in)
 
-    ! setup total mass
+
+    ! projection (writes one row per structure to prjfile)
+    !
+    call init_sink_file_rows(prj_sink, output%prjfile, option%num_pca, &
+                             '(i9,100(f10.5,1x))')
+
+    call init_source_file(source, trj_list, natom)
+    call analyze_prjcrd_unified(molecule, source, fitting, option, &
+                                ave_coord, eig_vector, prj_sink, nstru)
+    call finalize_source(source)
+    call finalize_sink(prj_sink)
+
+
+    ! rmsf of each mode (mass assigned by the core when mass_weight is on)
+    !
     if (fitting%mass_weight) then
       ttl_mass = 0.0_wp
       do  isel = 1, nsela
@@ -185,14 +202,6 @@ contains
       ttl_mass = 1.0_wp
     end if
 
-    ! setup project
-    do i = 1, option%num_pca
-      project(i) = 0.0_wp
-    end do
-
-
-    ! compute rmsf
-    !
     write(MsgOut,'(A)') 'Analyze> rmsf (A)'
 
     do i = 1, option%num_pca
@@ -201,80 +210,6 @@ contains
     end do
     write(MsgOut,*)    ' '
 
-
-    ! open output file
-    !
-    call open_file(prj_out, output%prjfile, IOFileOutputNew)
-
-
-    ! analysis loop
-    !
-    nstru = 0
-
-    do itraj = 1, ntraj
-
-      call open_trj(trj_in, &
-                    trj_list%filenames(itraj), &
-                    trj_list%trj_format,       &
-                    trj_list%trj_type, IOFileInput)
-
-      do istep = 1, trj_list%md_steps(itraj)
-
-        call read_trj(trj_in, trajectory)
-
-        if (mod(istep, trj_list%ana_periods(itraj)) == 0) then
-
-          nstru = nstru + 1
-          write(MsgOut,*) '      number of structures = ', nstru
-
-
-          ! geometrical fitting
-          !
-          call run_fitting(fitting,             &
-                           molecule%atom_coord, &
-                           trajectory%coord,    &
-                           trajectory%coord)
-
-          ! mass-weighted fitting
-          !
-          do iatom = 1, natom
-            trj_coord(1:3,iatom) = trajectory%coord(1:3,iatom)*sqrt_mass(iatom)
-          end do
-
-          call run_fitting(fitting,   &
-                           aft_coord, &
-                           trj_coord, &
-                           trj_coord)
-
-          if (option%vcv_matrix == VcvMatrixGlobal) then
-
-            call sum_project(option%analysis_atom%idx, &
-                             option%num_pca, ttl_mass, &
-                             trj_coord, ave_coord,     &
-                             eig_vector, vector, project)
-          else
-
-            call sum_project(fitting%fitting_atom%idx, &
-                             option%num_pca, ttl_mass, &
-                             trj_coord, aft_coord,     &
-                             eig_vector, vector, project)
-          end if
-
-          call out_project(prj_out, option%num_pca, nstru, &
-                             project)
-
-        end if
-
-      end do
-
-      call close_trj(trj_in)
-
-    end do
-
-
-    ! close output file
-    !
-    call close_file(prj_out)
 
     ! Output summary
     !
@@ -290,14 +225,169 @@ contains
 
     ! deallocate memory
     !
-    deallocate(project, vector, eig_vector, eig_value, &
-               trj_coord, aft_coord, ave_coord, sqrt_mass)
+    deallocate(eig_vector, eig_value, ave_coord)
 
     return
 
 900 call error_msg('Analyze> mismatch VEC/ VAL file from atom selection count')
 
   end subroutine analyze
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    analyze_prjcrd_unified
+  !> @brief        projection of the fitted, mass-weighted fluctuations about
+  !!               an averaged structure onto principal modes (shared by the
+  !!               CLI and the Python interface)
+  !! @authors      NT, Claude Code
+  !! @param[inout] molecule   : molecule information (mass may be assigned)
+  !! @param[inout] source     : trajectory source (file, memory or lazy DCD)
+  !! @param[inout] fitting    : fitting information
+  !! @param[in]    option     : option information (num_pca modes are used)
+  !! @param[in]    ave_coord  : averaged coordinates (3, natom), not mass
+  !!                            weighted; only the analysis and fitting
+  !!                            atoms are read
+  !! @param[in]    eig_vector : eigenvectors (nvcv, >= num_pca); column k is
+  !!                            the k-th principal mode,
+  !!                            nvcv = prjcrd_vcv_size(fitting, option)
+  !! @param[inout] prj_sink   : receives num_pca projections per structure
+  !! @param[out]   nstru_out  : number of structures analysed
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine analyze_prjcrd_unified(molecule, source, fitting, option, &
+                                    ave_coord, eig_vector, prj_sink, nstru_out)
+
+    ! formal arguments
+    type(s_molecule),        intent(inout) :: molecule
+    type(s_trj_source),      intent(inout) :: source
+    type(s_fitting),         intent(inout) :: fitting
+    type(s_option),          intent(in)    :: option
+    real(wp),                intent(in)    :: ave_coord(:,:)
+    real(wp),                intent(in)    :: eig_vector(:,:)
+    type(s_result_sink),     intent(inout) :: prj_sink
+    integer,                 intent(out)   :: nstru_out
+
+    ! local variables
+    type(s_trajectory)       :: trajectory
+    real(wp)                 :: ttl_mass
+    integer                  :: natom, nvcv, nsela, nstru
+    integer                  :: iatom, isel, alloc_stat, frame_status
+
+    real(wp),   allocatable  :: sqrt_mass (:)
+    real(wp),   allocatable  :: ave_w     (:,:)
+    real(wp),   allocatable  :: trj_coord (:,:)
+    real(wp),   allocatable  :: vector(:)
+    real(wp),   allocatable  :: project(:)
+
+
+    natom = molecule%num_atoms
+    nsela = size(option%analysis_atom%idx)
+    nvcv  = prjcrd_vcv_size(fitting, option)
+
+    if (option%num_pca < 1) &
+      call error_msg('Analyze_Prjcrd_Unified> num_pca must be positive')
+    if (option%num_pca > nvcv) &
+      call error_msg('Analyze_Prjcrd_Unified> num_pca exceeds the number of modes')
+    if (size(ave_coord,1) /= 3 .or. size(ave_coord,2) < natom) &
+      call error_msg('Analyze_Prjcrd_Unified> ave_coord must be (3, natom)')
+    if (size(eig_vector,1) < nvcv .or. size(eig_vector,2) < option%num_pca) &
+      call error_msg('Analyze_Prjcrd_Unified> eig_vector is too small')
+
+    allocate(sqrt_mass (natom),   &
+             ave_w     (3,natom), &
+             trj_coord (3,natom), &
+             vector    (nvcv),    &
+             project   (option%num_pca), stat=alloc_stat)
+    if (alloc_stat /= 0) &
+      call error_msg_alloc
+
+    ! setup mass
+    !
+    if (fitting%mass_weight) then
+      call assign_mass(molecule)
+      do iatom = 1, natom
+        sqrt_mass(iatom) = sqrt(molecule%mass(iatom))
+      end do
+    else
+      do iatom = 1, natom
+        sqrt_mass(iatom) = 1.0_wp
+      end do
+    end if
+
+    ! mass-weighted averaged coordinates
+    !
+    do iatom = 1, natom
+      ave_w(1:3,iatom) = ave_coord(1:3,iatom) * sqrt_mass(iatom)
+    end do
+
+    ! setup total mass
+    !
+    if (fitting%mass_weight) then
+      ttl_mass = 0.0_wp
+      do  isel = 1, nsela
+        iatom = option%analysis_atom%idx(isel)
+        ttl_mass = ttl_mass + molecule%mass(iatom)
+      end do
+    else
+      ttl_mass = 1.0_wp
+    end if
+
+    project(1:option%num_pca) = 0.0_wp
+
+    ! analysis loop
+    !
+    nstru = 0
+    call reset_source(source)
+
+    do while (has_more_frames(source))
+
+      call get_next_frame(source, trajectory, frame_status)
+      if (frame_status /= 0) exit
+
+      nstru = nstru + 1
+      write(MsgOut,*) '      number of structures = ', nstru
+
+      ! geometrical fitting
+      !
+      call run_fitting(fitting,             &
+                       molecule%atom_coord, &
+                       trajectory%coord,    &
+                       trajectory%coord)
+
+      ! mass-weighted fitting
+      !
+      do iatom = 1, natom
+        trj_coord(1:3,iatom) = trajectory%coord(1:3,iatom)*sqrt_mass(iatom)
+      end do
+
+      call run_fitting(fitting,   &
+                       ave_w,     &
+                       trj_coord, &
+                       trj_coord)
+
+      if (option%vcv_matrix == VcvMatrixGlobal) then
+        call sum_project(option%analysis_atom%idx, &
+                         option%num_pca, ttl_mass, &
+                         trj_coord, ave_w, eig_vector, vector, project)
+      else
+        call sum_project(fitting%fitting_atom%idx, &
+                         option%num_pca, ttl_mass, &
+                         trj_coord, ave_w, eig_vector, vector, project)
+      end if
+
+      call write_result_row(prj_sink, project)
+      write(MsgOut, '(i9,100(f10.5,1x))') nstru, project(1:option%num_pca)
+
+    end do
+
+    nstru_out = nstru
+
+    deallocate(project, vector, trj_coord, ave_w, sqrt_mass)
+
+    return
+
+  end subroutine analyze_prjcrd_unified
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -417,32 +507,5 @@ contains
     return
 
   end subroutine sum_project
-
-  !======1=========2=========3=========4=========5=========6=========7=========8
-  !
-  !  Subroutine    out_project
-  !> @brief        out project
-  !! @authors      NT
-  !
-  !======1=========2=========3=========4=========5=========6=========7=========8
-
-  subroutine out_project(prj_out, num_pca, nstru, project)
-
-    ! formal arguments
-    integer,                 intent(in)    :: prj_out
-    integer,                 intent(in)    :: num_pca
-    integer,                 intent(in)    :: nstru
-    real(wp),                intent(in)    :: project(:)
-    
-    ! local variables
-    integer                  :: i
-
-
-    write(prj_out, '(i9,100(f10.5,1x))') nstru, (project(i),i=1,num_pca)
-    write(MsgOut,  '(i9,100(f10.5,1x))') nstru, (project(i),i=1,num_pca)
-
-    return
-
-  end subroutine out_project
 
 end module pa_analyze_mod

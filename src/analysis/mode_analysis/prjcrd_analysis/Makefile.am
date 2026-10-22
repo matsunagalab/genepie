@@ -15,6 +15,7 @@ endif
 SUBDIRS := ../../libana .
 
 bin_PROGRAMS = prjcrd_analysis
+noinst_LIBRARIES = libprjcrd_analysis.a
 
 prjcrd_analysis_SOURCES = \
         pa_option_str.fpp \
@@ -53,6 +54,11 @@ prjcrd_analysis$(EXEEXT) : $(prjcrd_analysis_OBJECTS) \
 			$(prjcrd_analysis_ADDLIBANA) $(prjcrd_analysis_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(prjcrd_analysis_OBJECTS) \
 		$(prjcrd_analysis_ADDLIBANA) $(prjcrd_analysis_ADDLIB) $(LDFLAGS)
+
+$(noinst_LIBRARIES) : $(prjcrd_analysis_OBJECTS)
+	$(AR) $(ARFLAGS) cr $@ $(prjcrd_analysis_OBJECTS)
+
+libprjcrd_analysis.o : ;
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

@@ -15,6 +15,7 @@ endif
 SUBDIRS := ../../libana .
 
 bin_PROGRAMS = flccrd_analysis
+noinst_LIBRARIES = libflccrd_analysis.a
 
 flccrd_analysis_SOURCES = \
         fa_option_str.fpp \
@@ -53,6 +54,11 @@ flccrd_analysis$(EXEEXT) : $(flccrd_analysis_ADDLIBANA) $(flccrd_analysis_ADDLIB
 							$(flccrd_analysis_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(flccrd_analysis_OBJECTS) \
 		$(flccrd_analysis_ADDLIBANA) $(flccrd_analysis_ADDLIB) $(LDFLAGS)
+
+$(noinst_LIBRARIES) : $(flccrd_analysis_OBJECTS)
+	$(AR) $(ARFLAGS) cr $@ $(flccrd_analysis_OBJECTS)
+
+libflccrd_analysis.o : ;
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

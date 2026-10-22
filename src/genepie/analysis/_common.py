@@ -68,6 +68,61 @@ def _prepare_lazy_trajectory(trajs, ana_period: int):
     )
 
 
+class _SourceArgs:
+    """The trajectory-source arguments of a ``*_c`` entry point.
+
+    Wrappers whose Fortran side uses ``source_args_mod`` accept either an
+    in-memory :class:`STrajectories` or a lazy DCD through the same nine C
+    arguments. :attr:`args` holds them in call order; :attr:`n_frames` is the
+    number of frames the analysis will produce; :attr:`keep` holds the
+    NumPy/ctypes objects that must stay alive during the call.
+    """
+
+    def __init__(self, trajs, ana_period: int):
+        import ctypes
+        from ..s_trajectories_c import STrajectoriesC
+
+        if ana_period <= 0:
+            raise GenesisValidationError(
+                f"ana_period must be positive, got {ana_period}"
+            )
+        if trajs.is_lazy:
+            dcd_bytes, sel, period, n_frames = \
+                _prepare_lazy_trajectory(trajs, ana_period)
+            dummy = STrajectoriesC()
+            self.keep = [dcd_bytes, sel, dummy]
+            self.args = (
+                ctypes.byref(dummy),
+                ctypes.c_int(1),
+                dcd_bytes,
+                ctypes.c_int(len(dcd_bytes)),
+                ctypes.c_int(trajs.lazy_trj_type),
+                ctypes.c_int(trajs.lazy_dcd_natom),
+                sel.ctypes.data_as(ctypes.c_void_p),
+                ctypes.c_int(trajs.natom),
+                ctypes.c_int(period),
+            )
+        else:
+            n_frames = trajs.nframe // ana_period
+            if n_frames <= 0:
+                raise GenesisValidationError(
+                    f"ana_period={ana_period} selects no trajectory frames"
+                )
+            self.keep = []
+            self.args = (
+                ctypes.byref(trajs.get_c_obj()),
+                ctypes.c_int(0),
+                b"",
+                ctypes.c_int(0),
+                ctypes.c_int(0),
+                ctypes.c_int(0),
+                ctypes.c_void_p(0),
+                ctypes.c_int(0),
+                ctypes.c_int(ana_period),
+            )
+        self.n_frames = n_frames
+
+
 def _pack_filenames(filenames: List[str]) -> Tuple[bytes, int, int]:
     """Pack list of filenames into fixed-width byte buffer for Fortran.
 

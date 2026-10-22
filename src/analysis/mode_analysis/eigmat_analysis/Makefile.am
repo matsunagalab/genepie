@@ -15,6 +15,7 @@ endif
 SUBDIRS := ../../libana .
 
 bin_PROGRAMS = eigmat_analysis
+noinst_LIBRARIES = libeigmat_analysis.a
 
 eigmat_analysis_SOURCES = \
         ea_control.fpp \
@@ -51,6 +52,11 @@ eigmat_analysis$(EXEEXT) : $(eigmat_analysis_ADDLIBANA) $(eigmat_analysis_ADDLIB
 							$(eigmat_analysis_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(eigmat_analysis_OBJECTS) \
 		$(eigmat_analysis_ADDLIBANA) $(eigmat_analysis_ADDLIB) $(LDFLAGS)
+
+$(noinst_LIBRARIES) : $(eigmat_analysis_OBJECTS)
+	$(AR) $(ARFLAGS) cr $@ $(eigmat_analysis_OBJECTS)
+
+libeigmat_analysis.o : ;
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

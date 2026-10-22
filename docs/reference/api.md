@@ -48,11 +48,31 @@ file); `subset_mol` is the molecule reduced to the selected atoms.
 | `rg_analysis(mol, traj, analysis_selection, mass_weighted, ...)` | `RgAnalysisResult(rg)` | ✓ | ✓ (via lazy traj) |
 | `drms_analysis(traj, contact_list, contact_dist, ...)` | `DrmsAnalysisResult(drms)` | ✓ | ✓ (via lazy traj) |
 | `trj_analysis(traj, [distance_pairs, angle_triplets, torsion_quadruplets, cdis_groups, cang_groups], ...)` | `TrjAnalysisResult(distance, angle, torsion, com_distance, com_angle)` | ✓ | – |
-| `avecrd_analysis(mol, traj, selection_group, fitting_method, ...)` | `AvecrdAnalysisResult(pdb, ...)` | – | – |
+| `avecrd_analysis(mol, traj, selection_group, fitting_method, fitting_atom, num_iterations, analysis_atom, ...)` | `AvecrdAnalysisResult(pdb, coord)` — `coord` is the `(natom, 3)` average of every atom | ✓ | ✓ (via lazy traj) |
 | `hb_analysis(mol, traj, selection_group, output_type, ...)` | hydrogen-bond counts/records | – | – |
 
 Selection strings and `fitting_method` values (`"NO"`, `"TR"`, `"TR+ROT"`,
 `"TR+ZROT"`, `"XYTR"`, `"XYTR+ZROT"`) are **case-insensitive**.
+
+## Principal component analysis
+
+| Function | Returns (namedtuple) | Zerocopy | Lazy |
+|----------|----------------------|:--------:|:----:|
+| `pca_analysis(mol, traj, analysis_selection="an:CA", [fitting_selection, fitting_method, mass_weighted, num_pca, num_iterations, vcv_matrix, ana_period])` | `PcaAnalysisResult(projection, eigenvalues, eigenvectors, contribution, rmsf, ave_coord, vcv_matrix)` | ✓ | ✓ (via lazy traj) |
+| `flccrd_analysis(mol, traj, ave_coord, analysis_selection, [fitting_selection, fitting_method, mass_weighted, vcv_matrix, ana_period])` | `FlccrdAnalysisResult(vcv_matrix, rmsf)` | ✓ | ✓ (via lazy traj) |
+| `eigmat_analysis(vcv_matrix)` | `EigmatAnalysisResult(eigenvalues, eigenvectors, contribution)` | ✓ | – |
+| `prjcrd_analysis(mol, traj, ave_coord, eigenvectors, analysis_selection, [num_pca, fitting_selection, fitting_method, mass_weighted, vcv_matrix, ana_period])` | `PrjcrdAnalysisResult(projection)` | ✓ | ✓ (via lazy traj) |
+
+`pca_analysis` runs `avecrd_analysis` (iterative fit-and-average, `num_iterations` cycles seeded by the
+coordinates of `mol`) → `flccrd_analysis` → `eigmat_analysis` → `prjcrd_analysis`, i.e. the GENESIS
+mode-analysis pipeline, with translation and rotation removed by fitting every frame onto the converged
+average before the covariance is accumulated. Shapes: `projection` is `(nframe, num_pca)`,
+`eigenvalues` is `(3*nsel,)` in descending order, `eigenvectors[k]` is the `k`-th mode (the `k`-th
+column of the CLI `vecfile`), `contribution = eigenvalues / eigenvalues.sum()`, `rmsf` is `(nsel,)` in Å,
+`ave_coord` is `(natom, 3)`, `vcv_matrix` is `(3*nsel, 3*nsel)` divided by `nframe`. The covariance
+spans the `analysis_selection` atoms (`vcv_matrix="GLOBAL"`) or the fitting atoms (`"LOCAL"`).
+`mass_weighted=True` assigns masses from the atom names (as the CLI tools do) and mass-weights fitting,
+averaging, and fluctuations.
 
 ## Dynamics
 
