@@ -51,20 +51,18 @@ contains
   !! @param[inout] molecule   : molecule information
   !! @param[in]    input      : input information
   !! @param[inout] trj_list   : trajectory file list information
-  !! @param[inout] trajectory : trajectory information
   !! @param[inout] fitting    : fitting information
   !! @param[inout] option     : option information
   !! @param[inout] output     : output information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine analyze(molecule, input, trj_list, trajectory, fitting, option, output)
+  subroutine analyze(molecule, input, trj_list, fitting, option, output)
 
     ! formal arguments
     type(s_molecule),         intent(inout) :: molecule
     type(s_input),            intent(in)    :: input
     type(s_trj_list), target, intent(inout) :: trj_list
-    type(s_trajectory),       intent(inout) :: trajectory
     type(s_fitting),          intent(inout) :: fitting
     type(s_option),           intent(inout) :: option
     type(s_output),           intent(inout) :: output

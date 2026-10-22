@@ -71,7 +71,7 @@ program ra_main
   write(MsgOut,'(A)') '[STEP3] Analysis trajectory files'
   write(MsgOut,'(A)') ' '
 
-  call analyze(molecule, trj_list, output, option, trajectory, fitting)
+  call analyze(molecule, trj_list, output, option, fitting)
 
 
   ! [Step4] Deallocate memory

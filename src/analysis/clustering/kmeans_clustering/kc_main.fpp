@@ -82,8 +82,7 @@ program kc_main
 
   call analyze(molecule,   &
                input,      &
-               trj_list,   &
-               trajectory, &
+               trj_list, &
                fitting,    &
                option,     &
                output)

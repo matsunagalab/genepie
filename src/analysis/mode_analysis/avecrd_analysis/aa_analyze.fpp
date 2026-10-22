@@ -45,20 +45,17 @@ contains
   !! @authors      TM
   !! @param[inout] molecule   : molecule information (averaged on return)
   !! @param[in]    trj_list   : trajectory file list information
-  !! @param[inout] trajectory : trajectory information (kept for the caller;
-  !!                            frames are read through trj_source_mod)
   !! @param[inout] fitting    : fitting information
   !! @param[inout] option     : option information
   !! @param[inout] output     : output information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine analyze(molecule, trj_list, trajectory, fitting, option, output)
+  subroutine analyze(molecule, trj_list, fitting, option, output)
 
     ! formal arguments
     type(s_molecule),         intent(inout) :: molecule
     type(s_trj_list), target, intent(inout) :: trj_list
-    type(s_trajectory),       intent(inout) :: trajectory
     type(s_fitting),          intent(inout) :: fitting
     type(s_option),           intent(inout) :: option
     type(s_output),           intent(inout) :: output

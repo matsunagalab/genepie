@@ -65,7 +65,7 @@ program rg_main
   write(MsgOut,'(A)') '[STEP3] Analysis trajectory files'
   write(MsgOut,'(A)') ' '
 
-  call analyze(molecule, trj_list, output, option, trajectory)
+  call analyze(molecule, trj_list, output, option)
 
   ! [STEP4] Deallocate memory
   !

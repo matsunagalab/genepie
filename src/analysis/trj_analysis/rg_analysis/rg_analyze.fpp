@@ -45,19 +45,16 @@ contains
   !! @param[in]    trj_list   : trajectory file list information
   !! @param[in]    output     : output information
   !! @param[inout] option     : option information
-  !! @param[inout] trajectory : trajectory information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine analyze(molecule, trj_list, output, option, trajectory)
+  subroutine analyze(molecule, trj_list, output, option)
 
     ! formal arguments
     type(s_molecule),         intent(inout) :: molecule
     type(s_trj_list), target, intent(in)    :: trj_list
     type(s_output),           intent(in)    :: output
     type(s_option),           intent(inout) :: option
-    type(s_trajectory),       intent(inout) :: trajectory
-
     ! local variables
     type(s_trj_source)        :: source
     type(s_result_sink)       :: sink

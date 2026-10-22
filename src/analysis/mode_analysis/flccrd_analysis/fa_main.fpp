@@ -81,8 +81,7 @@ program fa_main
   write(MsgOut,'(A)') ' '
 
   call analyze(molecule,   &
-               trj_list,   &
-               trajectory, &
+               trj_list, &
                fitting,    &
                option,     &
                input,      &

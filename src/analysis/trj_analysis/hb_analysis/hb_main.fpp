@@ -75,8 +75,7 @@ program hb_main
   write(MsgOut,'(A)') ' '
 
   call analyze(molecule,   &
-               trj_list,   &
-               trajectory, &
+               trj_list, &
                option,     &
                output)
 
